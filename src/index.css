@@ -3529,37 +3529,79 @@ input:focus-visible {
   }
 
   .verse-overlay {
-    padding: 0;
-    align-items: flex-end;
-  }
+  padding:
+    max(16px, env(safe-area-inset-top))
+    16px
+    max(16px, env(safe-area-inset-bottom));
 
-  .verse-card {
-    width: 100%;
-    max-height: 88dvh;
+  align-items: center;
+  justify-content: center;
 
-    border-radius: 24px 24px 0 0;
-  }
+  overflow: hidden;
+}
 
-  .verse-header {
-    padding: 20px 18px 16px;
-  }
+.verse-card {
+  width: min(100%, 520px);
+  max-width: calc(100vw - 32px);
+  max-height: calc(100dvh - 32px);
 
-  .verse-header h2 {
-    font-size: 23px;
-  }
+  min-width: 0;
 
-  .verse-content {
-    padding: 18px;
-  }
+  border-radius: 20px;
 
-  .verse-text {
-    font-size: 17px;
-  }
+  overflow: hidden;
+}
 
-  .verse-footer {
-    padding:
-      12px 18px calc(12px + env(safe-area-inset-bottom));
-  }
+.verse-header {
+  min-width: 0;
+
+  padding: 18px 16px 14px;
+}
+
+.verse-header > div {
+  min-width: 0;
+}
+
+.verse-header h2 {
+  max-width: 100%;
+
+  margin: 5px 0 0;
+
+  font-size: 22px;
+  line-height: 1.2;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.verse-content {
+  min-width: 0;
+
+  padding: 16px;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.verse-text {
+  max-width: 100%;
+
+  margin: 0 0 14px;
+
+  font-size: 17px;
+  line-height: 1.6;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.verse-footer {
+  min-width: 0;
+
+  padding: 11px 16px;
+
+  flex-wrap: wrap;
+}
 
   .reference-popover {
     width: 210px;
