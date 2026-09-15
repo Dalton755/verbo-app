@@ -3917,6 +3917,10 @@ input:focus-visible {
 .book-reader {
   --book-font-size: 20px;
   --book-line-height: 1.7;
+  width: 100%;
+max-width: 100vw;
+
+overflow-x: hidden;
 
   min-height: 100dvh;
 
@@ -4165,10 +4169,15 @@ input:focus-visible {
     min(calc(100% - 42px),
       760px);
 
+  max-width: 100%;
+  min-width: 0;
+
   margin: 0 auto;
 
   padding:
     68px 0 130px;
+
+  overflow-x: hidden;
 }
 
 .book-cover {
@@ -4230,10 +4239,16 @@ input:focus-visible {
 }
 
 .book-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
   scroll-margin-top: 95px;
 
   padding:
     54px 0;
+
+  overflow-x: hidden;
 }
 
 .book-page+.book-page {
@@ -4283,6 +4298,18 @@ input:focus-visible {
     -0.008em;
 
   text-wrap: pretty;
+}
+
+.book-page p,
+.book-page h1,
+.book-page h2,
+.book-page h3,
+.book-page span,
+.book-page div {
+  max-width: 100%;
+
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .book-reader .sermon-bible-link {
