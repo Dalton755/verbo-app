@@ -571,19 +571,7 @@ function LivrosPage() {
             </div>
 
             {modalAberto && (
-                <div
-                    className="modal-overlay"
-                    onMouseDown={(
-                        event,
-                    ) => {
-                        if (
-                            event.target ===
-                            event.currentTarget
-                        ) {
-                            fecharImportacao();
-                        }
-                    }}
-                >
+                <divclassName="modal-overlay">
                     <div className="modal-card">
                         <div className="modal-header">
                             <div className="modal-icon">
