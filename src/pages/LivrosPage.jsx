@@ -571,7 +571,7 @@ function LivrosPage() {
             </div>
 
             {modalAberto && (
-                <divclassName="modal-overlay">
+                <div className="modal-overlay">
                     <div className="modal-card">
                         <div className="modal-header">
                             <div className="modal-icon">
