@@ -1,0 +1,1140 @@
+﻿import { withSupabase } from "npm:@supabase/server@^1";
+
+function numero(valor: unknown) {
+  const convertido =
+    Number(valor);
+
+  return Number.isFinite(
+    convertido,
+  )
+    ? convertido
+    : null;
+}
+
+
+function mesmoValor(
+  a: unknown,
+  b: unknown,
+) {
+  const primeiro =
+    numero(a);
+
+  const segundo =
+    numero(b);
+
+  if (
+    primeiro === null ||
+    segundo === null
+  ) {
+    return false;
+  }
+
+  return (
+    Math.abs(
+      primeiro -
+      segundo,
+    ) < 0.005
+  );
+}
+
+
+function statusMpAutorizado(
+  status: unknown,
+) {
+  return (
+    String(
+      status ?? "",
+    )
+      .trim()
+      .toLowerCase() ===
+    "authorized"
+  );
+}
+
+
+export default {
+  fetch: withSupabase(
+    { auth: "user" },
+
+    async (req, ctx) => {
+      const usuarioId =
+        ctx.userClaims?.id ??
+        ctx.jwtClaims?.sub;
+
+
+      if (!usuarioId) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Usuário não identificado.",
+          },
+          { status: 401 },
+        );
+      }
+
+
+      let corpo: any;
+
+      try {
+        corpo =
+          await req.json();
+      } catch {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Corpo da requisição inválido.",
+          },
+          { status: 400 },
+        );
+      }
+
+
+      const planoCodigo =
+        typeof corpo?.planoCodigo ===
+          "string"
+          ? corpo.planoCodigo.trim()
+          : "";
+
+
+      if (!planoCodigo) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Plano de destino não informado.",
+          },
+          { status: 400 },
+        );
+      }
+
+
+      const accessToken =
+        Deno.env.get(
+          "MERCADO_PAGO_ACCESS_TOKEN",
+        );
+
+
+      if (!accessToken) {
+        console.error(
+          "MERCADO_PAGO_ACCESS_TOKEN não configurado.",
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Pagamento temporariamente indisponível.",
+          },
+          { status: 500 },
+        );
+      }
+
+
+      const bancoAdmin =
+        ctx.supabaseAdmin
+          .schema(
+            "biblia_slides",
+          );
+
+
+      /*
+       * =====================================================
+       * 1. PLANO DE DESTINO
+       * =====================================================
+       *
+       * Preço e limite sempre vêm do banco.
+       * Nunca confiamos no frontend.
+       */
+
+      const {
+        data: planoDestino,
+        error: erroPlanoDestino,
+      } =
+        await bancoAdmin
+          .from(
+            "planos_armazenamento",
+          )
+          .select(`
+            id,
+            codigo,
+            nome,
+            limite_bytes,
+            preco,
+            tipo_cobranca,
+            ativo
+          `)
+          .eq(
+            "codigo",
+            planoCodigo,
+          )
+          .eq(
+            "ativo",
+            true,
+          )
+          .eq(
+            "tipo_cobranca",
+            "MENSAL",
+          )
+          .maybeSingle();
+
+
+      if (
+        erroPlanoDestino ||
+        !planoDestino
+      ) {
+        console.error(
+          "Plano de destino não encontrado:",
+          erroPlanoDestino,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Plano de armazenamento não encontrado.",
+          },
+          { status: 404 },
+        );
+      }
+
+
+      const precoDestino =
+        numero(
+          planoDestino.preco,
+        );
+
+
+      if (
+        precoDestino === null ||
+        precoDestino <= 0
+      ) {
+        console.error(
+          "Preço inválido no plano de destino.",
+          {
+            planoCodigo:
+              planoDestino.codigo,
+          },
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Preço do plano inválido.",
+          },
+          { status: 500 },
+        );
+      }
+
+
+      /*
+       * =====================================================
+       * 2. ARMAZENAMENTO MENSAL ATIVO
+       * =====================================================
+       */
+
+      const {
+        data: armazenamento,
+        error: erroArmazenamento,
+      } =
+        await bancoAdmin
+          .from(
+            "armazenamento_usuarios",
+          )
+          .select(`
+            id,
+            plano_id,
+            status,
+            provedor,
+            provedor_assinatura_id,
+            preco_mensal_contratado,
+            proximo_vencimento_em
+          `)
+          .eq(
+            "usuario_id",
+            usuarioId,
+          )
+          .eq(
+            "status",
+            "ATIVA",
+          )
+          .maybeSingle();
+
+
+      if (
+        erroArmazenamento ||
+        !armazenamento
+      ) {
+        console.error(
+          "Assinatura mensal ativa não encontrada:",
+          erroArmazenamento,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Você não possui uma assinatura mensal ativa para alterar.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      if (
+        armazenamento.provedor !==
+        "MERCADO_PAGO"
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Esta assinatura não pode ser alterada por este fluxo.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      const preapprovalId =
+        typeof armazenamento
+          .provedor_assinatura_id ===
+          "string"
+          ? armazenamento
+            .provedor_assinatura_id
+            .trim()
+          : "";
+
+
+      if (!preapprovalId) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Assinatura do Mercado Pago não identificada.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * =====================================================
+       * 3. PLANO ATUAL
+       * =====================================================
+       */
+
+      const {
+        data: planoAtual,
+        error: erroPlanoAtual,
+      } =
+        await bancoAdmin
+          .from(
+            "planos_armazenamento",
+          )
+          .select(`
+            id,
+            codigo,
+            nome,
+            limite_bytes,
+            preco
+          `)
+          .eq(
+            "id",
+            armazenamento.plano_id,
+          )
+          .maybeSingle();
+
+
+      if (
+        erroPlanoAtual ||
+        !planoAtual
+      ) {
+        console.error(
+          "Plano atual não encontrado:",
+          erroPlanoAtual,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Plano atual não encontrado.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * Retry idempotente depois de
+       * uma troca já concluída.
+       */
+      if (
+        planoAtual.id ===
+        planoDestino.id
+      ) {
+        const respostaAtual =
+          await fetch(
+            `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+              preapprovalId,
+            )}`,
+            {
+              method:
+                "GET",
+
+              headers: {
+                Authorization:
+                  `Bearer ${accessToken}`,
+              },
+            },
+          );
+
+
+        const assinaturaAtualMP =
+          await respostaAtual
+            .json()
+            .catch(
+              () => null,
+            );
+
+
+        if (
+          respostaAtual.ok &&
+          assinaturaAtualMP?.id ===
+            preapprovalId &&
+          statusMpAutorizado(
+            assinaturaAtualMP
+              ?.status,
+          ) &&
+          String(
+            assinaturaAtualMP
+              ?.auto_recurring
+              ?.currency_id ??
+            "",
+          )
+            .toUpperCase() ===
+            "BRL" &&
+          mesmoValor(
+            assinaturaAtualMP
+              ?.auto_recurring
+              ?.transaction_amount,
+            precoDestino,
+          )
+        ) {
+          return Response.json({
+            ok: true,
+            reutilizado: true,
+
+            armazenamentoId:
+              armazenamento.id,
+
+            planoOrigem:
+              planoAtual.codigo,
+
+            planoDestino:
+              planoDestino.codigo,
+
+            precoNovo:
+              precoDestino,
+
+            proximoVencimentoEm:
+              armazenamento
+                .proximo_vencimento_em,
+          });
+        }
+
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O plano já está registrado localmente, mas a assinatura do Mercado Pago precisa ser reconciliada.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * Somente aumento de espaço.
+       */
+      if (
+        Number(
+          planoDestino
+            .limite_bytes,
+        ) <=
+        Number(
+          planoAtual
+            .limite_bytes,
+        )
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Escolha um plano com espaço superior ao atual.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      const precoAnterior =
+        numero(
+          armazenamento
+            .preco_mensal_contratado,
+        );
+
+
+      if (
+        precoAnterior === null ||
+        precoAnterior <= 0
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Preço atual da assinatura não encontrado.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * =====================================================
+       * 4. ASSINATURA LOCAL DO PROVEDOR
+       * =====================================================
+       */
+
+      const {
+        data: assinaturaLocal,
+        error: erroAssinaturaLocal,
+      } =
+        await bancoAdmin
+          .from(
+            "assinaturas_armazenamento_provedor",
+          )
+          .select(`
+            id,
+            usuario_id,
+            plano_id,
+            armazenamento_id,
+            provedor,
+            referencia_externa,
+            preapproval_id,
+            status,
+            preco_mensal,
+            usar_credito_base
+          `)
+          .eq(
+            "usuario_id",
+            usuarioId,
+          )
+          .eq(
+            "preapproval_id",
+            preapprovalId,
+          )
+          .eq(
+            "provedor",
+            "MERCADO_PAGO",
+          )
+          .maybeSingle();
+
+
+      if (
+        erroAssinaturaLocal ||
+        !assinaturaLocal
+      ) {
+        console.error(
+          "Assinatura local do provedor não encontrada:",
+          erroAssinaturaLocal,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Assinatura do Mercado Pago não encontrada localmente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      if (
+        assinaturaLocal.status !==
+        "AUTORIZADA"
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "A assinatura precisa estar autorizada para trocar de plano.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      if (
+        assinaturaLocal
+          .armazenamento_id !==
+        armazenamento.id
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O vínculo da assinatura com o armazenamento está divergente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      if (
+        assinaturaLocal.plano_id !==
+        planoAtual.id
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O plano registrado na assinatura está divergente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      if (
+        !mesmoValor(
+          assinaturaLocal
+            .preco_mensal,
+          precoAnterior,
+        )
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O preço local da assinatura está divergente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * =====================================================
+       * 5. CONSULTA A FONTE REAL: MERCADO PAGO
+       * =====================================================
+       */
+
+      const respostaConsulta =
+        await fetch(
+          `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+            preapprovalId,
+          )}`,
+          {
+            method:
+              "GET",
+
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+            },
+          },
+        );
+
+
+      const assinaturaMP =
+        await respostaConsulta
+          .json()
+          .catch(
+            () => null,
+          );
+
+
+      if (!respostaConsulta.ok) {
+        console.error(
+          "Erro ao consultar preapproval no Mercado Pago:",
+          {
+            status:
+              respostaConsulta.status,
+
+            resposta:
+              assinaturaMP,
+          },
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Não foi possível consultar a assinatura no Mercado Pago.",
+          },
+          { status: 502 },
+        );
+      }
+
+
+      if (
+        assinaturaMP?.id !==
+        preapprovalId
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "A assinatura retornada pelo Mercado Pago é divergente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      if (
+        !statusMpAutorizado(
+          assinaturaMP?.status,
+        )
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "A assinatura não está autorizada no Mercado Pago.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      const moedaAtual =
+        String(
+          assinaturaMP
+            ?.auto_recurring
+            ?.currency_id ??
+          "",
+        )
+          .trim()
+          .toUpperCase();
+
+
+      if (moedaAtual !== "BRL") {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Moeda da assinatura divergente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      const precoAtualMP =
+        numero(
+          assinaturaMP
+            ?.auto_recurring
+            ?.transaction_amount,
+        );
+
+
+      if (precoAtualMP === null) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O Mercado Pago não retornou o valor atual da assinatura.",
+          },
+          { status: 502 },
+        );
+      }
+
+
+      /*
+       * Se o MP já está no preço novo,
+       * provavelmente uma tentativa anterior
+       * parou entre o PUT e o RPC.
+       *
+       * Nesse caso não fazemos outro PUT:
+       * apenas completamos o banco.
+       */
+      const mpJaNoDestino =
+        mesmoValor(
+          precoAtualMP,
+          precoDestino,
+        );
+
+
+      if (
+        !mpJaNoDestino &&
+        !mesmoValor(
+          precoAtualMP,
+          precoAnterior,
+        )
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O valor da assinatura no Mercado Pago está diferente do valor esperado. Faça a reconciliação antes de continuar.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * Referência externa, quando presente,
+       * também deve continuar pertencendo
+       * ao mesmo registro local.
+       */
+      const referenciaMP =
+        typeof assinaturaMP
+          ?.external_reference ===
+          "string"
+          ? assinaturaMP
+            .external_reference
+            .trim()
+          : "";
+
+
+      const referenciaLocal =
+        typeof assinaturaLocal
+          .referencia_externa ===
+          "string"
+          ? assinaturaLocal
+            .referencia_externa
+            .trim()
+          : "";
+
+
+      if (
+        referenciaMP &&
+        referenciaLocal &&
+        referenciaMP !==
+          referenciaLocal
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "A referência da assinatura no Mercado Pago está divergente.",
+          },
+          { status: 409 },
+        );
+      }
+
+
+      /*
+       * =====================================================
+       * 6. ALTERA O PREÇO NO MERCADO PAGO
+       * =====================================================
+       */
+
+      let alterouMercadoPago =
+        false;
+
+
+      if (!mpJaNoDestino) {
+        const respostaAlteracao =
+          await fetch(
+            `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+              preapprovalId,
+            )}`,
+            {
+              method:
+                "PUT",
+
+              headers: {
+                Authorization:
+                  `Bearer ${accessToken}`,
+
+                "Content-Type":
+                  "application/json",
+              },
+
+              body:
+                JSON.stringify({
+                  auto_recurring: {
+                    transaction_amount:
+                      precoDestino,
+
+                    currency_id:
+                      "BRL",
+                  },
+                }),
+            },
+          );
+
+
+        const assinaturaAlteradaMP =
+          await respostaAlteracao
+            .json()
+            .catch(
+              () => null,
+            );
+
+
+        if (!respostaAlteracao.ok) {
+          console.error(
+            "Erro ao alterar assinatura no Mercado Pago:",
+            {
+              status:
+                respostaAlteracao.status,
+
+              resposta:
+                assinaturaAlteradaMP,
+            },
+          );
+
+          return Response.json(
+            {
+              ok: false,
+              erro:
+                "O Mercado Pago não conseguiu alterar o valor da assinatura.",
+            },
+            { status: 502 },
+          );
+        }
+
+
+        if (
+          assinaturaAlteradaMP?.id !==
+            preapprovalId ||
+          String(
+            assinaturaAlteradaMP
+              ?.auto_recurring
+              ?.currency_id ??
+            "",
+          )
+            .toUpperCase() !==
+            "BRL" ||
+          !mesmoValor(
+            assinaturaAlteradaMP
+              ?.auto_recurring
+              ?.transaction_amount,
+            precoDestino,
+          )
+        ) {
+          console.error(
+            "Mercado Pago respondeu sem confirmar o novo preço.",
+            {
+              preapprovalId,
+              planoCodigo,
+            },
+          );
+
+          return Response.json(
+            {
+              ok: false,
+              erro:
+                "O Mercado Pago não confirmou o novo valor da assinatura.",
+            },
+            { status: 502 },
+          );
+        }
+
+
+        alterouMercadoPago =
+          true;
+      }
+
+
+      /*
+       * =====================================================
+       * 7. APLICA A MESMA TROCA NO BANCO
+       * =====================================================
+       */
+
+      const {
+        data: resultado,
+        error: erroUpgrade,
+      } =
+        await bancoAdmin
+          .rpc(
+            "aplicar_upgrade_assinatura_armazenamento",
+            {
+              p_usuario_id:
+                usuarioId,
+
+              p_preapproval_id:
+                preapprovalId,
+
+              p_plano_destino_codigo:
+                planoDestino.codigo,
+            },
+          )
+          .single();
+
+
+      if (
+        erroUpgrade ||
+        !resultado?.ok
+      ) {
+        console.error(
+          "Erro ao aplicar upgrade local:",
+          erroUpgrade,
+        );
+
+
+        /*
+         * O MP foi alterado nesta execução,
+         * mas o banco falhou.
+         *
+         * Tentamos devolver o preço anterior.
+         */
+        let rollbackMercadoPago =
+          null;
+
+
+        if (alterouMercadoPago) {
+          try {
+            const respostaRollback =
+              await fetch(
+                `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+                  preapprovalId,
+                )}`,
+                {
+                  method:
+                    "PUT",
+
+                  headers: {
+                    Authorization:
+                      `Bearer ${accessToken}`,
+
+                    "Content-Type":
+                      "application/json",
+                  },
+
+                  body:
+                    JSON.stringify({
+                      auto_recurring: {
+                        transaction_amount:
+                          precoAnterior,
+
+                        currency_id:
+                          "BRL",
+                      },
+                    }),
+                },
+              );
+
+
+            const retornoRollback =
+              await respostaRollback
+                .json()
+                .catch(
+                  () => null,
+                );
+
+
+            rollbackMercadoPago =
+              respostaRollback.ok &&
+              retornoRollback?.id ===
+                preapprovalId &&
+              mesmoValor(
+                retornoRollback
+                  ?.auto_recurring
+                  ?.transaction_amount,
+                precoAnterior,
+              );
+
+
+            if (!rollbackMercadoPago) {
+              console.error(
+                "Falha ao reverter valor no Mercado Pago.",
+                {
+                  status:
+                    respostaRollback
+                      .status,
+
+                  preapprovalId,
+                },
+              );
+            }
+          } catch (
+            erroRollback
+          ) {
+            rollbackMercadoPago =
+              false;
+
+            console.error(
+              "Erro ao tentar rollback no Mercado Pago:",
+              erroRollback,
+            );
+          }
+        }
+
+
+        return Response.json(
+          {
+            ok: false,
+
+            erro:
+              rollbackMercadoPago ===
+                false
+                ? "A troca não foi concluída e a assinatura precisa ser reconciliada."
+                : "Não foi possível concluir a troca de plano.",
+
+            requerReconciliacao:
+              rollbackMercadoPago ===
+              false,
+          },
+          { status: 500 },
+        );
+      }
+
+
+      /*
+       * =====================================================
+       * 8. SUCESSO
+       * =====================================================
+       */
+
+      return Response.json({
+        ok: true,
+        reutilizado:
+          mpJaNoDestino,
+
+        armazenamentoId:
+          resultado
+            .armazenamento_id,
+
+        planoOrigem:
+          resultado
+            .plano_origem_codigo,
+
+        planoDestino:
+          resultado
+            .plano_destino_codigo,
+
+        precoAnterior:
+          Number(
+            resultado
+              .preco_anterior,
+          ),
+
+        precoNovo:
+          Number(
+            resultado
+              .preco_novo,
+          ),
+
+        proximoVencimentoEm:
+          resultado
+            .proximo_vencimento_em,
+
+        snapshotSaidaId:
+          resultado
+            .snapshot_saida_id,
+      });
+    },
+  ),
+};

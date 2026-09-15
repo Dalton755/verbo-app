@@ -1,0 +1,15 @@
+{
+  "candidatos": [
+    {
+      "arquivo": "001-app.js",
+      "url": "https://bibliaalmeida.com/assets/app.js",
+      "termos": "ortograf",
+      "tamanho": 15127
+    }
+  ],
+  "jsons": [
+    "https://bibliaalmeida.com/data/alm1911m.json",
+    "https://bibliaalmeida.com/data/alm1911.json",
+    "https://bibliaalmeida.com/data/titulos.json"
+  ]
+}

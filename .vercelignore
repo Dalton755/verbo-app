@@ -1,0 +1,6 @@
+﻿.env
+.env.*
+migracao-supabase/
+supabase/
+node_modules/
+dist/

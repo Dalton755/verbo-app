@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bíblia Almeida — simples de ler, livre para copiar</title>
+<meta name="description" content="A Bíblia Almeida completa, em domínio público: sem anúncios, sem cadastro e sem direitos autorais. Pode ser lida, copiada, impressa e distribuída livremente. Letra ajustável e busca em todo o texto.">
+<link rel="canonical" href="https://bibliaalmeida.com/">
+<meta name="theme-color" content="#FAFAF8">
+<script>
+(function(){try{
+  var p=JSON.parse(localStorage.getItem("ba.prefs")||"{}");
+  var d=document.documentElement;
+  if(p.tema==="dark"||p.tema==="light"){ d.dataset.theme=p.tema; }
+  else if(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches){ d.dataset.theme="dark"; }
+  if(typeof p.corpo==="number") d.style.setProperty("--fs-read",p.corpo+"px");
+  if(d.dataset.theme==="dark"){
+    var m=document.querySelector('meta[name=theme-color]'); if(m) m.content="#101316";
+  }
+}catch(e){}})();
+</script>
+<meta property="og:type" content="article">
+<meta property="og:title" content="Bíblia Almeida">
+<meta property="og:description" content="A Bíblia Almeida completa, em domínio público: sem anúncios, sem cadastro e sem direitos autorais. Pode ser lida, copiada, impressa e distribuída livremente. Letra ajustável e busca em todo o texto.">
+<meta property="og:url" content="https://bibliaalmeida.com/">
+<meta property="og:site_name" content="Bíblia Almeida">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/app.css">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "name": "Bíblia Almeida", "url": "https://bibliaalmeida.com/", "inLanguage": "pt-BR"}</script>
+</head>
+<body>
+
+
+<header class="top">
+  <button class="icon-btn menu-btn" id="menuBtn" aria-label="Livros">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <a class="brand" href="/">Bíblia <span>Almeida</span></a>
+  <div class="top-spacer"></div>
+
+  <div class="search-wrap">
+    <span class="search-ico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M16.5 16.5 21 21" stroke-linecap="round"/></svg></span>
+    <input class="search" id="q" type="search" placeholder="Buscar" autocomplete="off" spellcheck="false" aria-label="Buscar no texto">
+  </div>
+
+  <button class="icon-btn search-close" id="searchClose" aria-label="Fechar busca">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </button>
+  <div class="seg" role="group" aria-label="Versão do texto">
+    <button id="vA" aria-pressed="true">Atual</button>
+    <button id="vB" aria-pressed="false">1911</button>
+  </div>
+
+  <button class="icon-btn" id="fsDown" aria-label="Reduzir corpo do texto"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><text x="12" y="17" font-size="13" font-family="Inter,sans-serif" font-weight="600" text-anchor="middle">A−</text></svg></button>
+  <button class="icon-btn" id="fsUp" aria-label="Ampliar corpo do texto"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><text x="12" y="18" font-size="15" font-family="Inter,sans-serif" font-weight="600" text-anchor="middle">A+</text></svg></button>
+  <button class="icon-btn" id="theme" aria-label="Alternar tema">
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z"/></svg>
+  </button>
+
+  <div class="apoio-wrap">
+    <button class="apoio" id="apoioBtn" aria-expanded="false" aria-label="Apoiar">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.6-7-9.4A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.6C19 15.4 12 20 12 20Z"/></svg>
+      <span class="apoio-txt">Apoiar</span>
+    </button>
+    <div class="pop" id="pop" hidden>
+      <div class="pop-t">Manutenção do projeto</div>
+      <p class="pop-p">Este site não exibe publicidade nem exige cadastro. Contribuições são
+      voluntárias e destinam-se exclusivamente à manutenção do domínio e da hospedagem.</p>
+      <button class="pix-key">
+        <span class="pix-lbl">Pix · CNPJ</span>
+        <span class="pix-val">40.884.704/0001-99</span>
+        <span class="pix-cp">copiar</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<nav class="side" id="side" aria-label="Livros da Bíblia"></nav>
+<div class="railwrap">
+  <nav class="rail" id="rail" aria-label="Capítulos" hidden>
+    <div class="rail-label">Capítulos</div>
+    <div class="chaps" id="chaps"></div>
+  </nav>
+  <div class="pod">
+    <button class="pod-arrow" id="podPrev" aria-label="Capítulo anterior" title="Capítulo anterior">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10 8 6l4 4"/></svg>
+    </button>
+    <button class="rail-toggle" id="railBtn" aria-expanded="false" aria-label="Escolher capítulo" title="Todos os capítulos">
+      <span class="rt-num" id="rtNum">1</span>
+      <span class="rt-lbl">Capítulos</span>
+    </button>
+    <button class="pod-arrow" id="podNext" aria-label="Próximo capítulo" title="Próximo capítulo">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+  </div>
+  <div class="hint" id="hint">Escolha o capítulo aqui</div>
+</div>
+<div class="scrim" id="scrim"></div>
+
+<main class="main">
+  <div class="stage">
+    <div id="view"><div class="reader">
+<h1 class="bookname">Bíblia Almeida</h1>
+<p class="chapline">Simples de ler, livre para copiar</p>
+
+<div class="capa">
+<p class="livre">Este site existe por um motivo simples: procurar um salmo na internet e
+encontrar uma página coberta de anúncios, pedidos de cadastro e avisos de cookies.
+Aqui não há nada disso, e não haverá.</p>
+
+<p>A <b>Bíblia Almeida</b> completa, em domínio público e livre de direitos autorais:
+sem anúncios, sem cadastro. Pode ser lida, copiada, impressa e distribuída livremente.</p>
+
+<h2 class="col-h">Para começar</h2>
+<p class="indice"><a href="/salmos/23/">Salmos 23</a> · <a href="/salmos/91/">Salmos 91</a> · <a href="/joao/3/">João 3</a> · <a href="/1-corintios/13/">1 Coríntios 13</a> · <a href="/proverbios/31/">Provérbios 31</a> · <a href="/mateus/5/">Mateus 5</a></p>
+
+<h2 class="col-h">Como navegar</h2>
+<p>Os livros ficam na lista à esquerda. A cápsula flutuante mostra o capítulo em que você
+está: as setas avançam e retrocedem, e o número abre a lista completa.</p>
+<p>A busca percorre a Bíblia inteira e destaca o trecho encontrado. Toque no número de um
+versículo para copiá-lo com a referência já formatada.</p>
+<p>Os botões <b>A−</b> e <b>A+</b> ajustam o corpo do texto em doze níveis, de 15 a 34 pixels.
+O ícone de lua alterna entre claro e escuro. Suas escolhas ficam gravadas.</p>
+<p>Cada capítulo tem endereço próprio — <code>bibliaalmeida.com/salmos/23</code> — então o
+link pode ser compartilhado e leva direto ao ponto.</p>
+
+<h2 class="col-h">Duas versões do mesmo texto</h2>
+<p><b>Atual</b> traz a Almeida de 1911 com a ortografia modernizada: 9.601 conversões
+aplicadas por regra fixa, com dicionário aberto à conferência. Vocabulário e sintaxe
+permanecem intactos.</p>
+<p><b>1911</b> traz o texto original, sem nenhuma alteração, para quem quiser conferir.</p>
+
+<details class="apoio-capa">
+  <summary class="apoio-sum">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.6-7-9.4A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.6C19 15.4 12 20 12 20Z"/></svg>
+    Apoiar
+  </summary>
+  <div class="apoio-box">
+    <p class="pix-p">Este site não exibe publicidade nem exige cadastro. Contribuições são
+    voluntárias e destinam-se exclusivamente à manutenção do domínio e da hospedagem.</p>
+    <button class="pix-key">
+      <span class="pix-lbl">Pix · CNPJ</span>
+      <span class="pix-val">40.884.704/0001-99</span>
+      <span class="pix-cp">copiar</span>
+    </button>
+  </div>
+</details>
+
+<h2 class="col-h">Todos os livros</h2>
+<h2 class="col-h">Velho Testamento</h2><p class="indice"><a href="/genesis/">Gênesis</a> · <a href="/exodo/">Êxodo</a> · <a href="/levitico/">Levítico</a> · <a href="/numeros/">Números</a> · <a href="/deuteronomio/">Deuteronômio</a> · <a href="/josue/">Josué</a> · <a href="/juizes/">Juízes</a> · <a href="/rute/">Rute</a> · <a href="/1-samuel/">1 Samuel</a> · <a href="/2-samuel/">2 Samuel</a> · <a href="/1-reis/">1 Reis</a> · <a href="/2-reis/">2 Reis</a> · <a href="/1-cronicas/">1 Crônicas</a> · <a href="/2-cronicas/">2 Crônicas</a> · <a href="/esdras/">Esdras</a> · <a href="/neemias/">Neemias</a> · <a href="/ester/">Ester</a> · <a href="/jo/">Jó</a> · <a href="/salmos/">Salmos</a> · <a href="/proverbios/">Provérbios</a> · <a href="/eclesiastes/">Eclesiastes</a> · <a href="/canticos/">Cânticos</a> · <a href="/isaias/">Isaías</a> · <a href="/jeremias/">Jeremias</a> · <a href="/lamentacoes-de-jeremias/">Lamentações de Jeremias</a> · <a href="/ezequiel/">Ezequiel</a> · <a href="/daniel/">Daniel</a> · <a href="/oseias/">Oséias</a> · <a href="/joel/">Joel</a> · <a href="/amos/">Amós</a> · <a href="/obadias/">Obadias</a> · <a href="/jonas/">Jonas</a> · <a href="/miqueias/">Miquéias</a> · <a href="/naum/">Naum</a> · <a href="/habacuque/">Habacuque</a> · <a href="/sofonias/">Sofonias</a> · <a href="/ageu/">Ageu</a> · <a href="/zacarias/">Zacarias</a> · <a href="/malaquias/">Malaquias</a></p><h2 class="col-h">Novo Testamento</h2><p class="indice"><a href="/mateus/">Mateus</a> · <a href="/marcos/">Marcos</a> · <a href="/lucas/">Lucas</a> · <a href="/joao/">João</a> · <a href="/atos/">Atos</a> · <a href="/romanos/">Romanos</a> · <a href="/1-corintios/">1 Coríntios</a> · <a href="/2-corintios/">2 Coríntios</a> · <a href="/galatas/">Gálatas</a> · <a href="/efesios/">Efésios</a> · <a href="/filipenses/">Filipenses</a> · <a href="/colossenses/">Colossenses</a> · <a href="/1-tessalonicenses/">1 Tessalonicenses</a> · <a href="/2-tessalonicenses/">2 Tessalonicenses</a> · <a href="/1-timoteo/">1 Timóteo</a> · <a href="/2-timoteo/">2 Timóteo</a> · <a href="/tito/">Tito</a> · <a href="/filemom/">Filemom</a> · <a href="/hebreus/">Hebreus</a> · <a href="/tiago/">Tiago</a> · <a href="/1-pedro/">1 Pedro</a> · <a href="/2-pedro/">2 Pedro</a> · <a href="/1-joao/">1 João</a> · <a href="/2-joao/">2 João</a> · <a href="/3-joao/">3 João</a> · <a href="/judas/">Judas</a> · <a href="/apocalipse/">Apocalipse</a></p>
+</div></div></div>
+<footer class="colophon">
+      <p class="livre">Este texto encontra-se em <b>domínio público integral</b>. Pode ser
+      reproduzido, impresso, distribuído e publicado sem autorização prévia de qualquer espécie.</p>
+
+      <h2 class="col-h">Procedência</h2>
+      <p><b>Almeida 1911</b> — João Ferreira de Almeida, revisão de 1911. O autor faleceu em 1691,
+      e a obra encontra-se em domínio público por decurso de prazo. Nenhuma tradução protegida por
+      direitos autorais foi utilizada.</p>
+
+      <h2 class="col-h">Ortografia atualizada</h2>
+      <p>A revisão de 1911 é anterior às reformas ortográficas da língua portuguesa: grafava-se
+      <i>valle</i>, <i>propheta</i>, <i>n'elle</i>. A versão <b>Atual</b> moderniza exclusivamente a
+      grafia, mediante 9.597 conversões aplicadas por regra fixa, com dicionário aberto à conferência.
+      Vocabulário e sintaxe permanecem inalterados. O texto original de 1911 está disponível no
+      seletor acima.</p>
+
+      <details class="apoio-rodape">
+        <summary class="apoio-sum">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20s-7-4.6-7-9.4A3.9 3.9 0 0 1 12 8a3.9 3.9 0 0 1 7 2.6C19 15.4 12 20 12 20Z"/></svg>
+          Apoiar
+        </summary>
+        <div class="apoio-box">
+          <p class="pix-p">Este site não exibe publicidade nem exige cadastro. Contribuições são
+          voluntárias e destinam-se exclusivamente à manutenção do domínio e da hospedagem.</p>
+          <button class="pix-key">
+            <span class="pix-lbl">Pix · CNPJ</span>
+            <span class="pix-val">40.884.704/0001-99</span>
+            <span class="pix-cp">copiar</span>
+          </button>
+        </div>
+      </details>
+
+      <p class="col-end">Sem publicidade · sem cadastro · sem rastreamento · sem direitos autorais</p>
+    </footer>
+
+    
+  </div>
+</main>
+
+<script></script>
+<script src="/assets/app.js" defer></script>
+</body>
+</html>

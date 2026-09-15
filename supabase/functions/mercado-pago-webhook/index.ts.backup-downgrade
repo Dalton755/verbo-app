@@ -1,0 +1,3144 @@
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+import {
+  WebhookSignatureValidator,
+  InvalidWebhookSignatureError,
+} from "npm:mercadopago@3.6.1";
+
+
+
+function paraCentavos(
+  valor: unknown,
+) {
+  const numero =
+    Number(valor);
+
+  if (
+    !Number.isFinite(numero) ||
+    numero < 0
+  ) {
+    return null;
+  }
+
+  return Math.round(
+    numero * 100,
+  );
+}
+
+function statusLocalAssinatura(
+  status: unknown,
+) {
+  const normalizado =
+    String(
+      status ?? "",
+    )
+      .trim()
+      .toLowerCase();
+
+  switch (normalizado) {
+    case "pending":
+      return "PENDENTE";
+
+    case "authorized":
+      return "AUTORIZADA";
+
+    case "paused":
+      return "PAUSADA";
+
+    case "cancelled":
+    case "canceled":
+      return "CANCELADA";
+
+    default:
+      return null;
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") {
+    return new Response(
+      "Method Not Allowed",
+      {
+        status: 405,
+      },
+    );
+  }
+
+  const webhookSecretTeste =
+    Deno.env.get(
+      "MERCADO_PAGO_WEBHOOK_SECRET",
+    );
+
+  const webhookSecretProducao =
+    Deno.env.get(
+      "MERCADO_PAGO_WEBHOOK_SECRET_PROD",
+    );
+
+  const accessToken =
+    Deno.env.get(
+      "MERCADO_PAGO_ACCESS_TOKEN",
+    );
+
+  const adminKey =
+    Deno.env.get(
+      "BIBLIA_SLIDES_ADMIN_KEY",
+    );
+
+  const supabaseUrl =
+    Deno.env.get(
+      "SUPABASE_URL",
+    );
+
+  if (
+    (
+      !webhookSecretTeste &&
+      !webhookSecretProducao
+    ) ||
+    !accessToken ||
+    !adminKey ||
+    !supabaseUrl
+  ) {
+    console.error(
+      "Secrets do webhook incompletos.",
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 500 },
+    );
+  }
+
+  const url =
+    new URL(req.url);
+
+  const dataId =
+    url.searchParams.get(
+      "data.id",
+    ) ?? "";
+
+  const xSignature =
+    req.headers.get(
+      "x-signature",
+    ) ?? "";
+
+  const xRequestId =
+    req.headers.get(
+      "x-request-id",
+    ) ?? "";
+
+  if (
+    !dataId ||
+    !xSignature
+  ) {
+    return Response.json(
+      { ok: false },
+      { status: 401 },
+    );
+  }
+
+  const segredosWebhook = [
+    {
+      ambiente: "teste",
+      secret:
+        webhookSecretTeste,
+    },
+    {
+      ambiente: "producao",
+      secret:
+        webhookSecretProducao,
+    },
+  ].filter(
+    (
+      item,
+    ): item is {
+      ambiente: string;
+      secret: string;
+    } => Boolean(item.secret),
+  );
+
+  let assinaturaValida = false;
+  let ambienteAssinatura:
+    string | null = null;
+
+
+
+  for (
+    const item
+    of segredosWebhook
+  ) {
+    try {
+      WebhookSignatureValidator.validate({
+        xSignature,
+        xRequestId,
+        dataId,
+        secret:
+          item.secret,
+      });
+
+      assinaturaValida = true;
+      ambienteAssinatura =
+        item.ambiente;
+
+      break;
+    } catch (error) {
+      if (
+        error instanceof
+        InvalidWebhookSignatureError
+      ) {
+        continue;
+      }
+
+      console.error(
+        "Erro inesperado ao validar assinatura:",
+        error,
+      );
+    }
+  }
+
+  if (!assinaturaValida) {
+    console.warn(
+      "Webhook com assinatura inválida.",
+      { dataId },
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 401 },
+    );
+  }
+
+  console.log(
+    "Webhook autenticado:",
+    {
+      dataId,
+      ambiente:
+        ambienteAssinatura,
+    },
+  );
+
+  let body: any = null;
+
+  try {
+    body = await req.json();
+  } catch {
+    // O data.id assinado continua
+    // sendo a fonte do ID da Order.
+  }
+
+  const tipo =
+    body?.type ??
+    url.searchParams.get("type");
+
+
+  /* =========================================================
+     ASSINATURAS DE ARMAZENAMENTO
+  
+     Este bloco SOMENTE sincroniza o estado do preapproval.
+  
+     NÃO libera armazenamento.
+     NÃO cria assinatura mensal local.
+     NÃO altera snapshot.
+     ========================================================= */
+
+  if (
+    tipo ===
+    "subscription_preapproval"
+  ) {
+    const respostaAssinaturaMP =
+      await fetch(
+        `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+          dataId,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let assinaturaMP: any =
+      null;
+
+
+    try {
+      assinaturaMP =
+        await respostaAssinaturaMP
+          .json();
+    } catch {
+      assinaturaMP = null;
+    }
+
+
+    if (
+      !respostaAssinaturaMP.ok
+    ) {
+      console.error(
+        "Erro ao consultar assinatura no Mercado Pago:",
+        {
+          status:
+            respostaAssinaturaMP
+              .status,
+
+          preapprovalId:
+            dataId,
+
+          resposta:
+            assinaturaMP,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
+
+    /*
+     * O ID consultado deve ser exatamente
+     * o mesmo que chegou assinado no webhook.
+     */
+    if (
+      String(
+        assinaturaMP?.id ?? "",
+      ) !== dataId
+    ) {
+      console.error(
+        "ID do preapproval divergente.",
+        {
+          recebido:
+            dataId,
+
+          consultado:
+            assinaturaMP?.id,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const referenciaAssinatura =
+      String(
+        assinaturaMP
+          ?.external_reference ??
+        "",
+      ).trim();
+
+
+    if (!referenciaAssinatura) {
+      console.error(
+        "Assinatura sem external_reference.",
+        {
+          preapprovalId:
+            dataId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const statusAssinatura =
+      statusLocalAssinatura(
+        assinaturaMP?.status,
+      );
+
+
+    /*
+     * Se o Mercado Pago introduzir algum
+     * estado novo no futuro, não entramos
+     * em loop de retry.
+     */
+    if (!statusAssinatura) {
+      console.warn(
+        "Status de assinatura ainda não tratado.",
+        {
+          preapprovalId:
+            dataId,
+
+          status:
+            assinaturaMP?.status,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        ignorado: true,
+        motivo:
+          "STATUS_ASSINATURA_NAO_TRATADO",
+      });
+    }
+
+
+    /*
+     * Cliente administrativo isolado para
+     * esta ramificação do webhook.
+     */
+    const clienteAssinaturaWebhook =
+      createClient(
+        supabaseUrl,
+        adminKey,
+        {
+          auth: {
+            persistSession:
+              false,
+
+            autoRefreshToken:
+              false,
+          },
+        },
+      );
+
+
+    const bancoAssinatura =
+      clienteAssinaturaWebhook
+        .schema(
+          "biblia_slides",
+        );
+
+
+    /*
+     * Procuramos pela referência externa.
+     *
+     * Isso também cobre a pequena janela
+     * entre o POST /preapproval e a gravação
+     * do preapproval_id no nosso banco.
+     */
+    const {
+      data: assinaturaLocal,
+      error:
+      erroAssinaturaLocal,
+    } =
+      await bancoAssinatura
+        .from(
+          "assinaturas_armazenamento_provedor",
+        )
+        .select(`
+        id,
+        usuario_id,
+        plano_id,
+        provedor,
+        referencia_externa,
+        preapproval_id,
+        status,
+        preco_mensal,
+        usar_credito_base,
+        autorizada_em
+      `)
+        .eq(
+          "referencia_externa",
+          referenciaAssinatura,
+        )
+        .maybeSingle();
+
+
+    if (
+      erroAssinaturaLocal
+    ) {
+      console.error(
+        "Erro ao consultar assinatura local:",
+        erroAssinaturaLocal,
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+
+    /*
+     * Webhook válido do MP, mas que não
+     * pertence ao Bíblia Slides.
+     */
+    if (!assinaturaLocal) {
+      console.warn(
+        "Preapproval válido não pertence a assinatura local.",
+        {
+          preapprovalId:
+            dataId,
+
+          referenciaExterna:
+            referenciaAssinatura,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        ignorado: true,
+      });
+    }
+
+
+    if (
+      assinaturaLocal.provedor !==
+      "MERCADO_PAGO"
+    ) {
+      console.error(
+        "Provedor da assinatura divergente.",
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /*
+     * Se o ID já estiver gravado,
+     * ele obrigatoriamente deve coincidir.
+     */
+    if (
+      assinaturaLocal
+        .preapproval_id &&
+      assinaturaLocal
+        .preapproval_id !==
+      dataId
+    ) {
+      console.error(
+        "Preapproval não corresponde ao registro local.",
+        {
+          esperado:
+            assinaturaLocal
+              .preapproval_id,
+
+          recebido:
+            dataId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /*
+     * Confere moeda e preço diretamente
+     * contra o objeto retornado pelo MP.
+     */
+    const moedaMP =
+      String(
+        assinaturaMP
+          ?.auto_recurring
+          ?.currency_id ??
+        "",
+      ).toUpperCase();
+
+
+    const valorMPCentavos =
+      paraCentavos(
+        assinaturaMP
+          ?.auto_recurring
+          ?.transaction_amount,
+      );
+
+
+    const valorLocalCentavos =
+      paraCentavos(
+        assinaturaLocal
+          .preco_mensal,
+      );
+
+
+    if (
+      moedaMP !== "BRL" ||
+      valorMPCentavos === null ||
+      valorLocalCentavos === null ||
+      valorMPCentavos !==
+      valorLocalCentavos
+    ) {
+      console.error(
+        "Plano/preço da assinatura divergente.",
+        {
+          preapprovalId:
+            dataId,
+
+          moedaMP,
+
+          valorMP:
+            assinaturaMP
+              ?.auto_recurring
+              ?.transaction_amount,
+
+          valorLocal:
+            assinaturaLocal
+              .preco_mensal,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+    /*
+ * CANCELAMENTO REAL DA ASSINATURA
+ *
+ * O status já foi confirmado consultando
+ * diretamente o Mercado Pago.
+ *
+ * A RPC:
+ * - encerra a assinatura mensal;
+ * - cria o snapshot do plano atual;
+ * - retorna o usuário para BASE_25MB;
+ * - é idempotente para webhooks repetidos.
+ */
+    if (
+      statusAssinatura ===
+      "CANCELADA"
+    ) {
+      const canceladaEm =
+        assinaturaMP
+          ?.last_modified ??
+        new Date()
+          .toISOString();
+
+
+      const {
+        data:
+        resultadoCancelamento,
+
+        error:
+        erroCancelamento,
+      } =
+        await bancoAssinatura
+          .rpc(
+            "cancelar_assinatura_armazenamento",
+            {
+              p_preapproval_id:
+                dataId,
+
+              p_cancelada_em:
+                canceladaEm,
+            },
+          );
+
+
+      if (erroCancelamento) {
+        console.error(
+          "Erro ao cancelar armazenamento:",
+          erroCancelamento,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+          },
+          {
+            status: 500,
+          },
+        );
+      }
+
+
+      console.log(
+        "ASSINATURA DE ARMAZENAMENTO CANCELADA",
+        {
+          preapprovalId:
+            dataId,
+
+          referenciaExterna:
+            referenciaAssinatura,
+
+          resultado:
+            resultadoCancelamento,
+        },
+      );
+
+
+      return Response.json({
+        ok: true,
+
+        assinatura: true,
+
+        cancelada: true,
+
+        preapprovalId:
+          dataId,
+
+        status:
+          "CANCELADA",
+
+        armazenamentoLiberado:
+          false,
+
+        retornouPlanoBase:
+          true,
+      });
+    }
+
+    /*
+ * =========================================================
+ * AUTORIZAÇÃO COM CRÉDITO-BASE
+ *
+ * Para ESPACO_100MB dentro dos 25 dias:
+ *
+ * - nenhuma cobrança acontece hoje;
+ * - o preapproval já está autorizado;
+ * - os 100 MB devem ser liberados imediatamente;
+ * - a primeira cobrança ocorrerá no próximo ciclo.
+ * =========================================================
+ */
+
+    if (
+      statusAssinatura ===
+      "AUTORIZADA" &&
+      assinaturaLocal
+        .usar_credito_base ===
+      true
+    ) {
+      const autorizadaEm =
+        assinaturaMP
+          ?.last_modified ??
+        new Date()
+          .toISOString();
+
+
+      const {
+        data:
+        resultadoCredito,
+
+        error:
+        erroCredito,
+      } =
+        await bancoAssinatura
+          .rpc(
+            "ativar_assinatura_credito_base",
+            {
+              p_referencia_externa:
+                referenciaAssinatura,
+
+              p_preapproval_id:
+                dataId,
+
+              p_autorizada_em:
+                autorizadaEm,
+            },
+          );
+
+
+      if (erroCredito) {
+        console.error(
+          "Erro ao ativar armazenamento com crédito-base:",
+          erroCredito,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+          },
+          {
+            status: 500,
+          },
+        );
+      }
+
+
+      console.log(
+        "ARMAZENAMENTO ATIVADO COM CRÉDITO-BASE",
+        {
+          preapprovalId:
+            dataId,
+
+          referenciaExterna:
+            referenciaAssinatura,
+
+          resultado:
+            resultadoCredito,
+        },
+      );
+
+
+      return Response.json({
+        ok: true,
+
+        assinatura:
+          true,
+
+        preapprovalId:
+          dataId,
+
+        status:
+          "AUTORIZADA",
+
+        creditoBase:
+          true,
+
+        armazenamentoLiberado:
+          true,
+      });
+    }
+
+
+    const agora =
+      new Date()
+        .toISOString();
+
+
+    const atualizacao: any = {
+      preapproval_id:
+        dataId,
+
+      status:
+        statusAssinatura,
+
+      updated_at:
+        agora,
+    };
+
+
+    /*
+     * Registramos a primeira vez em que
+     * a assinatura realmente ficou autorizada.
+     */
+    if (
+      statusAssinatura ===
+      "AUTORIZADA" &&
+      !assinaturaLocal
+        .autorizada_em
+    ) {
+      atualizacao.autorizada_em =
+        assinaturaMP
+          ?.last_modified ??
+        agora;
+    }
+
+
+    const {
+      error:
+      erroAtualizacaoAssinatura,
+    } =
+      await bancoAssinatura
+        .from(
+          "assinaturas_armazenamento_provedor",
+        )
+        .update(
+          atualizacao,
+        )
+        .eq(
+          "id",
+          assinaturaLocal.id,
+        );
+
+
+    if (
+      erroAtualizacaoAssinatura
+    ) {
+      console.error(
+        "Erro ao atualizar estado da assinatura:",
+        erroAtualizacaoAssinatura,
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+
+    console.log(
+      "ASSINATURA DE ARMAZENAMENTO SINCRONIZADA",
+      {
+        preapprovalId:
+          dataId,
+
+        referenciaExterna:
+          referenciaAssinatura,
+
+        statusMercadoPago:
+          assinaturaMP?.status,
+
+        statusLocal:
+          statusAssinatura,
+
+        creditoBase:
+          assinaturaLocal
+            .usar_credito_base,
+      },
+    );
+
+
+    return Response.json({
+      ok: true,
+
+      assinatura: true,
+
+      preapprovalId:
+        dataId,
+
+      status:
+        statusAssinatura,
+
+      /*
+       * IMPORTANTE:
+       * nesta etapa nenhum MB foi liberado.
+       */
+      armazenamentoLiberado:
+        false,
+    });
+  }
+
+  /* =========================================================
+   PAGAMENTO RECORRENTE DA ASSINATURA
+   ========================================================= */
+
+  if (
+    tipo ===
+    "subscription_authorized_payment"
+  ) {
+    /*
+     * O data.id deste evento identifica
+     * a fatura da assinatura.
+     */
+    const respostaFaturaMP =
+      await fetch(
+        `https://api.mercadopago.com/authorized_payments/${encodeURIComponent(
+          dataId,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let faturaMP: any =
+      null;
+
+
+    try {
+      faturaMP =
+        await respostaFaturaMP.json();
+    } catch {
+      faturaMP = null;
+    }
+
+
+    if (!respostaFaturaMP.ok) {
+      console.error(
+        "Erro ao consultar fatura da assinatura:",
+        {
+          status:
+            respostaFaturaMP.status,
+
+          faturaId:
+            dataId,
+
+          resposta:
+            faturaMP,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 502 },
+      );
+    }
+
+
+    if (
+      String(
+        faturaMP?.id ?? "",
+      ) !== dataId
+    ) {
+      console.error(
+        "ID da fatura divergente.",
+        {
+          recebido:
+            dataId,
+
+          consultado:
+            faturaMP?.id,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+
+    const preapprovalId =
+      String(
+        faturaMP
+          ?.preapproval_id ??
+        "",
+      ).trim();
+
+
+    if (!preapprovalId) {
+      console.error(
+        "Fatura sem preapproval_id.",
+        {
+          faturaId:
+            dataId,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+
+    /*
+     * Somente pagamento realmente aprovado
+     * e creditado pode liberar armazenamento.
+     */
+    const pagamentoId =
+      faturaMP?.payment?.id
+        ? String(
+          faturaMP.payment.id,
+        )
+        : "";
+
+
+    const pagamentoStatus =
+      String(
+        faturaMP
+          ?.payment
+          ?.status ??
+        "",
+      );
+
+
+    const pagamentoDetalhe =
+      String(
+        faturaMP
+          ?.payment
+          ?.status_detail ??
+        "",
+      );
+
+
+    if (
+      !pagamentoId ||
+      pagamentoStatus !==
+      "approved" ||
+      pagamentoDetalhe !==
+      "accredited"
+    ) {
+      console.log(
+        "Fatura ainda não creditada.",
+        {
+          faturaId:
+            dataId,
+
+          preapprovalId,
+
+          pagamentoStatus,
+
+          pagamentoDetalhe,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        processado: false,
+        motivo:
+          "PAGAMENTO_NAO_CREDITADO",
+      });
+    }
+
+
+    /*
+     * Confirma também o estado atual
+     * da própria assinatura.
+     */
+    const respostaPreapproval =
+      await fetch(
+        `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+          preapprovalId,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let preapprovalMP: any =
+      null;
+
+
+    try {
+      preapprovalMP =
+        await respostaPreapproval.json();
+    } catch {
+      preapprovalMP = null;
+    }
+
+
+    if (!respostaPreapproval.ok) {
+      console.error(
+        "Erro ao consultar assinatura da fatura:",
+        {
+          status:
+            respostaPreapproval.status,
+
+          preapprovalId,
+
+          resposta:
+            preapprovalMP,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 502 },
+      );
+    }
+
+
+    if (
+      String(
+        preapprovalMP?.id ?? "",
+      ) !== preapprovalId
+    ) {
+      console.error(
+        "Preapproval da fatura divergente.",
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+
+    if (
+      String(
+        preapprovalMP?.status ?? "",
+      ).toLowerCase() !==
+      "authorized"
+    ) {
+      console.warn(
+        "Pagamento aprovado, mas assinatura não está autorizada.",
+        {
+          preapprovalId,
+
+          status:
+            preapprovalMP?.status,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+
+    const clientePagamentoAssinatura =
+      createClient(
+        supabaseUrl,
+        adminKey,
+        {
+          auth: {
+            persistSession:
+              false,
+
+            autoRefreshToken:
+              false,
+          },
+        },
+      );
+
+
+    const bancoPagamentoAssinatura =
+      clientePagamentoAssinatura
+        .schema(
+          "biblia_slides",
+        );
+
+
+    /*
+     * Primeiro garantimos que este
+     * preapproval pertence ao nosso app.
+     */
+    const {
+      data: assinaturaLocalPagamento,
+      error:
+      erroAssinaturaLocalPagamento,
+    } =
+      await bancoPagamentoAssinatura
+        .from(
+          "assinaturas_armazenamento_provedor",
+        )
+        .select(`
+        id,
+        referencia_externa,
+        preapproval_id,
+        preco_mensal
+      `)
+        .eq(
+          "preapproval_id",
+          preapprovalId,
+        )
+        .maybeSingle();
+
+
+    if (
+      erroAssinaturaLocalPagamento
+    ) {
+      console.error(
+        "Erro ao localizar assinatura da cobrança:",
+        erroAssinaturaLocalPagamento,
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 500 },
+      );
+    }
+
+
+    if (!assinaturaLocalPagamento) {
+      console.warn(
+        "Fatura pertence a assinatura não cadastrada localmente.",
+        {
+          preapprovalId,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        ignorado: true,
+      });
+    }
+
+
+    /*
+     * Confere também a referência da assinatura.
+     */
+    const referenciaPreapproval =
+      String(
+        preapprovalMP
+          ?.external_reference ??
+        "",
+      ).trim();
+
+
+    if (
+      !referenciaPreapproval ||
+      referenciaPreapproval !==
+      assinaturaLocalPagamento
+        .referencia_externa
+    ) {
+      console.error(
+        "Referência da assinatura divergente.",
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+
+    const valorCentavosMP =
+      paraCentavos(
+        faturaMP
+          ?.transaction_amount,
+      );
+
+
+    const valorCentavosLocal =
+      paraCentavos(
+        assinaturaLocalPagamento
+          .preco_mensal,
+      );
+
+
+    const moedaFatura =
+      String(
+        faturaMP
+          ?.currency_id ??
+        "",
+      ).toUpperCase();
+
+
+    if (
+      moedaFatura !== "BRL" ||
+      valorCentavosMP === null ||
+      valorCentavosLocal === null ||
+      valorCentavosMP !==
+      valorCentavosLocal
+    ) {
+      console.error(
+        "Valor/moeda da fatura divergente.",
+        {
+          moedaFatura,
+
+          valorMP:
+            faturaMP
+              ?.transaction_amount,
+
+          valorLocal:
+            assinaturaLocalPagamento
+              .preco_mensal,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+
+    const pagoEm =
+      faturaMP?.last_modified ??
+      new Date().toISOString();
+
+
+    const proximoVencimento =
+      preapprovalMP
+        ?.next_payment_date ??
+      null;
+
+
+    const {
+      data: processamento,
+      error: erroProcessamento,
+    } =
+      await bancoPagamentoAssinatura
+        .rpc(
+          "processar_pagamento_assinatura_armazenamento",
+          {
+            p_preapproval_id:
+              preapprovalId,
+
+            p_pagamento_autorizado_id:
+              dataId,
+
+            p_pagamento_provedor_id:
+              pagamentoId,
+
+            p_valor:
+              Number(
+                faturaMP
+                  .transaction_amount,
+              ),
+
+            p_moeda:
+              moedaFatura,
+
+            p_pago_em:
+              pagoEm,
+
+            p_proximo_vencimento_em:
+              proximoVencimento,
+          },
+        );
+
+
+    if (erroProcessamento) {
+      console.error(
+        "Erro ao processar pagamento da assinatura:",
+        erroProcessamento,
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 500 },
+      );
+    }
+
+
+    console.log(
+      "PAGAMENTO DE ARMAZENAMENTO PROCESSADO",
+      {
+        preapprovalId,
+
+        faturaId:
+          dataId,
+
+        pagamentoId,
+
+        processamento,
+      },
+    );
+
+
+    return Response.json({
+      ok: true,
+
+      assinatura: true,
+
+      pagamentoProcessado:
+        true,
+
+      preapprovalId,
+
+      faturaId:
+        dataId,
+    });
+  }
+
+  /* =========================================================
+   REEMBOLSO DE PAGAMENTO RECORRENTE
+
+   Um pagamento de assinatura pode gerar também um evento
+   do tipo "payment".
+
+   Somente um REEMBOLSO TOTAL de um pagamento local de
+   ARMAZENAMENTO encerra a assinatura e retorna o usuário
+   para BASE_25MB.
+   ========================================================= */
+
+  if (
+    tipo ===
+    "payment"
+  ) {
+    /* ---------------------------------------------------------
+       1. Consulta o pagamento diretamente no Mercado Pago
+       --------------------------------------------------------- */
+
+    const respostaPagamentoMP =
+      await fetch(
+        `https://api.mercadopago.com/v1/payments/${encodeURIComponent(
+          dataId,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let pagamentoMP: any =
+      null;
+
+
+    try {
+      pagamentoMP =
+        await respostaPagamentoMP
+          .json();
+    } catch {
+      pagamentoMP = null;
+    }
+
+
+    if (
+      !respostaPagamentoMP.ok
+    ) {
+      console.error(
+        "Erro ao consultar payment no Mercado Pago:",
+        {
+          paymentId:
+            dataId,
+
+          status:
+            respostaPagamentoMP.status,
+
+          resposta:
+            pagamentoMP,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
+
+    if (
+      String(
+        pagamentoMP?.id ?? "",
+      ) !== dataId
+    ) {
+      console.error(
+        "ID do payment divergente.",
+        {
+          recebido:
+            dataId,
+
+          consultado:
+            pagamentoMP?.id,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /* ---------------------------------------------------------
+       2. Descobre se o pagamento pertence ao Bíblia Slides
+       --------------------------------------------------------- */
+
+    const clientePagamentoWebhook =
+      createClient(
+        supabaseUrl,
+        adminKey,
+        {
+          auth: {
+            persistSession:
+              false,
+
+            autoRefreshToken:
+              false,
+          },
+        },
+      );
+
+
+    const bancoPagamentoWebhook =
+      clientePagamentoWebhook
+        .schema(
+          "biblia_slides",
+        );
+
+
+    const {
+      data:
+      pagamentoLocal,
+
+      error:
+      erroPagamentoLocal,
+    } =
+      await bancoPagamentoWebhook
+        .from(
+          "pagamentos",
+        )
+        .select(`
+        id,
+        status,
+        usuario_id,
+        finalidade,
+        plano_armazenamento_id,
+        valor,
+        moeda,
+        pagamento_provedor_id,
+        ordem_provedor_id,
+        reembolso_provedor_id,
+        reembolsado_em
+      `)
+        .eq(
+          "pagamento_provedor_id",
+          dataId,
+        )
+        .maybeSingle();
+
+
+    if (
+      erroPagamentoLocal
+    ) {
+      console.error(
+        "Erro ao localizar payment no banco:",
+        erroPagamentoLocal,
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+
+    /*
+     * O Mercado Pago também pode gerar eventos payment
+     * de outros produtos.
+     *
+     * Se não é nosso, não pedimos retry.
+     */
+    if (
+      !pagamentoLocal
+    ) {
+      console.log(
+        "Payment não pertence ao Bíblia Slides.",
+        {
+          paymentId:
+            dataId,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        ignorado: true,
+        motivo:
+          "PAYMENT_NAO_LOCAL",
+      });
+    }
+
+
+    /*
+     * O fluxo antigo de licença continua sendo tratado
+     * pelo evento ORDER já existente.
+     */
+    if (
+      pagamentoLocal
+        .finalidade !==
+      "ARMAZENAMENTO"
+    ) {
+      return Response.json({
+        ok: true,
+        ignorado: true,
+        motivo:
+          "PAYMENT_NAO_ARMAZENAMENTO",
+      });
+    }
+
+
+    /* ---------------------------------------------------------
+       3. Confirma que é REEMBOLSO TOTAL
+       --------------------------------------------------------- */
+
+    const valorPagamentoCentavos =
+      paraCentavos(
+        pagamentoMP
+          ?.transaction_amount,
+      );
+
+
+    const valorReembolsadoCentavos =
+      paraCentavos(
+        pagamentoMP
+          ?.transaction_amount_refunded,
+      );
+
+
+    const valorLocalCentavos =
+      paraCentavos(
+        pagamentoLocal.valor,
+      );
+
+
+    const reembolsoTotal =
+      String(
+        pagamentoMP?.status ??
+        "",
+      )
+        .toLowerCase() ===
+      "refunded" &&
+
+      valorPagamentoCentavos !==
+      null &&
+
+      valorReembolsadoCentavos !==
+      null &&
+
+      valorPagamentoCentavos ===
+      valorReembolsadoCentavos;
+
+
+    /*
+     * Atualização normal de payment ou reembolso parcial:
+     * não retiramos o armazenamento.
+     */
+    if (
+      !reembolsoTotal
+    ) {
+      console.log(
+        "Payment sem reembolso total.",
+        {
+          paymentId:
+            dataId,
+
+          status:
+            pagamentoMP?.status,
+
+          valor:
+            pagamentoMP
+              ?.transaction_amount,
+
+          reembolsado:
+            pagamentoMP
+              ?.transaction_amount_refunded,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        reembolsado: false,
+        reembolsoTotal: false,
+      });
+    }
+
+
+    if (
+      valorLocalCentavos ===
+      null ||
+
+      valorPagamentoCentavos !==
+      valorLocalCentavos ||
+
+      String(
+        pagamentoMP
+          ?.currency_id ??
+        "",
+      ) !==
+      String(
+        pagamentoLocal
+          .moeda ??
+        "",
+      )
+    ) {
+      console.error(
+        "Payment reembolsado não corresponde ao pagamento local.",
+        {
+          paymentId:
+            dataId,
+
+          valorMercadoPago:
+            pagamentoMP
+              ?.transaction_amount,
+
+          valorLocal:
+            pagamentoLocal.valor,
+
+          moedaMercadoPago:
+            pagamentoMP
+              ?.currency_id,
+
+          moedaLocal:
+            pagamentoLocal.moeda,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /* ---------------------------------------------------------
+       4. Busca os dados reais do reembolso
+  
+       A lista é consultada no MP; não confiamos apenas
+       no conteúdo recebido pelo webhook.
+       --------------------------------------------------------- */
+
+    const respostaReembolsos =
+      await fetch(
+        `https://api.mercadopago.com/v1/payments/${encodeURIComponent(
+          dataId,
+        )}/refunds`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let reembolsosMP: any =
+      null;
+
+
+    try {
+      reembolsosMP =
+        await respostaReembolsos
+          .json();
+    } catch {
+      reembolsosMP = null;
+    }
+
+
+    if (
+      !respostaReembolsos.ok ||
+      !Array.isArray(
+        reembolsosMP,
+      )
+    ) {
+      console.error(
+        "Erro ao consultar reembolsos do payment:",
+        {
+          paymentId:
+            dataId,
+
+          status:
+            respostaReembolsos.status,
+
+          resposta:
+            reembolsosMP,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
+
+    const totalReembolsosCentavos =
+      reembolsosMP.reduce(
+        (
+          total: number,
+          item: any,
+        ) => {
+          const valor =
+            paraCentavos(
+              item?.amount,
+            );
+
+          return (
+            total +
+            (
+              valor ??
+              0
+            )
+          );
+        },
+        0,
+      );
+
+
+    if (
+      totalReembolsosCentavos !==
+      valorPagamentoCentavos
+    ) {
+      console.error(
+        "Lista de reembolsos não corresponde ao valor integral.",
+        {
+          paymentId:
+            dataId,
+
+          pagamento:
+            valorPagamentoCentavos,
+
+          reembolsos:
+            totalReembolsosCentavos,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const reembolsoFinal =
+      [
+        ...reembolsosMP,
+      ]
+        .reverse()
+        .find(
+          (item: any) =>
+            item?.id,
+        );
+
+
+    const reembolsoProvedorId =
+      reembolsoFinal?.id
+        ? String(
+          reembolsoFinal.id,
+        )
+        : "";
+
+
+    if (
+      !reembolsoProvedorId
+    ) {
+      console.error(
+        "Reembolso total sem ID de reembolso.",
+        {
+          paymentId:
+            dataId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /* ---------------------------------------------------------
+       5. A cobrança local guarda em ordem_provedor_id
+          o ID da fatura authorized_payment.
+  
+          Usamos essa fatura para descobrir e validar
+          o preapproval exato da assinatura.
+       --------------------------------------------------------- */
+
+    const faturaId =
+      pagamentoLocal
+        .ordem_provedor_id
+        ? String(
+          pagamentoLocal
+            .ordem_provedor_id,
+        )
+        : "";
+
+
+    if (
+      !faturaId
+    ) {
+      console.error(
+        "Pagamento recorrente sem ID da fatura.",
+        {
+          paymentId:
+            dataId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const respostaFaturaReembolso =
+      await fetch(
+        `https://api.mercadopago.com/authorized_payments/${encodeURIComponent(
+          faturaId,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let faturaReembolsoMP: any =
+      null;
+
+
+    try {
+      faturaReembolsoMP =
+        await respostaFaturaReembolso
+          .json();
+    } catch {
+      faturaReembolsoMP =
+        null;
+    }
+
+
+    if (
+      !respostaFaturaReembolso.ok
+    ) {
+      console.error(
+        "Erro ao consultar fatura do payment reembolsado:",
+        {
+          faturaId,
+
+          status:
+            respostaFaturaReembolso
+              .status,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
+
+    if (
+      String(
+        faturaReembolsoMP
+          ?.id ??
+        "",
+      ) !==
+      faturaId ||
+
+      String(
+        faturaReembolsoMP
+          ?.payment
+          ?.id ??
+        "",
+      ) !==
+      dataId
+    ) {
+      console.error(
+        "Fatura não corresponde ao payment reembolsado.",
+        {
+          faturaId,
+
+          paymentId:
+            dataId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const preapprovalId =
+      faturaReembolsoMP
+        ?.preapproval_id
+        ? String(
+          faturaReembolsoMP
+            .preapproval_id,
+        )
+        : "";
+
+
+    if (
+      !preapprovalId
+    ) {
+      console.error(
+        "Fatura reembolsada sem preapproval_id.",
+        {
+          faturaId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /* ---------------------------------------------------------
+       6. Confere se o preapproval pertence ao mesmo usuário
+          e ao mesmo plano que gerou a cobrança.
+       --------------------------------------------------------- */
+
+    const {
+      data:
+      assinaturaLocalReembolso,
+
+      error:
+      erroAssinaturaLocalReembolso,
+    } =
+      await bancoPagamentoWebhook
+        .from(
+          "assinaturas_armazenamento_provedor",
+        )
+        .select(`
+        id,
+        usuario_id,
+        plano_id,
+        preapproval_id,
+        referencia_externa,
+        status
+      `)
+        .eq(
+          "preapproval_id",
+          preapprovalId,
+        )
+        .maybeSingle();
+
+
+    if (
+      erroAssinaturaLocalReembolso ||
+      !assinaturaLocalReembolso
+    ) {
+      console.error(
+        "Preapproval do reembolso não encontrado localmente.",
+        {
+          preapprovalId,
+
+          erro:
+            erroAssinaturaLocalReembolso
+              ?.message ??
+            null,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    if (
+      assinaturaLocalReembolso
+        .usuario_id !==
+      pagamentoLocal
+        .usuario_id ||
+
+      assinaturaLocalReembolso
+        .plano_id !==
+      pagamentoLocal
+        .plano_armazenamento_id
+    ) {
+      console.error(
+        "Preapproval não corresponde ao usuário/plano do pagamento.",
+        {
+          preapprovalId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    /* ---------------------------------------------------------
+       7. Consulta e cancela a RECORRÊNCIA no Mercado Pago
+  
+       Reembolso sozinho não cancela a assinatura.
+  
+       Primeiro interrompemos futuras cobranças no provedor;
+       somente depois alteramos o nosso banco.
+       --------------------------------------------------------- */
+
+    const respostaPreapprovalReembolso =
+      await fetch(
+        `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+          preapprovalId,
+        )}`,
+        {
+          method: "GET",
+
+          headers: {
+            Authorization:
+              `Bearer ${accessToken}`,
+
+            "Content-Type":
+              "application/json",
+          },
+        },
+      );
+
+
+    let preapprovalReembolsoMP: any =
+      null;
+
+
+    try {
+      preapprovalReembolsoMP =
+        await respostaPreapprovalReembolso
+          .json();
+    } catch {
+      preapprovalReembolsoMP =
+        null;
+    }
+
+
+    if (
+      !respostaPreapprovalReembolso.ok
+    ) {
+      console.error(
+        "Erro ao consultar preapproval do reembolso:",
+        {
+          preapprovalId,
+
+          status:
+            respostaPreapprovalReembolso
+              .status,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 502,
+        },
+      );
+    }
+
+
+    if (
+      String(
+        preapprovalReembolsoMP
+          ?.id ??
+        "",
+      ) !==
+      preapprovalId
+    ) {
+      console.error(
+        "Preapproval consultado é divergente.",
+        {
+          preapprovalId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const referenciaPreapprovalMP =
+      String(
+        preapprovalReembolsoMP
+          ?.external_reference ??
+        "",
+      );
+
+
+    if (
+      referenciaPreapprovalMP &&
+      referenciaPreapprovalMP !==
+      assinaturaLocalReembolso
+        .referencia_externa
+    ) {
+      console.error(
+        "External reference do preapproval divergente.",
+        {
+          preapprovalId,
+        },
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 409,
+        },
+      );
+    }
+
+
+    const statusPreapproval =
+      String(
+        preapprovalReembolsoMP
+          ?.status ??
+        "",
+      )
+        .trim()
+        .toLowerCase();
+
+
+    if (
+      statusPreapproval !==
+      "canceled" &&
+      statusPreapproval !==
+      "cancelled"
+    ) {
+      const respostaCancelamentoMP =
+        await fetch(
+          `https://api.mercadopago.com/preapproval/${encodeURIComponent(
+            preapprovalId,
+          )}`,
+          {
+            method:
+              "PUT",
+
+            headers: {
+              Authorization:
+                `Bearer ${accessToken}`,
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                status:
+                  "canceled",
+              }),
+          },
+        );
+
+
+      let cancelamentoMP: any =
+        null;
+
+
+      try {
+        cancelamentoMP =
+          await respostaCancelamentoMP
+            .json();
+      } catch {
+        cancelamentoMP =
+          null;
+      }
+
+
+      if (
+        !respostaCancelamentoMP.ok
+      ) {
+        console.error(
+          "Não foi possível cancelar a recorrência após o reembolso:",
+          {
+            preapprovalId,
+
+            status:
+              respostaCancelamentoMP
+                .status,
+
+            resposta:
+              cancelamentoMP,
+          },
+        );
+
+        return Response.json(
+          {
+            ok: false,
+          },
+          {
+            status: 502,
+          },
+        );
+      }
+
+
+      const statusCancelado =
+        String(
+          cancelamentoMP
+            ?.status ??
+          "",
+        )
+          .trim()
+          .toLowerCase();
+
+
+      if (
+        statusCancelado !==
+        "canceled" &&
+        statusCancelado !==
+        "cancelled"
+      ) {
+        console.error(
+          "Mercado Pago não confirmou o cancelamento do preapproval.",
+          {
+            preapprovalId,
+
+            status:
+              cancelamentoMP
+                ?.status,
+          },
+        );
+
+        return Response.json(
+          {
+            ok: false,
+          },
+          {
+            status: 409,
+          },
+        );
+      }
+    }
+
+
+    /* ---------------------------------------------------------
+       8. Registra o reembolso e executa o downgrade local
+  
+       Esta RPC:
+       - marca pagamento REEMBOLSADO;
+       - encerra assinatura mensal;
+       - cria snapshot;
+       - volta para BASE_25MB;
+       - é idempotente.
+       --------------------------------------------------------- */
+
+    const reembolsadoEm =
+      pagamentoMP
+        ?.date_last_updated ??
+      new Date()
+        .toISOString();
+
+
+    const {
+      data:
+      processamentoReembolso,
+
+      error:
+      erroProcessamentoReembolso,
+    } =
+      await bancoPagamentoWebhook
+        .rpc(
+          "processar_reembolso_assinatura_armazenamento",
+          {
+            p_pagamento_provedor_id:
+              dataId,
+
+            p_preapproval_id:
+              preapprovalId,
+
+            p_reembolso_provedor_id:
+              reembolsoProvedorId,
+
+            p_reembolsado_em:
+              reembolsadoEm,
+          },
+        );
+
+
+    if (
+      erroProcessamentoReembolso
+    ) {
+      console.error(
+        "Erro ao processar reembolso da assinatura:",
+        erroProcessamentoReembolso,
+      );
+
+      return Response.json(
+        {
+          ok: false,
+        },
+        {
+          status: 500,
+        },
+      );
+    }
+
+
+    console.log(
+      "REEMBOLSO DE ASSINATURA DE ARMAZENAMENTO PROCESSADO",
+      {
+        paymentId:
+          dataId,
+
+        preapprovalId,
+
+        reembolsoId:
+          reembolsoProvedorId,
+
+        processamento:
+          processamentoReembolso,
+      },
+    );
+
+
+    return Response.json({
+      ok: true,
+
+      reembolsado:
+        true,
+
+      reembolsoTotal:
+        true,
+
+      assinaturaCancelada:
+        true,
+
+      retornouPlanoBase:
+        true,
+
+      paymentId:
+        dataId,
+
+      preapprovalId,
+
+      reembolsoId:
+        reembolsoProvedorId,
+    });
+  }
+
+
+  /*
+ * Outros tipos de webhook ainda não tratados.
+ */
+
+
+  if (
+    tipo &&
+    tipo !== "order"
+  ) {
+    return Response.json({
+      ok: true,
+      ignorado: true,
+      tipo,
+    });
+  }
+
+  // -----------------------------------
+  // Consulta a Order diretamente no MP
+  // -----------------------------------
+
+  const respostaMP =
+    await fetch(
+      `https://api.mercadopago.com/v1/orders/${encodeURIComponent(dataId)
+      }`,
+      {
+        method: "GET",
+
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+        },
+      },
+    );
+
+  let order: any = null;
+
+  try {
+    order =
+      await respostaMP.json();
+  } catch {
+    // tratado abaixo
+  }
+
+  if (!respostaMP.ok) {
+    console.error(
+      "Erro ao consultar Order:",
+      {
+        status:
+          respostaMP.status,
+
+        dataId,
+
+        resposta:
+          order,
+      },
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 502 },
+    );
+  }
+
+  if (
+    order?.id !== dataId
+  ) {
+    console.error(
+      "ID da Order divergente.",
+      {
+        recebido:
+          dataId,
+
+        consultado:
+          order?.id,
+      },
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 409 },
+    );
+  }
+
+  // -----------------------------------
+  // Reembolso total
+  // -----------------------------------
+
+  if (
+    order?.status ===
+    "refunded" &&
+    order?.status_detail ===
+    "refunded"
+  ) {
+    const referenciaReembolso =
+      order?.external_reference;
+
+    if (!referenciaReembolso) {
+      console.error(
+        "Order reembolsada sem external_reference.",
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+    const reembolsosMP =
+      Array.isArray(
+        order?.transactions?.refunds,
+      )
+        ? order.transactions.refunds
+        : [];
+
+    const reembolsoMP =
+      reembolsosMP.find(
+        (r: any) =>
+          r?.id &&
+          r?.transaction_id,
+      );
+
+    const reembolsoProvedorId =
+      reembolsoMP?.id
+        ? String(reembolsoMP.id)
+        : null;
+
+    const pagamentoProvedorId =
+      reembolsoMP?.transaction_id
+        ? String(
+          reembolsoMP.transaction_id,
+        )
+        : null;
+
+    if (
+      !reembolsoProvedorId ||
+      !pagamentoProvedorId
+    ) {
+      console.error(
+        "Order reembolsada sem identificação do reembolso/pagamento.",
+        {
+          orderId:
+            order?.id,
+        },
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+    const supabaseAdminReembolso =
+      createClient(
+        supabaseUrl,
+        adminKey,
+        {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+          },
+        },
+      );
+
+    const bancoReembolso =
+      supabaseAdminReembolso.schema(
+        "biblia_slides",
+      );
+
+    // Confere se o pagamento pertence
+    // realmente ao nosso banco.
+    const {
+      data: pagamentoLocal,
+      error: erroPagamentoLocal,
+    } =
+      await bancoReembolso
+        .from("pagamentos")
+        .select(`
+        id,
+        status,
+        usuario_id,
+        pagamento_provedor_id,
+        ordem_provedor_id,
+        referencia_externa
+      `)
+        .eq(
+          "referencia_externa",
+          referenciaReembolso,
+        )
+        .maybeSingle();
+
+    if (
+      erroPagamentoLocal ||
+      !pagamentoLocal
+    ) {
+      console.warn(
+        "Reembolso não pertence a pagamento local.",
+        {
+          referenciaReembolso,
+          erro:
+            erroPagamentoLocal?.message ??
+            null,
+        },
+      );
+
+      return Response.json({
+        ok: true,
+        ignorado: true,
+      });
+    }
+
+    if (
+      pagamentoLocal
+        .ordem_provedor_id !==
+      dataId
+    ) {
+      console.error(
+        "Order do reembolso divergente.",
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+    if (
+      pagamentoLocal
+        .pagamento_provedor_id &&
+      pagamentoLocal
+        .pagamento_provedor_id !==
+      pagamentoProvedorId
+    ) {
+      console.error(
+        "Pagamento do reembolso divergente.",
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 409 },
+      );
+    }
+
+    const reembolsadoEm =
+      order?.last_updated_date ??
+      new Date().toISOString();
+
+    const {
+      data: pagamentoReembolsado,
+      error: erroReembolso,
+    } =
+      await bancoReembolso.rpc(
+        "confirmar_reembolso_ordem",
+        {
+          p_referencia_externa:
+            referenciaReembolso,
+
+          p_ordem_provedor_id:
+            dataId,
+
+          p_pagamento_provedor_id:
+            pagamentoProvedorId,
+
+          p_reembolso_provedor_id:
+            reembolsoProvedorId,
+
+          p_reembolsado_em:
+            reembolsadoEm,
+        },
+      );
+
+    if (erroReembolso) {
+      console.error(
+        "Erro ao registrar reembolso:",
+        erroReembolso,
+      );
+
+      return Response.json(
+        { ok: false },
+        { status: 500 },
+      );
+    }
+
+    console.log(
+      "PAGAMENTO REEMBOLSADO E LICENÇA REVOGADA",
+      {
+        pagamentoId:
+          pagamentoReembolsado,
+
+        orderId:
+          dataId,
+
+        reembolsoId:
+          reembolsoProvedorId,
+      },
+    );
+
+    return Response.json({
+      ok: true,
+      reembolsado: true,
+
+      pagamentoId:
+        pagamentoReembolsado,
+
+      reembolsoId:
+        reembolsoProvedorId,
+    });
+  }
+
+  // Somente pagamento realmente
+  // processado e creditado libera.
+  if (
+    order?.status !==
+    "processed" ||
+    order?.status_detail !==
+    "accredited"
+  ) {
+    console.log(
+      "Order ainda não aprovada:",
+      {
+        id:
+          order?.id,
+
+        status:
+          order?.status,
+
+        statusDetail:
+          order?.status_detail,
+      },
+    );
+
+    return Response.json({
+      ok: true,
+      liberado: false,
+      status:
+        order?.status ?? null,
+      statusDetail:
+        order?.status_detail ??
+        null,
+    });
+  }
+
+  const referenciaExterna =
+    order?.external_reference;
+
+  if (
+    !referenciaExterna
+  ) {
+    console.error(
+      "Order sem external_reference.",
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 409 },
+    );
+  }
+
+  const totalCentavos =
+    paraCentavos(
+      order?.total_amount,
+    );
+
+  const pagoCentavos =
+    paraCentavos(
+      order?.total_paid_amount,
+    );
+
+  if (
+    totalCentavos === null ||
+    pagoCentavos === null ||
+    totalCentavos !==
+    pagoCentavos
+  ) {
+    console.error(
+      "Valor pago divergente.",
+      {
+        total:
+          order?.total_amount,
+
+        pago:
+          order?.total_paid_amount,
+      },
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 409 },
+    );
+  }
+
+  const supabaseAdmin =
+    createClient(
+      supabaseUrl,
+      adminKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      },
+    );
+
+  const banco =
+    supabaseAdmin.schema(
+      "biblia_slides",
+    );
+
+  // -----------------------------------
+  // Confere pagamento local
+  // -----------------------------------
+
+  const {
+    data: pagamento,
+    error: erroPagamento,
+  } =
+    await banco
+      .from("pagamentos")
+      .select(`
+        id,
+        status,
+        valor,
+        moeda,
+        referencia_externa,
+        ordem_provedor_id
+      `)
+      .eq(
+        "referencia_externa",
+        referenciaExterna,
+      )
+      .maybeSingle();
+
+  if (
+    erroPagamento ||
+    !pagamento
+  ) {
+    console.warn(
+      "Order válida não pertence a pagamento local.",
+      {
+        referenciaExterna,
+        erro:
+          erroPagamento?.message ??
+          null,
+      },
+    );
+
+    // Não pedimos retry infinito para
+    // uma Order que não pertence ao app.
+    return Response.json({
+      ok: true,
+      ignorado: true,
+    });
+  }
+
+  if (
+    pagamento.ordem_provedor_id !==
+    dataId
+  ) {
+    console.error(
+      "Order não corresponde ao pagamento local.",
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 409 },
+    );
+  }
+
+  const valorLocalCentavos =
+    paraCentavos(
+      pagamento.valor,
+    );
+
+  if (
+    valorLocalCentavos === null ||
+    valorLocalCentavos !==
+    totalCentavos
+  ) {
+    console.error(
+      "Valor da Order não corresponde ao banco.",
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 409 },
+    );
+  }
+
+  const pagamentosMP =
+    Array.isArray(
+      order?.transactions?.payments,
+    )
+      ? order.transactions.payments
+      : [];
+
+  const pagamentoCreditado =
+    pagamentosMP.find(
+      (p: any) =>
+        p?.status === "processed" &&
+        p?.status_detail ===
+        "accredited",
+    );
+
+  const pagamentoProvedorId =
+    pagamentoCreditado?.id
+      ? String(
+        pagamentoCreditado.id,
+      )
+      : null;
+
+  const pagoEm =
+    order?.last_updated_date ??
+    new Date().toISOString();
+
+  // -----------------------------------
+  // APROVA + concede licença
+  // -----------------------------------
+
+  const {
+    data: pagamentoConfirmado,
+    error: erroConfirmacao,
+  } =
+    await banco.rpc(
+      "confirmar_ordem_processada",
+      {
+        p_referencia_externa:
+          referenciaExterna,
+
+        p_ordem_provedor_id:
+          dataId,
+
+        p_valor:
+          Number(
+            order.total_amount,
+          ),
+
+        p_pagamento_provedor_id:
+          pagamentoProvedorId,
+
+        p_moeda:
+          "BRL",
+
+        p_pago_em:
+          pagoEm,
+      },
+    );
+
+  if (erroConfirmacao) {
+    console.error(
+      "Erro ao confirmar pagamento:",
+      erroConfirmacao,
+    );
+
+    return Response.json(
+      { ok: false },
+      { status: 500 },
+    );
+  }
+
+  console.log(
+    "PAGAMENTO APROVADO E LICENÇA LIBERADA",
+    {
+      pagamentoId:
+        pagamentoConfirmado,
+
+      orderId:
+        dataId,
+
+      referenciaExterna,
+    },
+  );
+
+  return Response.json({
+    ok: true,
+    liberado: true,
+  });
+});
