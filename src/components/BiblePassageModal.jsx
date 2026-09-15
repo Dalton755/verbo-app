@@ -4,6 +4,10 @@ import {
 } from "react";
 
 import {
+  createPortal,
+} from "react-dom";
+
+import {
   X,
 } from "lucide-react";
 
@@ -90,9 +94,11 @@ function BiblePassageModal({
     onClose,
   ]);
 
-  if (!referencia) return null;
+  if (!referencia) {
+    return null;
+  }
 
-  return (
+  const modal = (
     <div
       className="verse-overlay"
       onMouseDown={(event) => {
@@ -146,7 +152,9 @@ function BiblePassageModal({
             passagem?.versos?.map(
               (verso) => (
                 <p
-                  key={verso.nome}
+                  key={
+                    `${verso.numero}-${verso.nome}`
+                  }
                   className="verse-text"
                 >
                   <sup>
@@ -162,9 +170,7 @@ function BiblePassageModal({
         {passagem && (
           <footer className="verse-footer">
             <span>
-              {
-                passagem.traducao
-              }
+              {passagem.traducao}
             </span>
 
             <span>
@@ -174,6 +180,11 @@ function BiblePassageModal({
         )}
       </article>
     </div>
+  );
+
+  return createPortal(
+    modal,
+    document.body,
   );
 }
 
