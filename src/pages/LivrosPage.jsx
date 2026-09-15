@@ -39,6 +39,15 @@ import {
 
 import verboLogoHorizontal from "../assets/verbo-logo-horizontal.png";
 
+const STORAGE_MODAL =
+    "verbo_livros_modal_aberto";
+
+const STORAGE_TITULO =
+    "verbo_livros_titulo";
+
+const STORAGE_AUTOR =
+    "verbo_livros_autor";
+
 function LivrosPage() {
     const navigate =
         useNavigate();
@@ -59,7 +68,13 @@ function LivrosPage() {
     const [
         modalAberto,
         setModalAberto,
-    ] = useState(false);
+    ] = useState(() => {
+        return (
+            sessionStorage.getItem(
+                STORAGE_MODAL,
+            ) === "1"
+        );
+    });
 
     const [
         salvando,
@@ -74,12 +89,24 @@ function LivrosPage() {
     const [
         titulo,
         setTitulo,
-    ] = useState("");
+    ] = useState(() => {
+        return (
+            sessionStorage.getItem(
+                STORAGE_TITULO,
+            ) ?? ""
+        );
+    });
 
     const [
         autor,
         setAutor,
-    ] = useState("");
+    ] = useState(() => {
+        return (
+            sessionStorage.getItem(
+                STORAGE_AUTOR,
+            ) ?? ""
+        );
+    });
 
     const [
         arquivo,
@@ -103,16 +130,16 @@ function LivrosPage() {
             } = await supabase
                 .from("livros")
                 .select(`
-          id,
-          titulo,
-          autor,
-          arquivo_nome,
-          storage_path,
-          total_paginas,
-          ultima_pagina,
-          ultima_posicao,
-          created_at
-        `)
+                    id,
+                    titulo,
+                    autor,
+                    arquivo_nome,
+                    storage_path,
+                    total_paginas,
+                    ultima_pagina,
+                    ultima_posicao,
+                    created_at
+                `)
                 .eq(
                     "usuario_id",
                     user.id,
@@ -155,12 +182,74 @@ function LivrosPage() {
         };
     }, [user]);
 
+    /*
+     * Mantém o texto digitado caso o Android
+     * remonte a página ao abrir o seletor
+     * de arquivos.
+     */
+    useEffect(() => {
+        if (!modalAberto) {
+            return;
+        }
+
+        sessionStorage.setItem(
+            STORAGE_TITULO,
+            titulo,
+        );
+    }, [
+        titulo,
+        modalAberto,
+    ]);
+
+    useEffect(() => {
+        if (!modalAberto) {
+            return;
+        }
+
+        sessionStorage.setItem(
+            STORAGE_AUTOR,
+            autor,
+        );
+    }, [
+        autor,
+        modalAberto,
+    ]);
+
+    function limparRascunhoImportacao() {
+        sessionStorage.removeItem(
+            STORAGE_MODAL,
+        );
+
+        sessionStorage.removeItem(
+            STORAGE_TITULO,
+        );
+
+        sessionStorage.removeItem(
+            STORAGE_AUTOR,
+        );
+    }
+
     function abrirImportacao() {
         setErro("");
 
         setTitulo("");
         setAutor("");
         setArquivo(null);
+
+        sessionStorage.setItem(
+            STORAGE_MODAL,
+            "1",
+        );
+
+        sessionStorage.setItem(
+            STORAGE_TITULO,
+            "",
+        );
+
+        sessionStorage.setItem(
+            STORAGE_AUTOR,
+            "",
+        );
 
         setModalAberto(true);
     }
@@ -170,7 +259,37 @@ function LivrosPage() {
             return;
         }
 
+        limparRascunhoImportacao();
+
+        setTitulo("");
+        setAutor("");
+        setArquivo(null);
+
         setModalAberto(false);
+    }
+
+    function selecionarArquivo(
+        event,
+    ) {
+        const arquivoSelecionado =
+            event.target
+                .files?.[0] ??
+            null;
+
+        /*
+         * Mantemos explicitamente o modal
+         * marcado como aberto porque alguns
+         * navegadores Android remontam partes
+         * da interface ao voltar do seletor.
+         */
+        sessionStorage.setItem(
+            STORAGE_MODAL,
+            "1",
+        );
+
+        setArquivo(
+            arquivoSelecionado,
+        );
     }
 
     async function importarLivro(
@@ -252,9 +371,9 @@ function LivrosPage() {
             `${user.id}/livros/${identificador}.pdf`;
 
         /*
-    * 1. Reserva o espaço e envia
-    *    o PDF com quota protegida.
-    */
+         * 1. Reserva o espaço e envia
+         * o PDF com quota protegida.
+         */
         try {
             await uploadPdfSeguro({
                 arquivo,
@@ -334,7 +453,7 @@ function LivrosPage() {
                 processado_em,
                 processador_versao,
                 created_at
-                `)
+            `)
             .single();
 
         /*
@@ -381,6 +500,8 @@ function LivrosPage() {
             ],
         );
 
+        limparRascunhoImportacao();
+
         setTitulo("");
         setAutor("");
         setArquivo(null);
@@ -394,10 +515,13 @@ function LivrosPage() {
             <header className="topbar">
                 <div className="module-header module-header-verbo">
                     <img
-                        src={verboLogoHorizontal}
+                        src={
+                            verboLogoHorizontal
+                        }
                         alt="VERBO"
                         className="topbar-verbo-logo"
                     />
+
                     <button
                         type="button"
                         className="back-button"
@@ -428,23 +552,27 @@ function LivrosPage() {
                 <section className="sermons-heading">
                     <div className="module-page-intro">
                         <p className="eyebrow">
-                            Leia. Continue. Aprofunde.
+                            Leia. Continue.
+                            Aprofunde.
                         </p>
 
                         <h2>
-                            Sua biblioteca cristã
-                            em qualquer tela.
+                            Sua biblioteca
+                            cristã em qualquer
+                            tela.
                         </h2>
 
                         <p>
-                            Importe seus livros em PDF
-                            e continue a leitura de onde
-                            parou, no computador ou no
+                            Importe seus livros
+                            em PDF e continue a
+                            leitura de onde parou,
+                            no computador ou no
                             celular.
                         </p>
                     </div>
 
-                    {livros.length > 0 && (
+                    {livros.length >
+                        0 && (
                         <button
                             type="button"
                             className="primary-button desktop-import-button"
@@ -452,7 +580,9 @@ function LivrosPage() {
                                 abrirImportacao
                             }
                         >
-                            <Plus size={18} />
+                            <Plus
+                                size={18}
+                            />
 
                             Novo livro
                         </button>
@@ -470,10 +600,12 @@ function LivrosPage() {
                         <div className="loading-dot" />
 
                         <p>
-                            Buscando seus livros...
+                            Buscando seus
+                            livros...
                         </p>
                     </section>
-                ) : livros.length === 0 ? (
+                ) : livros.length ===
+                  0 ? (
                     <section className="module-empty">
                         <div className="empty-icon">
                             <LibraryBig
@@ -482,13 +614,15 @@ function LivrosPage() {
                         </div>
 
                         <h3>
-                            Sua estante começa aqui
+                            Sua estante começa
+                            aqui
                         </h3>
 
                         <p>
-                            Importe um livro em PDF.
-                            Depois ele será preparado
-                            para uma leitura confortável
+                            Importe um livro em
+                            PDF. Depois ele será
+                            preparado para uma
+                            leitura confortável
                             em qualquer tela.
                         </p>
 
@@ -509,7 +643,9 @@ function LivrosPage() {
                 ) : (
                     <section className="sermons-list">
                         {livros.map(
-                            (livro) => (
+                            (
+                                livro,
+                            ) => (
                                 <button
                                     key={
                                         livro.id
@@ -524,7 +660,9 @@ function LivrosPage() {
                                 >
                                     <div className="sermon-card-icon">
                                         <BookOpen
-                                            size={21}
+                                            size={
+                                                21
+                                            }
                                         />
                                     </div>
 
@@ -535,7 +673,9 @@ function LivrosPage() {
                                         </span>
 
                                         <h3>
-                                            {livro.titulo}
+                                            {
+                                                livro.titulo
+                                            }
                                         </h3>
 
                                         <p>
@@ -546,7 +686,9 @@ function LivrosPage() {
                                     </div>
 
                                     <ChevronRight
-                                        size={20}
+                                        size={
+                                            20
+                                        }
                                         className="module-card-arrow-inline"
                                     />
                                 </button>
@@ -576,7 +718,9 @@ function LivrosPage() {
                         <div className="modal-header">
                             <div className="modal-icon">
                                 <LibraryBig
-                                    size={22}
+                                    size={
+                                        22
+                                    }
                                 />
                             </div>
 
@@ -591,7 +735,11 @@ function LivrosPage() {
                                 }
                                 aria-label="Fechar"
                             >
-                                <X size={20} />
+                                <X
+                                    size={
+                                        20
+                                    }
+                                />
                             </button>
                         </div>
 
@@ -601,12 +749,14 @@ function LivrosPage() {
                             </span>
 
                             <h2>
-                                Adicione à sua estante
+                                Adicione à sua
+                                estante
                             </h2>
 
                             <p>
-                                Informe o título, o autor
-                                e selecione o PDF.
+                                Informe o título,
+                                o autor e selecione
+                                o PDF.
                             </p>
                         </div>
 
@@ -670,20 +820,15 @@ function LivrosPage() {
                                     <input
                                         type="file"
                                         accept="application/pdf,.pdf"
-                                        onChange={(
-                                            event,
-                                        ) =>
-                                            setArquivo(
-                                                event
-                                                    .target
-                                                    .files?.[0] ??
-                                                null,
-                                            )
+                                        onChange={
+                                            selecionarArquivo
                                         }
                                     />
 
                                     <Upload
-                                        size={21}
+                                        size={
+                                            21
+                                        }
                                     />
 
                                     <div>
@@ -737,7 +882,9 @@ function LivrosPage() {
 
                                     {!salvando && (
                                         <BookOpen
-                                            size={18}
+                                            size={
+                                                18
+                                            }
                                         />
                                     )}
                                 </button>
