@@ -1,0 +1,19 @@
+{
+  "name": "VERBO",
+  "short_name": "VERBO",
+  "description": "Organize, ensine e pregue com seus materiais cristãos em um só lugar.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/verbo-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
