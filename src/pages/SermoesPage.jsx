@@ -86,6 +86,10 @@ function SermoesPage() {
     const [textoBase, setTextoBase] =
         useState("");
 
+
+    const [serieId, setSerieId] =
+        useState("");
+
     const [arquivo, setArquivo] =
         useState(null);
 
@@ -106,6 +110,7 @@ function SermoesPage() {
                     titulo,
                     tema,
                     texto_base,
+                    serie_id,
                     arquivo_nome,
                     storage_path,
                     total_paginas,
@@ -268,10 +273,10 @@ function SermoesPage() {
     }
 
     function abrirImportacao() {
-        setErro("");
         setTitulo("");
         setTema("");
         setTextoBase("");
+        setSerieId("");
         setArquivo(null);
 
         setModalAberto(true);
@@ -382,6 +387,10 @@ function SermoesPage() {
                     textoBase.trim() ||
                     null,
 
+                serie_id:
+                    serieId ||
+                    null,
+
                 arquivo_nome:
                     arquivo.name,
 
@@ -413,6 +422,7 @@ function SermoesPage() {
                 titulo,
                 tema,
                 texto_base,
+                serie_id,
                 arquivo_nome,
                 storage_path,
                 total_paginas,
@@ -475,9 +485,24 @@ function SermoesPage() {
         setTitulo("");
         setTema("");
         setTextoBase("");
+        setSerieId("");
         setArquivo(null);
 
         setSalvando(false);
+    }
+
+    function nomeDaSerie(serieIdAtual) {
+        if (!serieIdAtual) {
+            return "";
+        }
+
+        return (
+            series.find(
+                (serie) =>
+                    serie.id ===
+                    serieIdAtual,
+            )?.nome ?? ""
+        );
     }
 
     return (
@@ -658,7 +683,15 @@ function SermoesPage() {
 
                                     <div className="sermon-card-content">
                                         <span>
-                                            {sermao.tema ||
+                                            {nomeDaSerie(
+                                                sermao.serie_id,
+                                            )
+                                                ? `${nomeDaSerie(
+                                                    sermao.serie_id,
+                                                )} · ${sermao.tema ||
+                                                "Sermão"
+                                                }`
+                                                : sermao.tema ||
                                                 "Sermão"}
                                         </span>
 
@@ -821,6 +854,42 @@ function SermoesPage() {
                                     placeholder="Ex.: Romanos 5:8"
                                 />
                             </label>
+
+                            <div className="form-field">
+                                <label htmlFor="sermon-series">
+                                    Série
+                                </label>
+
+                                <select
+                                    id="sermon-series"
+                                    value={serieId}
+                                    onChange={(event) =>
+                                        setSerieId(
+                                            event.target.value,
+                                        )
+                                    }
+                                >
+                                    <option value="">
+                                        Sem série
+                                    </option>
+
+                                    {series.map(
+                                        (serie) => (
+                                            <option
+                                                key={serie.id}
+                                                value={serie.id}
+                                            >
+                                                {serie.nome}
+                                            </option>
+                                        ),
+                                    )}
+                                </select>
+
+                                <small>
+                                    Opcional. Agrupe sermões que fazem
+                                    parte de uma mesma sequência.
+                                </small>
+                            </div>
 
                             <label>
                                 Arquivo PDF
