@@ -1,10 +1,32 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 
-createRoot(document.getElementById('root')).render(
+import "./index.css";
+import App from "./App.jsx";
+
+createRoot(
+  document.getElementById("root"),
+).render(
   <StrictMode>
     <App />
   </StrictMode>,
-)
+);
+
+if (
+  "serviceWorker" in navigator &&
+  import.meta.env.PROD
+) {
+  window.addEventListener(
+    "load",
+    () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .catch((error) => {
+          console.error(
+            "Erro ao registrar Service Worker:",
+            error,
+          );
+        });
+    },
+  );
+}
