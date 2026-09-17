@@ -10,6 +10,7 @@ import { LicenseProvider } from "./contexts/LicenseContext";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import LicensedRoute from "./components/LicensedRoute";
+import PwaManager from "./components/PwaManager";
 
 import BibliotecaPage from "./pages/BibliotecaPage";
 import EbdPage from "./pages/EbdPage";
@@ -30,6 +31,8 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <LicenseProvider>
+          <PwaManager />
+
           <Routes>
             <Route
               path="/"

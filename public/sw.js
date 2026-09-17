@@ -40,6 +40,17 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) {
     return;
   }
+  if (
+  url.searchParams.has(
+    "__verbo_check",
+  )
+) {
+  event.respondWith(
+    fetch(event.request),
+  );
+
+  return;
+}
 
   event.respondWith(
     fetch(event.request)
