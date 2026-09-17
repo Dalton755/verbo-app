@@ -9,6 +9,7 @@ import {
 import {
     ArrowLeft,
     BookOpen,
+    Bookmark,
     CalendarDays,
     Clock3,
     Expand,
@@ -17,12 +18,13 @@ import {
     MapPin,
     Maximize2,
     Minus,
-    Plus,
-    Shrink,
     Pause,
     Play,
+    Plus,
     RotateCcw,
+    Shrink,
     Square,
+    Trash2,
     X,
 } from "lucide-react";
 
@@ -902,6 +904,51 @@ function SermaoPage() {
     const cronometroAcumuladoRef =
         useRef(0);
 
+    const [
+        marcadores,
+        setMarcadores,
+    ] = useState([]);
+
+    const [
+        modalMarcadorAberto,
+        setModalMarcadorAberto,
+    ] = useState(false);
+
+    const [
+        painelMarcadoresAberto,
+        setPainelMarcadoresAberto,
+    ] = useState(false);
+
+    const [
+        tituloMarcador,
+        setTituloMarcador,
+    ] = useState("");
+
+    const [
+        tipoMarcador,
+        setTipoMarcador,
+    ] = useState("MARCADOR");
+
+    const [
+        paginaMarcador,
+        setPaginaMarcador,
+    ] = useState(1);
+
+    const [
+        posicaoMarcador,
+        setPosicaoMarcador,
+    ] = useState(0);
+
+    const [
+        salvandoMarcador,
+        setSalvandoMarcador,
+    ] = useState(false);
+
+    const [
+        erroMarcador,
+        setErroMarcador,
+    ] = useState("");
+
 
     useEffect(() => {
         if (!cronometroRodando) {
@@ -1493,6 +1540,81 @@ function SermaoPage() {
         id,
     ]);
 
+    useEffect(() => {
+        if (
+            !user ||
+            !id
+        ) {
+            return;
+        }
+
+        let ativo = true;
+
+        async function carregarMarcadores() {
+            const {
+                data,
+                error,
+            } = await supabase
+                .from(
+                    "marcadores_sermao",
+                )
+                .select(`
+                id,
+                titulo,
+                tipo,
+                pagina,
+                posicao,
+                created_at
+            `)
+                .eq(
+                    "usuario_id",
+                    user.id,
+                )
+                .eq(
+                    "sermao_id",
+                    id,
+                )
+                .order(
+                    "pagina",
+                    {
+                        ascending: true,
+                    },
+                )
+                .order(
+                    "posicao",
+                    {
+                        ascending: true,
+                    },
+                );
+
+            if (!ativo) {
+                return;
+            }
+
+            if (error) {
+                console.error(
+                    "Erro ao carregar marcadores:",
+                    error,
+                );
+
+                return;
+            }
+
+            setMarcadores(
+                data ?? [],
+            );
+        }
+
+        carregarMarcadores();
+
+        return () => {
+            ativo = false;
+        };
+    }, [
+        user,
+        id,
+    ]);
+
     useLayoutEffect(() => {
         if (
             carregando ||
@@ -2065,6 +2187,309 @@ function SermaoPage() {
         }
     }
 
+    function nomeTipoMarcador(
+        tipo,
+    ) {
+        const nomes = {
+            MARCADOR:
+                "Marcador",
+
+            ENFASE:
+                "Ênfase",
+
+            APLICACAO:
+                "Aplicação",
+
+            ILUSTRACAO:
+                "Ilustração",
+
+            CONCLUSAO:
+                "Conclusão",
+        };
+
+        return (
+            nomes[tipo] ||
+            "Marcador"
+        );
+    }
+
+    function abrirNovoMarcador() {
+        const progresso =
+            progressoAtualRef.current;
+
+        setPaginaMarcador(
+            Number(
+                progresso?.pagina ??
+                paginaAtual ??
+                1,
+            ),
+        );
+
+        setPosicaoMarcador(
+            Number(
+                progresso?.posicao ??
+                posicaoPagina ??
+                0,
+            ),
+        );
+
+        setTituloMarcador("");
+        setTipoMarcador("MARCADOR");
+        setErroMarcador("");
+
+        setModalMarcadorAberto(
+            true,
+        );
+    }
+
+    async function salvarMarcador(
+        event,
+    ) {
+        event.preventDefault();
+
+        if (
+            !user ||
+            !sermao?.id
+        ) {
+            return;
+        }
+
+        const tituloFinal =
+            tituloMarcador.trim() ||
+            nomeTipoMarcador(
+                tipoMarcador,
+            );
+
+        setSalvandoMarcador(
+            true,
+        );
+
+        setErroMarcador("");
+
+        const {
+            data,
+            error,
+        } = await supabase
+            .from(
+                "marcadores_sermao",
+            )
+            .insert({
+                usuario_id:
+                    user.id,
+
+                sermao_id:
+                    sermao.id,
+
+                titulo:
+                    tituloFinal,
+
+                tipo:
+                    tipoMarcador,
+
+                pagina:
+                    paginaMarcador,
+
+                posicao:
+                    Number(
+                        posicaoMarcador
+                            .toFixed(6),
+                    ),
+            })
+            .select(`
+            id,
+            titulo,
+            tipo,
+            pagina,
+            posicao,
+            created_at
+        `)
+            .single();
+
+        if (error) {
+            console.error(
+                "Erro ao salvar marcador:",
+                error,
+            );
+
+            setErroMarcador(
+                "Não conseguimos salvar o marcador.",
+            );
+
+            setSalvandoMarcador(
+                false,
+            );
+
+            return;
+        }
+
+        setMarcadores(
+            (anteriores) =>
+                [
+                    ...anteriores,
+                    data,
+                ].sort(
+                    (a, b) => {
+                        if (
+                            a.pagina !==
+                            b.pagina
+                        ) {
+                            return (
+                                a.pagina -
+                                b.pagina
+                            );
+                        }
+
+                        return (
+                            Number(
+                                a.posicao,
+                            ) -
+                            Number(
+                                b.posicao,
+                            )
+                        );
+                    },
+                ),
+        );
+
+        setModalMarcadorAberto(
+            false,
+        );
+
+        setSalvandoMarcador(
+            false,
+        );
+    }
+
+    function irParaMarcador(
+        marcador,
+    ) {
+        setModoVisualizacao(
+            "texto",
+        );
+
+        setPainelMarcadoresAberto(
+            false,
+        );
+
+        const pagina =
+            Number(
+                marcador.pagina,
+            );
+
+        const posicao =
+            Math.min(
+                Math.max(
+                    Number(
+                        marcador.posicao,
+                    ) || 0,
+                    0,
+                ),
+                1,
+            );
+
+        setPaginaAtual(
+            pagina,
+        );
+
+        setPosicaoPagina(
+            posicao,
+        );
+
+        requestAnimationFrame(
+            () => {
+                requestAnimationFrame(
+                    () => {
+                        const elemento =
+                            paginaRefs
+                                .current[
+                            pagina
+                            ];
+
+                        if (!elemento) {
+                            return;
+                        }
+
+                        const rect =
+                            elemento
+                                .getBoundingClientRect();
+
+                        const topo =
+                            window.scrollY +
+                            rect.top;
+
+                        const altura =
+                            Math.max(
+                                elemento
+                                    .offsetHeight,
+                                1,
+                            );
+
+                        window.scrollTo({
+                            top:
+                                Math.max(
+                                    0,
+                                    topo +
+                                    altura *
+                                    posicao -
+                                    100,
+                                ),
+
+                            behavior:
+                                "smooth",
+                        });
+                    },
+                );
+            },
+        );
+    }
+
+    async function excluirMarcador(
+        marcador,
+    ) {
+        const confirmar =
+            window.confirm(
+                `Excluir o marcador "${marcador.titulo}"?`,
+            );
+
+        if (!confirmar) {
+            return;
+        }
+
+        const {
+            error,
+        } = await supabase
+            .from(
+                "marcadores_sermao",
+            )
+            .delete()
+            .eq(
+                "id",
+                marcador.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (error) {
+            console.error(
+                "Erro ao excluir marcador:",
+                error,
+            );
+
+            return;
+        }
+
+        setMarcadores(
+            (anteriores) =>
+                anteriores.filter(
+                    (item) =>
+                        item.id !==
+                        marcador.id,
+                ),
+        );
+    }
+
     function formatarCronometro(
         totalSegundos,
     ) {
@@ -2504,6 +2929,42 @@ function SermaoPage() {
 
                     <button
                         type="button"
+                        title="Marcar este ponto"
+                        onClick={
+                            abrirNovoMarcador
+                        }
+                    >
+                        <Bookmark
+                            size={18}
+                        />
+                    </button>
+
+                    <button
+                        type="button"
+                        title="Ver marcadores"
+                        className={
+                            marcadores.length > 0
+                                ? "sermon-marker-button-active"
+                                : ""
+                        }
+                        onClick={() =>
+                            setPainelMarcadoresAberto(
+                                true,
+                            )
+                        }
+                    >
+                        <Bookmark
+                            size={18}
+                            fill={
+                                marcadores.length > 0
+                                    ? "currentColor"
+                                    : "none"
+                            }
+                        />
+                    </button>
+
+                    <button
+                        type="button"
                         title="Histórico de pregações"
                         onClick={() =>
                             setModalHistoricoAberto(
@@ -2572,8 +3033,8 @@ function SermaoPage() {
 
             <div
                 className={`sermon-timer ${cronometroRodando
-                        ? "sermon-timer-running"
-                        : ""
+                    ? "sermon-timer-running"
+                    : ""
                     }`}
             >
                 <div className="sermon-timer-time">
@@ -2826,6 +3287,335 @@ function SermaoPage() {
                         </span>
                     </div>
                 )}
+
+            {modalMarcadorAberto && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(
+                        event,
+                    ) => {
+                        if (
+                            event.target ===
+                            event.currentTarget &&
+                            !salvandoMarcador
+                        ) {
+                            setModalMarcadorAberto(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <Bookmark
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                aria-label="Fechar"
+                                disabled={
+                                    salvandoMarcador
+                                }
+                                onClick={() =>
+                                    setModalMarcadorAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Marcadores
+                            </span>
+
+                            <h2>
+                                Marcar este ponto
+                            </h2>
+
+                            <p>
+                                Página{" "}
+                                {paginaMarcador}
+                                {" · "}
+                                posição atual do
+                                sermão.
+                            </p>
+                        </div>
+
+                        <form
+                            className="trimestre-form"
+                            onSubmit={
+                                salvarMarcador
+                            }
+                        >
+                            <label>
+                                Tipo
+
+                                <select
+                                    value={
+                                        tipoMarcador
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setTipoMarcador(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                >
+                                    <option value="MARCADOR">
+                                        Marcador
+                                    </option>
+
+                                    <option value="ENFASE">
+                                        Ênfase
+                                    </option>
+
+                                    <option value="APLICACAO">
+                                        Aplicação
+                                    </option>
+
+                                    <option value="ILUSTRACAO">
+                                        Ilustração
+                                    </option>
+
+                                    <option value="CONCLUSAO">
+                                        Conclusão
+                                    </option>
+                                </select>
+                            </label>
+
+                            <label>
+                                Nome
+                                <span className="optional-field">
+                                    Opcional
+                                </span>
+
+                                <input
+                                    type="text"
+                                    value={
+                                        tituloMarcador
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setTituloMarcador(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Ex.: Destacar esta aplicação"
+                                />
+                            </label>
+
+                            {erroMarcador && (
+                                <div className="library-message">
+                                    {erroMarcador}
+                                </div>
+                            )}
+
+                            <div className="modal-actions">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={
+                                        salvandoMarcador
+                                    }
+                                    onClick={() =>
+                                        setModalMarcadorAberto(
+                                            false,
+                                        )
+                                    }
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="primary-button"
+                                    disabled={
+                                        salvandoMarcador
+                                    }
+                                >
+                                    {salvandoMarcador
+                                        ? "Salvando..."
+                                        : "Salvar marcador"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {painelMarcadoresAberto && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(
+                        event,
+                    ) => {
+                        if (
+                            event.target ===
+                            event.currentTarget
+                        ) {
+                            setPainelMarcadoresAberto(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card sermon-markers-modal">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <Bookmark
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                aria-label="Fechar"
+                                onClick={() =>
+                                    setPainelMarcadoresAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Navegação
+                            </span>
+
+                            <h2>
+                                Marcadores
+                            </h2>
+
+                            <p>
+                                {marcadores.length}
+                                {" "}
+                                {marcadores.length === 1
+                                    ? "ponto salvo"
+                                    : "pontos salvos"}
+                            </p>
+                        </div>
+
+                        {marcadores.length ===
+                            0 ? (
+                            <div className="sermon-history-empty">
+                                Nenhum ponto foi
+                                marcado neste
+                                sermão.
+                            </div>
+                        ) : (
+                            <div className="sermon-markers-list">
+                                {marcadores.map(
+                                    (marcador) => (
+                                        <article
+                                            key={
+                                                marcador.id
+                                            }
+                                            className="sermon-marker-item"
+                                        >
+                                            <button
+                                                type="button"
+                                                className="sermon-marker-main"
+                                                onClick={() =>
+                                                    irParaMarcador(
+                                                        marcador,
+                                                    )
+                                                }
+                                            >
+                                                <div className="sermon-marker-icon">
+                                                    <Bookmark
+                                                        size={17}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <span>
+                                                        {nomeTipoMarcador(
+                                                            marcador.tipo,
+                                                        )}
+                                                    </span>
+
+                                                    <strong>
+                                                        {marcador.titulo}
+                                                    </strong>
+
+                                                    <small>
+                                                        Página{" "}
+                                                        {
+                                                            marcador.pagina
+                                                        }
+                                                    </small>
+                                                </div>
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                className="sermon-marker-delete"
+                                                aria-label="Excluir marcador"
+                                                title="Excluir marcador"
+                                                onClick={() =>
+                                                    excluirMarcador(
+                                                        marcador,
+                                                    )
+                                                }
+                                            >
+                                                <Trash2
+                                                    size={17}
+                                                />
+                                            </button>
+                                        </article>
+                                    ),
+                                )}
+                            </div>
+                        )}
+
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() =>
+                                    setPainelMarcadoresAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                Fechar
+                            </button>
+
+                            <button
+                                type="button"
+                                className="primary-button"
+                                onClick={() => {
+                                    setPainelMarcadoresAberto(
+                                        false,
+                                    );
+
+                                    abrirNovoMarcador();
+                                }}
+                            >
+                                <Plus size={17} />
+                                Novo marcador
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {modalRegistrarPregacao && (
                 <div
