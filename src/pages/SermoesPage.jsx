@@ -50,6 +50,9 @@ function SermoesPage() {
     const [series, setSeries] =
         useState([]);
 
+    const [serieFiltro, setSerieFiltro] =
+        useState("TODAS");
+
     const [modalSerieAberto, setModalSerieAberto] =
         useState(false);
 
@@ -505,6 +508,15 @@ function SermoesPage() {
         );
     }
 
+    const sermoesFiltrados =
+        serieFiltro === "TODAS"
+            ? sermoes
+            : sermoes.filter(
+                (sermao) =>
+                    sermao.serie_id ===
+                    serieFiltro,
+            );
+
     return (
         <div className="app">
             <header className="topbar">
@@ -596,22 +608,57 @@ function SermoesPage() {
                         </div>
 
                         <div className="sermon-series-chips">
+                            <button
+                                type="button"
+                                className={`sermon-series-chip ${serieFiltro === "TODAS"
+                                    ? "sermon-series-chip-active"
+                                    : ""
+                                    }`}
+                                onClick={() =>
+                                    setSerieFiltro("TODAS")
+                                }
+                            >
+                                Todos
+                            </button>
+
                             {series.map(
-                                (serie) => (
-                                    <button
-                                        key={
-                                            serie.id
-                                        }
-                                        type="button"
-                                        className="sermon-series-chip"
-                                        title={
-                                            serie.descricao ||
-                                            serie.nome
-                                        }
-                                    >
-                                        {serie.nome}
-                                    </button>
-                                ),
+                                (serie) => {
+                                    const quantidade =
+                                        sermoes.filter(
+                                            (sermao) =>
+                                                sermao.serie_id ===
+                                                serie.id,
+                                        ).length;
+
+                                    return (
+                                        <button
+                                            key={serie.id}
+                                            type="button"
+                                            className={`sermon-series-chip ${serieFiltro ===
+                                                serie.id
+                                                ? "sermon-series-chip-active"
+                                                : ""
+                                                }`}
+                                            title={
+                                                serie.descricao ||
+                                                serie.nome
+                                            }
+                                            onClick={() =>
+                                                setSerieFiltro(
+                                                    serie.id,
+                                                )
+                                            }
+                                        >
+                                            <span>
+                                                {serie.nome}
+                                            </span>
+
+                                            <strong>
+                                                {quantidade}
+                                            </strong>
+                                        </button>
+                                    );
+                                },
                             )}
                         </div>
                     </section>
@@ -660,60 +707,91 @@ function SermoesPage() {
                         </button>
                     </section>
                 ) : (
-                    <section className="sermons-list">
-                        {sermoes.map(
-                            (sermao) => (
+                    <>
+                        {sermoesFiltrados.length === 0 ? (
+                            <section className="module-empty">
+                                <div className="empty-icon">
+                                    <Mic2 size={28} />
+                                </div>
+
+                                <h3>
+                                    Nenhum sermão nesta série
+                                </h3>
+
+                                <p>
+                                    Adicione um novo sermão
+                                    ou escolha outra série.
+                                </p>
+
                                 <button
-                                    key={
-                                        sermao.id
-                                    }
                                     type="button"
-                                    className="sermon-card"
+                                    className="secondary-button"
                                     onClick={() =>
-                                        navigate(
-                                            `/sermoes/${sermao.id}`,
+                                        setSerieFiltro(
+                                            "TODAS",
                                         )
                                     }
                                 >
-                                    <div className="sermon-card-icon">
-                                        <FileText
-                                            size={21}
-                                        />
-                                    </div>
-
-                                    <div className="sermon-card-content">
-                                        <span>
-                                            {nomeDaSerie(
-                                                sermao.serie_id,
-                                            )
-                                                ? `${nomeDaSerie(
-                                                    sermao.serie_id,
-                                                )} · ${sermao.tema ||
-                                                "Sermão"
-                                                }`
-                                                : sermao.tema ||
-                                                "Sermão"}
-                                        </span>
-
-                                        <h3>
-                                            {sermao.titulo}
-                                        </h3>
-
-                                        <p>
-                                            {sermao.texto_base
-                                                ? `Texto base: ${sermao.texto_base}`
-                                                : sermao.arquivo_nome}
-                                        </p>
-                                    </div>
-
-                                    <ChevronRight
-                                        size={20}
-                                        className="module-card-arrow-inline"
-                                    />
+                                    Ver todos os sermões
                                 </button>
-                            ),
+                            </section>
+                        ) : (
+                            <section className="sermons-list">
+                                {sermoesFiltrados.map(
+                                    (sermao) => (
+                                        <button
+                                            key={
+                                                sermao.id
+                                            }
+                                            type="button"
+                                            className="sermon-card"
+                                            onClick={() =>
+                                                navigate(
+                                                    `/sermoes/${sermao.id}`,
+                                                )
+                                            }
+                                        >
+                                            <div className="sermon-card-icon">
+                                                <FileText
+                                                    size={21}
+                                                />
+                                            </div>
+
+                                            <div className="sermon-card-content">
+                                                <span>
+                                                    {nomeDaSerie(
+                                                        sermao.serie_id,
+                                                    )
+                                                        ? `${nomeDaSerie(
+                                                            sermao.serie_id,
+                                                        )} · ${sermao.tema ||
+                                                        "Sermão"
+                                                        }`
+                                                        : sermao.tema ||
+                                                        "Sermão"}
+                                                </span>
+
+                                                <h3>
+                                                    {sermao.titulo}
+                                                </h3>
+
+                                                <p>
+                                                    {sermao.texto_base
+                                                        ? `Texto base: ${sermao.texto_base}`
+                                                        : sermao.arquivo_nome}
+                                                </p>
+                                            </div>
+
+                                            <ChevronRight
+                                                size={20}
+                                                className="module-card-arrow-inline"
+                                            />
+                                        </button>
+                                    ),
+                                )}
+                            </section>
                         )}
-                    </section>
+                    </>
                 )}
             </main>
 
@@ -873,7 +951,7 @@ function SermoesPage() {
                                         Sem série
                                     </option>
 
-                                    {series.map(
+                                    {sermoesFiltrados.map(
                                         (serie) => (
                                             <option
                                                 key={serie.id}

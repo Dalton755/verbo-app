@@ -8046,3 +8046,37 @@ overflow-x: clip;
   backdrop-filter:
     blur(10px);
 }
+
+.sermon-series-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.sermon-series-chip strong {
+  min-width: 20px;
+  height: 20px;
+
+  display: inline-grid;
+  place-items: center;
+
+  padding: 0 6px;
+
+  border-radius: 999px;
+
+  background: rgba(73, 100, 83, 0.08);
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sermon-series-chip-active {
+  background: #496453;
+  border-color: #496453;
+  color: #ffffff;
+}
+
+.sermon-series-chip-active strong {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
