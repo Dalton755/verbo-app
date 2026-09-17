@@ -76,39 +76,63 @@ function lerAcessoLocal(userId) {
     }
 
     /*
-     * Teste gratuito:
-     * só permitimos offline
-     * enquanto ainda não expirou.
-     */
+  * Teste gratuito:
+  * só pode continuar offline
+  * enquanto a data do teste
+  * ainda não expirou.
+  */
     if (
       acesso.estado ===
-      "TESTE" &&
-      acesso.teste_expira_em
+      "TESTE"
     ) {
+      if (
+        !acesso.teste_expira_em
+      ) {
+        return null;
+      }
+
       const expira =
         new Date(
           acesso.teste_expira_em,
         ).getTime();
 
       if (
-        Number.isFinite(expira) &&
-        expira > Date.now()
+        !Number.isFinite(expira) ||
+        expira <= Date.now()
       ) {
-        return {
-          ...acesso,
-
-          segundos_restantes:
-            Math.max(
-              0,
-              Math.floor(
-                (
-                  expira -
-                  Date.now()
-                ) / 1000,
-              ),
-            ),
-        };
+        return null;
       }
+
+      return {
+        ...acesso,
+
+        segundos_restantes:
+          Math.max(
+            0,
+            Math.floor(
+              (
+                expira -
+                Date.now()
+              ) / 1000,
+            ),
+          ),
+      };
+    }
+
+    /*
+     * Para qualquer outro tipo
+     * de acesso já validado pelo
+     * servidor, respeitamos
+     * tem_acesso.
+     *
+     * Isso cobre licença vitalícia,
+     * usuários antigos e outras
+     * formas válidas de acesso.
+     */
+    if (
+      acesso.tem_acesso === true
+    ) {
+      return acesso;
     }
 
     return null;
