@@ -1,4 +1,8 @@
-const CACHE_NAME = "verbo-shell-v1";
+const STATIC_CACHE =
+  "verbo-static-v2";
+
+const RUNTIME_CACHE =
+  "verbo-runtime-v2";
 
 const APP_SHELL = [
   "/",
@@ -6,67 +10,217 @@ const APP_SHELL = [
   "/verbo-icon.png",
 ];
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL);
-    }),
-  );
+self.addEventListener(
+  "install",
+  (event) => {
+    event.waitUntil(
+      caches
+        .open(STATIC_CACHE)
+        .then((cache) =>
+          cache.addAll(
+            APP_SHELL,
+          ),
+        ),
+    );
 
-  self.skipWaiting();
-});
+    self.skipWaiting();
+  },
+);
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name)),
+self.addEventListener(
+  "activate",
+  (event) => {
+    event.waitUntil(
+      caches
+        .keys()
+        .then(
+          (cacheNames) =>
+            Promise.all(
+              cacheNames
+                .filter(
+                  (name) =>
+                    name !==
+                      STATIC_CACHE &&
+                    name !==
+                      RUNTIME_CACHE,
+                )
+                .map((name) =>
+                  caches.delete(
+                    name,
+                  ),
+                ),
+            ),
+        ),
+    );
+
+    self.clients.claim();
+  },
+);
+
+self.addEventListener(
+  "fetch",
+  (event) => {
+    const request =
+      event.request;
+
+    if (
+      request.method !==
+      "GET"
+    ) {
+      return;
+    }
+
+    const url =
+      new URL(
+        request.url,
       );
-    }),
-  );
 
-  self.clients.claim();
-});
+    /*
+     * Nunca interfere nas
+     * consultas de versão.
+     */
+    if (
+      url.searchParams.has(
+        "__verbo_check",
+      )
+    ) {
+      event.respondWith(
+        fetch(request),
+      );
 
-self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") {
-    return;
-  }
+      return;
+    }
 
-  const url = new URL(event.request.url);
+    /*
+     * Recursos externos:
+     * Supabase, Mercado Pago,
+     * PDFs assinados etc.
+     *
+     * Não armazenamos
+     * automaticamente.
+     */
+    if (
+      url.origin !==
+      self.location.origin
+    ) {
+      return;
+    }
 
-  if (url.origin !== self.location.origin) {
-    return;
-  }
-  if (
-  url.searchParams.has(
-    "__verbo_check",
-  )
-) {
-  event.respondWith(
-    fetch(event.request),
-  );
+    /*
+     * Navegação do React.
+     *
+     * Online:
+     * busca versão atual.
+     *
+     * Offline:
+     * usa o shell "/" para
+     * o React Router abrir
+     * a rota localmente.
+     */
+    if (
+      request.mode ===
+      "navigate"
+    ) {
+      event.respondWith(
+        fetch(request)
+          .then(
+            async (
+              response,
+            ) => {
+              const cache =
+                await caches.open(
+                  RUNTIME_CACHE,
+                );
 
-  return;
-}
+              cache.put(
+                request,
+                response.clone(),
+              );
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const clone = response.clone();
+              return response;
+            },
+          )
+          .catch(
+            async () => {
+              const cached =
+                await caches.match(
+                  request,
+                );
 
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, clone);
-        });
+              if (cached) {
+                return cached;
+              }
 
-        return response;
-      })
-      .catch(() => {
-        return caches.match(event.request).then((cached) => {
-          return cached || caches.match("/");
-        });
-      }),
-  );
-});
+              return caches.match(
+                "/",
+              );
+            },
+          ),
+      );
+
+      return;
+    }
+
+    /*
+     * Arquivos estáticos:
+     * JS, CSS, imagens,
+     * fontes e outros
+     * recursos do próprio app.
+     *
+     * Cache-first deixa o app
+     * muito mais confiável
+     * offline.
+     */
+    event.respondWith(
+      caches
+        .match(request)
+        .then(
+          async (
+            cached,
+          ) => {
+            if (cached) {
+              return cached;
+            }
+
+            try {
+              const response =
+                await fetch(
+                  request,
+                );
+
+              if (
+                !response ||
+                response.status !==
+                  200
+              ) {
+                return response;
+              }
+
+              const cache =
+                await caches.open(
+                  RUNTIME_CACHE,
+                );
+
+              cache.put(
+                request,
+                response.clone(),
+              );
+
+              return response;
+            } catch (
+              error
+            ) {
+              return new Response(
+                "",
+                {
+                  status: 503,
+                  statusText:
+                    "Offline",
+                },
+              );
+            }
+          },
+        ),
+    );
+  },
+);

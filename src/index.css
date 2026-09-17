@@ -7988,3 +7988,61 @@ overflow-x: clip;
     width: 100%;
   }
 }
+
+
+
+
+/* ========================================
+   STATUS OFFLINE
+======================================== */
+
+.offline-status {
+  position: fixed;
+
+  top: max(
+    10px,
+    env(safe-area-inset-top)
+  );
+
+  left: 50%;
+
+  z-index: 9995;
+
+  transform:
+    translateX(-50%);
+
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding:
+    9px 13px;
+
+  border-radius:
+    999px;
+
+  background:
+    rgba(
+      36,
+      40,
+      37,
+      0.94
+    );
+
+  color: #ffffff;
+
+  box-shadow:
+    0 8px 30px
+    rgba(
+      0,
+      0,
+      0,
+      0.16
+    );
+
+  font-size: 12px;
+  font-weight: 700;
+
+  backdrop-filter:
+    blur(10px);
+}
