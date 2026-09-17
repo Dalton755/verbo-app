@@ -11,38 +11,79 @@ function OfflineStatus() {
   const [
     online,
     setOnline,
-  ] = useState(
-    navigator.onLine,
-  );
+  ] = useState(true);
 
   useEffect(() => {
-    function ficouOnline() {
-      setOnline(true);
+    let ativo = true;
+
+    async function verificarConexao() {
+      if (!navigator.onLine) {
+        if (ativo) {
+          setOnline(false);
+        }
+
+        return;
+      }
+
+      try {
+        const resposta =
+          await fetch(
+            `/manifest.webmanifest?__online_check=${Date.now()}`,
+            {
+              method: "GET",
+              cache: "no-store",
+            },
+          );
+
+        if (ativo) {
+          setOnline(
+            resposta.ok,
+          );
+        }
+      } catch {
+        if (ativo) {
+          setOnline(false);
+        }
+      }
     }
 
-    function ficouOffline() {
-      setOnline(false);
+    function mudouConexao() {
+      verificarConexao();
     }
 
     window.addEventListener(
       "online",
-      ficouOnline,
+      mudouConexao,
     );
 
     window.addEventListener(
       "offline",
-      ficouOffline,
+      mudouConexao,
     );
 
+    verificarConexao();
+
+    const intervalo =
+      window.setInterval(
+        verificarConexao,
+        10000,
+      );
+
     return () => {
+      ativo = false;
+
+      window.clearInterval(
+        intervalo,
+      );
+
       window.removeEventListener(
         "online",
-        ficouOnline,
+        mudouConexao,
       );
 
       window.removeEventListener(
         "offline",
-        ficouOffline,
+        mudouConexao,
       );
     };
   }, []);
@@ -56,9 +97,7 @@ function OfflineStatus() {
       className="offline-status"
       role="status"
     >
-      <WifiOff
-        size={16}
-      />
+      <WifiOff size={16} />
 
       <span>
         Você está offline

@@ -80,16 +80,19 @@ self.addEventListener(
      * consultas de versão.
      */
     if (
-      url.searchParams.has(
-        "__verbo_check",
-      )
-    ) {
-      event.respondWith(
-        fetch(request),
-      );
+  url.searchParams.has(
+    "__verbo_check",
+  ) ||
+  url.searchParams.has(
+    "__online_check",
+  )
+) {
+  event.respondWith(
+    fetch(event.request),
+  );
 
-      return;
-    }
+  return;
+}
 
     /*
      * Recursos externos:
