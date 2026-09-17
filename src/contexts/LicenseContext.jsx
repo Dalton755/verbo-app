@@ -12,6 +12,116 @@ import { useAuth } from "./AuthContext";
 
 const LicenseContext = createContext(null);
 
+
+const ACCESS_CACHE_PREFIX =
+  "verbo-access-cache:";
+
+function chaveCacheAcesso(userId) {
+  return `${ACCESS_CACHE_PREFIX}${userId}`;
+}
+
+function salvarAcessoLocal(
+  userId,
+  acesso,
+) {
+  try {
+    localStorage.setItem(
+      chaveCacheAcesso(userId),
+      JSON.stringify({
+        acesso,
+        verificadoEm:
+          new Date().toISOString(),
+      }),
+    );
+  } catch (error) {
+    console.debug(
+      "Não foi possível salvar acesso local:",
+      error,
+    );
+  }
+}
+
+function lerAcessoLocal(userId) {
+  try {
+    const bruto =
+      localStorage.getItem(
+        chaveCacheAcesso(userId),
+      );
+
+    if (!bruto) {
+      return null;
+    }
+
+    const cache =
+      JSON.parse(bruto);
+
+    const acesso =
+      cache?.acesso;
+
+    if (!acesso) {
+      return null;
+    }
+
+    /*
+     * Licença vitalícia permanece
+     * válida offline.
+     */
+    if (
+      acesso.licenca_vitalicia ===
+      true ||
+      acesso.estado ===
+      "VITALICIO"
+    ) {
+      return acesso;
+    }
+
+    /*
+     * Teste gratuito:
+     * só permitimos offline
+     * enquanto ainda não expirou.
+     */
+    if (
+      acesso.estado ===
+      "TESTE" &&
+      acesso.teste_expira_em
+    ) {
+      const expira =
+        new Date(
+          acesso.teste_expira_em,
+        ).getTime();
+
+      if (
+        Number.isFinite(expira) &&
+        expira > Date.now()
+      ) {
+        return {
+          ...acesso,
+
+          segundos_restantes:
+            Math.max(
+              0,
+              Math.floor(
+                (
+                  expira -
+                  Date.now()
+                ) / 1000,
+              ),
+            ),
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.debug(
+      "Não foi possível ler acesso local:",
+      error,
+    );
+
+    return null;
+  }
+}
+
 export function LicenseProvider({ children }) {
   const { user } = useAuth();
 
@@ -63,6 +173,41 @@ export function LicenseProvider({ children }) {
 
   const [erroLicenca, setErroLicenca] =
     useState("");
+
+
+  const aplicarAcesso =
+    useCallback(
+      (acesso) => {
+        setTemLicenca(
+          acesso?.tem_acesso === true,
+        );
+
+        setEstadoAcesso(
+          acesso?.estado ?? null,
+        );
+
+        setTesteIniciadoEm(
+          acesso?.teste_iniciado_em ??
+          null,
+        );
+
+        setTesteExpiraEm(
+          acesso?.teste_expira_em ??
+          null,
+        );
+
+        setSegundosRestantes(
+          acesso?.segundos_restantes ??
+          null,
+        );
+
+        setLicencaVitalicia(
+          acesso?.licenca_vitalicia ===
+          true,
+        );
+      },
+      [],
+    );
 
   const limparAcesso = useCallback(() => {
     setTemLicenca(false);
@@ -116,48 +261,55 @@ export function LicenseProvider({ children }) {
           );
         }
 
-        setTemLicenca(
-          acesso.tem_acesso === true
-        );
+        aplicarAcesso(acesso);
 
-        setEstadoAcesso(
-          acesso.estado ?? null
-        );
-
-        setTesteIniciadoEm(
-          acesso.teste_iniciado_em ?? null
-        );
-
-        setTesteExpiraEm(
-          acesso.teste_expira_em ?? null
-        );
-
-        setSegundosRestantes(
-          acesso.segundos_restantes ??
-            null
-        );
-
-        setLicencaVitalicia(
-          acesso.licenca_vitalicia === true
+        salvarAcessoLocal(
+          user.id,
+          acesso,
         );
 
         setUsuarioLicencaVerificado(
-          user.id
+          user.id,
         );
+
+
       } catch (error) {
         console.error(
           "Erro ao consultar acesso:",
-          error
+          error,
         );
+
+        const acessoLocal =
+          lerAcessoLocal(
+            user.id,
+          );
+
+        if (acessoLocal) {
+          aplicarAcesso(
+            acessoLocal,
+          );
+
+          setUsuarioLicencaVerificado(
+            user.id,
+          );
+
+          setErroLicenca("");
+
+          console.info(
+            "VERBO usando autorização offline armazenada.",
+          );
+
+          return;
+        }
 
         limparAcesso();
 
         setUsuarioLicencaVerificado(
-          user.id
+          user.id,
         );
 
         setErroLicenca(
-          "Não foi possível verificar seu acesso."
+          "Não foi possível verificar seu acesso.",
         );
       } finally {
         setCarregandoLicenca(false);
@@ -166,6 +318,7 @@ export function LicenseProvider({ children }) {
     [
       user,
       limparAcesso,
+      aplicarAcesso,
     ]
   );
 
@@ -247,7 +400,7 @@ export function LicenseProvider({ children }) {
         0,
         Math.ceil(
           segundosRestantes /
-            86400
+          86400
         )
       );
     }, [
@@ -260,7 +413,7 @@ export function LicenseProvider({ children }) {
     (
       carregandoLicenca ||
       usuarioLicencaVerificado !==
-        user.id
+      user.id
     );
 
   return (
@@ -292,11 +445,11 @@ export function LicenseProvider({ children }) {
 
         acessoVitalicio:
           estadoAcesso ===
-            "VITALICIO",
+          "VITALICIO",
 
         acessoExpirado:
           estadoAcesso ===
-            "EXPIRADO",
+          "EXPIRADO",
 
         testeIniciadoEm,
 
