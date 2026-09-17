@@ -19,6 +19,10 @@ import {
     Minus,
     Plus,
     Shrink,
+    Pause,
+    Play,
+    RotateCcw,
+    Square,
     X,
 } from "lucide-react";
 
@@ -876,6 +880,72 @@ function SermaoPage() {
         erroPregacao,
         setErroPregacao,
     ] = useState("");
+
+    const [
+        cronometroSegundos,
+        setCronometroSegundos,
+    ] = useState(0);
+
+    const [
+        cronometroRodando,
+        setCronometroRodando,
+    ] = useState(false);
+
+    const [
+        duracaoRegistro,
+        setDuracaoRegistro,
+    ] = useState(null);
+
+    const cronometroInicioRef =
+        useRef(null);
+
+    const cronometroAcumuladoRef =
+        useRef(0);
+
+
+    useEffect(() => {
+        if (!cronometroRodando) {
+            return;
+        }
+
+        function atualizarCronometro() {
+            if (
+                !cronometroInicioRef.current
+            ) {
+                return;
+            }
+
+            const decorrido =
+                Math.floor(
+                    (
+                        Date.now() -
+                        cronometroInicioRef.current
+                    ) / 1000,
+                );
+
+            setCronometroSegundos(
+                cronometroAcumuladoRef
+                    .current +
+                decorrido,
+            );
+        }
+
+        atualizarCronometro();
+
+        const intervalo =
+            window.setInterval(
+                atualizarCronometro,
+                1000,
+            );
+
+        return () => {
+            window.clearInterval(
+                intervalo,
+            );
+        };
+    }, [
+        cronometroRodando,
+    ]);
 
     useEffect(() => {
         if (!user || !id) {
@@ -1995,7 +2065,146 @@ function SermaoPage() {
         }
     }
 
-    function abrirRegistroPregacao() {
+    function formatarCronometro(
+        totalSegundos,
+    ) {
+        const horas =
+            Math.floor(
+                totalSegundos / 3600,
+            );
+
+        const minutos =
+            Math.floor(
+                (
+                    totalSegundos % 3600
+                ) / 60,
+            );
+
+        const segundos =
+            totalSegundos % 60;
+
+        const partes = [
+            String(minutos).padStart(
+                2,
+                "0",
+            ),
+            String(segundos).padStart(
+                2,
+                "0",
+            ),
+        ];
+
+        if (horas > 0) {
+            partes.unshift(
+                String(horas).padStart(
+                    2,
+                    "0",
+                ),
+            );
+        }
+
+        return partes.join(":");
+    }
+
+    function iniciarCronometro() {
+        if (cronometroRodando) {
+            return;
+        }
+
+        cronometroInicioRef.current =
+            Date.now();
+
+        setCronometroRodando(true);
+    }
+
+    function pausarCronometro() {
+        if (
+            !cronometroRodando ||
+            !cronometroInicioRef.current
+        ) {
+            return;
+        }
+
+        const decorrido =
+            Math.floor(
+                (
+                    Date.now() -
+                    cronometroInicioRef.current
+                ) / 1000,
+            );
+
+        cronometroAcumuladoRef.current +=
+            decorrido;
+
+        setCronometroSegundos(
+            cronometroAcumuladoRef.current,
+        );
+
+        cronometroInicioRef.current =
+            null;
+
+        setCronometroRodando(false);
+    }
+
+    function zerarCronometro() {
+        cronometroInicioRef.current =
+            null;
+
+        cronometroAcumuladoRef.current =
+            0;
+
+        setCronometroSegundos(0);
+        setCronometroRodando(false);
+    }
+
+    function finalizarPregacao() {
+        let duracao =
+            cronometroSegundos;
+
+        if (
+            cronometroRodando &&
+            cronometroInicioRef.current
+        ) {
+            const decorrido =
+                Math.floor(
+                    (
+                        Date.now() -
+                        cronometroInicioRef.current
+                    ) / 1000,
+                );
+
+            duracao =
+                cronometroAcumuladoRef
+                    .current +
+                decorrido;
+        }
+
+        setCronometroRodando(false);
+
+        cronometroInicioRef.current =
+            null;
+
+        cronometroAcumuladoRef.current =
+            duracao;
+
+        setCronometroSegundos(
+            duracao,
+        );
+
+        setDuracaoRegistro(
+            duracao > 0
+                ? duracao
+                : null,
+        );
+
+        abrirRegistroPregacao(
+            duracao,
+        );
+    }
+
+    function abrirRegistroPregacao(
+        duracao = null,
+    ) {
         setDataPregacao(
             new Date()
                 .toISOString()
@@ -2006,6 +2215,10 @@ function SermaoPage() {
         setEventoPregacao("");
         setObservacoesPregacao("");
         setErroPregacao("");
+
+        setDuracaoRegistro(
+            duracao,
+        );
 
         setModalRegistrarPregacao(
             true,
@@ -2061,7 +2274,8 @@ function SermaoPage() {
                     null,
 
                 duracao_segundos:
-                    null,
+                    duracaoRegistro,
+
             })
             .select(`
             id,
@@ -2098,6 +2312,10 @@ function SermaoPage() {
         setModalRegistrarPregacao(
             false,
         );
+
+        setDuracaoRegistro(null);
+
+        zerarCronometro();
 
         setSalvandoPregacao(false);
     }
@@ -2352,6 +2570,79 @@ function SermaoPage() {
                 />
             </div>
 
+            <div
+                className={`sermon-timer ${cronometroRodando
+                        ? "sermon-timer-running"
+                        : ""
+                    }`}
+            >
+                <div className="sermon-timer-time">
+                    <Clock3 size={17} />
+
+                    <strong>
+                        {formatarCronometro(
+                            cronometroSegundos,
+                        )}
+                    </strong>
+                </div>
+
+                <div className="sermon-timer-actions">
+                    {!cronometroRodando ? (
+                        <button
+                            type="button"
+                            title="Iniciar cronômetro"
+                            onClick={
+                                iniciarCronometro
+                            }
+                        >
+                            <Play size={17} />
+                        </button>
+                    ) : (
+                        <button
+                            type="button"
+                            title="Pausar cronômetro"
+                            onClick={
+                                pausarCronometro
+                            }
+                        >
+                            <Pause size={17} />
+                        </button>
+                    )}
+
+                    <button
+                        type="button"
+                        title="Zerar cronômetro"
+                        disabled={
+                            cronometroSegundos ===
+                            0 &&
+                            !cronometroRodando
+                        }
+                        onClick={
+                            zerarCronometro
+                        }
+                    >
+                        <RotateCcw
+                            size={16}
+                        />
+                    </button>
+
+                    <button
+                        type="button"
+                        title="Finalizar pregação"
+                        disabled={
+                            cronometroSegundos ===
+                            0 &&
+                            !cronometroRodando
+                        }
+                        onClick={
+                            finalizarPregacao
+                        }
+                    >
+                        <Square size={15} />
+                    </button>
+                </div>
+            </div>
+
             {modoVisualizacao ===
                 "pdf" ? (
                 <main className="sermon-pdf-original">
@@ -2590,6 +2881,23 @@ function SermaoPage() {
                                 este sermão foi
                                 pregado.
                             </p>
+                            {duracaoRegistro !==
+                                null && (
+                                    <div className="sermon-timer-summary">
+                                        <Clock3 size={17} />
+
+                                        <span>
+                                            Duração da pregação
+                                        </span>
+
+                                        <strong>
+                                            {formatarCronometro(
+                                                duracaoRegistro,
+                                            )}
+                                        </strong>
+                                    </div>
+                                )}
+
                         </div>
 
                         <form

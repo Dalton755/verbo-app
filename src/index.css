@@ -8124,3 +8124,135 @@ input:focus-visible {
   text-align: center;
   font-size: 14px;
 }
+
+/* ========================================
+   CRONÔMETRO DE PREGAÇÃO
+======================================== */
+
+.sermon-timer {
+  position: sticky;
+  top: 62px;
+
+  z-index: 65;
+
+  width: fit-content;
+
+  margin: 10px auto 0;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 7px 9px 7px 12px;
+
+  border: 1px solid
+    rgba(73, 100, 83, 0.14);
+
+  border-radius: 999px;
+
+  background:
+    rgba(255, 255, 255, 0.96);
+
+  box-shadow:
+    0 7px 24px
+    rgba(30, 43, 35, 0.09);
+
+  backdrop-filter:
+    blur(12px);
+}
+
+.sermon-timer-running {
+  border-color:
+    rgba(73, 100, 83, 0.34);
+}
+
+.sermon-timer-time {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  color: #496453;
+}
+
+.sermon-timer-time strong {
+  min-width: 48px;
+
+  font-size: 14px;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+.sermon-timer-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.sermon-timer-actions button {
+  width: 32px;
+  height: 32px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: 0;
+  border-radius: 10px;
+
+  background: transparent;
+  color: #5b665f;
+
+  cursor: pointer;
+}
+
+.sermon-timer-actions button:hover {
+  background: #eef3ef;
+  color: #365342;
+}
+
+.sermon-timer-actions button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.sermon-timer-summary {
+  display: grid;
+  grid-template-columns:
+    auto 1fr auto;
+
+  align-items: center;
+  gap: 9px;
+
+  margin: 0 0 18px;
+  padding: 11px 12px;
+
+  border-radius: 13px;
+
+  background: #eef3ef;
+  color: #496453;
+
+  font-size: 13px;
+}
+
+.sermon-timer-summary strong {
+  font-size: 15px;
+  font-variant-numeric:
+    tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .sermon-timer {
+    top: 66px;
+
+    margin-top: 7px;
+
+    padding:
+      6px 7px 6px 10px;
+  }
+
+  .sermon-timer-actions button {
+    width: 30px;
+    height: 30px;
+  }
+}
