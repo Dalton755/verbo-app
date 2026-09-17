@@ -9,12 +9,17 @@ import {
 import {
     ArrowLeft,
     BookOpen,
+    CalendarDays,
+    Clock3,
     Expand,
     FileText,
+    History,
+    MapPin,
     Maximize2,
     Minus,
     Plus,
     Shrink,
+    X,
 } from "lucide-react";
 
 import {
@@ -823,6 +828,55 @@ function SermaoPage() {
         setModoPulpito,
     ] = useState(false);
 
+    const [
+        historicoPregacoes,
+        setHistoricoPregacoes,
+    ] = useState([]);
+
+    const [
+        modalHistoricoAberto,
+        setModalHistoricoAberto,
+    ] = useState(false);
+
+    const [
+        modalRegistrarPregacao,
+        setModalRegistrarPregacao,
+    ] = useState(false);
+
+    const [
+        dataPregacao,
+        setDataPregacao,
+    ] = useState(
+        new Date()
+            .toISOString()
+            .slice(0, 10),
+    );
+
+    const [
+        localPregacao,
+        setLocalPregacao,
+    ] = useState("");
+
+    const [
+        eventoPregacao,
+        setEventoPregacao,
+    ] = useState("");
+
+    const [
+        observacoesPregacao,
+        setObservacoesPregacao,
+    ] = useState("");
+
+    const [
+        salvandoPregacao,
+        setSalvandoPregacao,
+    ] = useState(false);
+
+    const [
+        erroPregacao,
+        setErroPregacao,
+    ] = useState("");
+
     useEffect(() => {
         if (!user || !id) {
             return;
@@ -1295,6 +1349,78 @@ function SermaoPage() {
     }, [
         id,
         user,
+    ]);
+
+
+    useEffect(() => {
+        if (
+            !user ||
+            !id
+        ) {
+            return;
+        }
+
+        let ativo = true;
+
+        async function carregarHistorico() {
+            const {
+                data,
+                error,
+            } = await supabase
+                .from(
+                    "historico_pregacoes",
+                )
+                .select(`
+                id,
+                pregado_em,
+                local,
+                evento,
+                observacoes,
+                duracao_segundos,
+                created_at
+            `)
+                .eq(
+                    "usuario_id",
+                    user.id,
+                )
+                .eq(
+                    "sermao_id",
+                    id,
+                )
+                .order(
+                    "pregado_em",
+                    {
+                        ascending:
+                            false,
+                    },
+                );
+
+            if (!ativo) {
+                return;
+            }
+
+            if (error) {
+                console.error(
+                    "Erro ao carregar histórico:",
+                    error,
+                );
+
+                return;
+            }
+
+            setHistoricoPregacoes(
+                data ?? [],
+            );
+        }
+
+        carregarHistorico();
+
+        return () => {
+            ativo = false;
+        };
+    }, [
+        user,
+        id,
     ]);
 
     useLayoutEffect(() => {
@@ -1869,6 +1995,113 @@ function SermaoPage() {
         }
     }
 
+    function abrirRegistroPregacao() {
+        setDataPregacao(
+            new Date()
+                .toISOString()
+                .slice(0, 10),
+        );
+
+        setLocalPregacao("");
+        setEventoPregacao("");
+        setObservacoesPregacao("");
+        setErroPregacao("");
+
+        setModalRegistrarPregacao(
+            true,
+        );
+    }
+
+    async function registrarPregacao(
+        event,
+    ) {
+        event.preventDefault();
+
+        if (
+            !user ||
+            !sermao?.id ||
+            !dataPregacao
+        ) {
+            return;
+        }
+
+        setSalvandoPregacao(true);
+        setErroPregacao("");
+
+        const {
+            data,
+            error,
+        } = await supabase
+            .from(
+                "historico_pregacoes",
+            )
+            .insert({
+                usuario_id:
+                    user.id,
+
+                sermao_id:
+                    sermao.id,
+
+                pregado_em:
+                    dataPregacao,
+
+                local:
+                    localPregacao
+                        .trim() ||
+                    null,
+
+                evento:
+                    eventoPregacao
+                        .trim() ||
+                    null,
+
+                observacoes:
+                    observacoesPregacao
+                        .trim() ||
+                    null,
+
+                duracao_segundos:
+                    null,
+            })
+            .select(`
+            id,
+            pregado_em,
+            local,
+            evento,
+            observacoes,
+            duracao_segundos,
+            created_at
+        `)
+            .single();
+
+        if (error) {
+            console.error(
+                "Erro ao registrar pregação:",
+                error,
+            );
+
+            setErroPregacao(
+                "Não conseguimos registrar esta pregação.",
+            );
+
+            setSalvandoPregacao(false);
+            return;
+        }
+
+        setHistoricoPregacoes(
+            (anteriores) => [
+                data,
+                ...anteriores,
+            ],
+        );
+
+        setModalRegistrarPregacao(
+            false,
+        );
+
+        setSalvandoPregacao(false);
+    }
+
     const percentual =
         useMemo(() => {
             if (
@@ -2050,6 +2283,30 @@ function SermaoPage() {
                                 </button>
                             </>
                         )}
+
+                    <button
+                        type="button"
+                        title="Histórico de pregações"
+                        onClick={() =>
+                            setModalHistoricoAberto(
+                                true,
+                            )
+                        }
+                    >
+                        <History size={18} />
+                    </button>
+
+                    <button
+                        type="button"
+                        title="Registrar pregação"
+                        onClick={
+                            abrirRegistroPregacao
+                        }
+                    >
+                        <CalendarDays
+                            size={18}
+                        />
+                    </button>
 
                     <button
                         type="button"
@@ -2278,6 +2535,364 @@ function SermaoPage() {
                         </span>
                     </div>
                 )}
+
+            {modalRegistrarPregacao && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(event) => {
+                        if (
+                            event.target ===
+                            event.currentTarget &&
+                            !salvandoPregacao
+                        ) {
+                            setModalRegistrarPregacao(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <CalendarDays
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                aria-label="Fechar"
+                                disabled={
+                                    salvandoPregacao
+                                }
+                                onClick={() =>
+                                    setModalRegistrarPregacao(
+                                        false,
+                                    )
+                                }
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Histórico
+                            </span>
+
+                            <h2>
+                                Registrar pregação
+                            </h2>
+
+                            <p>
+                                Salve quando e onde
+                                este sermão foi
+                                pregado.
+                            </p>
+                        </div>
+
+                        <form
+                            className="trimestre-form"
+                            onSubmit={
+                                registrarPregacao
+                            }
+                        >
+                            <label>
+                                Data
+
+                                <input
+                                    type="date"
+                                    value={
+                                        dataPregacao
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setDataPregacao(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    required
+                                />
+                            </label>
+
+                            <label>
+                                Local
+                                <span className="optional-field">
+                                    Opcional
+                                </span>
+
+                                <input
+                                    type="text"
+                                    value={
+                                        localPregacao
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setLocalPregacao(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Ex.: ADVE Vila Élida"
+                                />
+                            </label>
+
+                            <label>
+                                Culto ou evento
+                                <span className="optional-field">
+                                    Opcional
+                                </span>
+
+                                <input
+                                    type="text"
+                                    value={
+                                        eventoPregacao
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setEventoPregacao(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Ex.: Culto de ensino"
+                                />
+                            </label>
+
+                            <label>
+                                Observações
+                                <span className="optional-field">
+                                    Opcional
+                                </span>
+
+                                <textarea
+                                    value={
+                                        observacoesPregacao
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setObservacoesPregacao(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Ex.: Ênfase maior na aplicação final"
+                                    rows={4}
+                                />
+                            </label>
+
+                            {erroPregacao && (
+                                <div className="library-message">
+                                    {erroPregacao}
+                                </div>
+                            )}
+
+                            <div className="modal-actions">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={
+                                        salvandoPregacao
+                                    }
+                                    onClick={() =>
+                                        setModalRegistrarPregacao(
+                                            false,
+                                        )
+                                    }
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="primary-button"
+                                    disabled={
+                                        salvandoPregacao ||
+                                        !dataPregacao
+                                    }
+                                >
+                                    {salvandoPregacao
+                                        ? "Salvando..."
+                                        : "Registrar"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {modalHistoricoAberto && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(event) => {
+                        if (
+                            event.target ===
+                            event.currentTarget
+                        ) {
+                            setModalHistoricoAberto(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card sermon-history-modal">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <History
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                aria-label="Fechar"
+                                onClick={() =>
+                                    setModalHistoricoAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Histórico
+                            </span>
+
+                            <h2>
+                                Pregações realizadas
+                            </h2>
+
+                            <p>
+                                {historicoPregacoes.length}
+                                {" "}
+                                {historicoPregacoes.length === 1
+                                    ? "registro"
+                                    : "registros"}
+                            </p>
+                        </div>
+
+                        {historicoPregacoes.length ===
+                            0 ? (
+                            <div className="sermon-history-empty">
+                                Este sermão ainda
+                                não possui pregações
+                                registradas.
+                            </div>
+                        ) : (
+                            <div className="sermon-history-list">
+                                {historicoPregacoes.map(
+                                    (item) => (
+                                        <article
+                                            key={
+                                                item.id
+                                            }
+                                            className="sermon-history-item"
+                                        >
+                                            <div className="sermon-history-date">
+                                                <CalendarDays
+                                                    size={17}
+                                                />
+
+                                                <strong>
+                                                    {new Date(
+                                                        `${item.pregado_em}T12:00:00`,
+                                                    ).toLocaleDateString(
+                                                        "pt-BR",
+                                                    )}
+                                                </strong>
+                                            </div>
+
+                                            {item.local && (
+                                                <div>
+                                                    <MapPin
+                                                        size={15}
+                                                    />
+
+                                                    <span>
+                                                        {item.local}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {item.evento && (
+                                                <p>
+                                                    {item.evento}
+                                                </p>
+                                            )}
+
+                                            {item.duracao_segundos !==
+                                                null && (
+                                                    <div>
+                                                        <Clock3
+                                                            size={15}
+                                                        />
+
+                                                        <span>
+                                                            {Math.round(
+                                                                item.duracao_segundos /
+                                                                60,
+                                                            )}
+                                                            {" min"}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                            {item.observacoes && (
+                                                <small>
+                                                    {item.observacoes}
+                                                </small>
+                                            )}
+                                        </article>
+                                    ),
+                                )}
+                            </div>
+                        )}
+
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() =>
+                                    setModalHistoricoAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                Fechar
+                            </button>
+
+                            <button
+                                type="button"
+                                className="primary-button"
+                                onClick={() => {
+                                    setModalHistoricoAberto(
+                                        false,
+                                    );
+
+                                    abrirRegistroPregacao();
+                                }}
+                            >
+                                <Plus size={17} />
+                                Registrar pregação
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <BiblePassageModal
                 referencia={
