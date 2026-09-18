@@ -18,7 +18,9 @@ import {
     MapPin,
     Maximize2,
     Minus,
+    NotebookPen,
     Pause,
+    Pencil,
     Play,
     Plus,
     RotateCcw,
@@ -949,6 +951,61 @@ function SermaoPage() {
         setErroMarcador,
     ] = useState("");
 
+    const [
+        notasSermao,
+        setNotasSermao,
+    ] = useState([]);
+
+    const [
+        painelNotasAberto,
+        setPainelNotasAberto,
+    ] = useState(false);
+
+    const [
+        modalNotaAberto,
+        setModalNotaAberto,
+    ] = useState(false);
+
+    const [
+        notaEditando,
+        setNotaEditando,
+    ] = useState(null);
+
+    const [
+        tituloNota,
+        setTituloNota,
+    ] = useState("");
+
+    const [
+        conteudoNota,
+        setConteudoNota,
+    ] = useState("");
+
+    const [
+        notaVinculada,
+        setNotaVinculada,
+    ] = useState(false);
+
+    const [
+        paginaNota,
+        setPaginaNota,
+    ] = useState(null);
+
+    const [
+        posicaoNota,
+        setPosicaoNota,
+    ] = useState(null);
+
+    const [
+        salvandoNota,
+        setSalvandoNota,
+    ] = useState(false);
+
+    const [
+        erroNota,
+        setErroNota,
+    ] = useState("");
+
 
     useEffect(() => {
         if (!cronometroRodando) {
@@ -1615,6 +1672,77 @@ function SermaoPage() {
         id,
     ]);
 
+    useEffect(() => {
+        if (
+            !user ||
+            !id
+        ) {
+            return;
+        }
+
+        let ativo = true;
+
+        async function carregarNotas() {
+            const {
+                data,
+                error,
+            } = await supabase
+                .from(
+                    "notas_sermao",
+                )
+                .select(`
+                id,
+                titulo,
+                conteudo,
+                pagina,
+                posicao,
+                vinculada_posicao,
+                created_at,
+                updated_at
+            `)
+                .eq(
+                    "usuario_id",
+                    user.id,
+                )
+                .eq(
+                    "sermao_id",
+                    id,
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false,
+                    },
+                );
+
+            if (!ativo) {
+                return;
+            }
+
+            if (error) {
+                console.error(
+                    "Erro ao carregar notas:",
+                    error,
+                );
+
+                return;
+            }
+
+            setNotasSermao(
+                data ?? [],
+            );
+        }
+
+        carregarNotas();
+
+        return () => {
+            ativo = false;
+        };
+    }, [
+        user,
+        id,
+    ]);
+
     useLayoutEffect(() => {
         if (
             carregando ||
@@ -2185,6 +2313,381 @@ function SermaoPage() {
                 error,
             );
         }
+    }
+
+    function abrirNovaNota(
+        vinculada = false,
+    ) {
+        setNotaEditando(null);
+
+        setTituloNota("");
+        setConteudoNota("");
+        setErroNota("");
+
+        setNotaVinculada(
+            vinculada,
+        );
+
+        if (vinculada) {
+            const progresso =
+                progressoAtualRef.current;
+
+            setPaginaNota(
+                Number(
+                    progresso?.pagina ??
+                    paginaAtual ??
+                    1,
+                ),
+            );
+
+            setPosicaoNota(
+                Number(
+                    progresso?.posicao ??
+                    posicaoPagina ??
+                    0,
+                ),
+            );
+        } else {
+            setPaginaNota(null);
+            setPosicaoNota(null);
+        }
+
+        setModalNotaAberto(
+            true,
+        );
+    }
+
+    function editarNota(
+        nota,
+    ) {
+        setNotaEditando(
+            nota,
+        );
+
+        setTituloNota(
+            nota.titulo ?? "",
+        );
+
+        setConteudoNota(
+            nota.conteudo ?? "",
+        );
+
+        setNotaVinculada(
+            nota.vinculada_posicao ===
+            true,
+        );
+
+        setPaginaNota(
+            nota.pagina !== null
+                ? Number(
+                    nota.pagina,
+                )
+                : null,
+        );
+
+        setPosicaoNota(
+            nota.posicao !== null
+                ? Number(
+                    nota.posicao,
+                )
+                : null,
+        );
+
+        setErroNota("");
+
+        setModalNotaAberto(
+            true,
+        );
+    }
+
+    async function salvarNota(
+        event,
+    ) {
+        event.preventDefault();
+
+        if (
+            !user ||
+            !sermao?.id ||
+            !conteudoNota.trim()
+        ) {
+            return;
+        }
+
+        setSalvandoNota(true);
+        setErroNota("");
+
+        const dadosNota = {
+            usuario_id:
+                user.id,
+
+            sermao_id:
+                sermao.id,
+
+            titulo:
+                tituloNota.trim() ||
+                null,
+
+            conteudo:
+                conteudoNota.trim(),
+
+            vinculada_posicao:
+                notaVinculada,
+
+            pagina:
+                notaVinculada
+                    ? paginaNota
+                    : null,
+
+            posicao:
+                notaVinculada
+                    ? Number(
+                        Number(
+                            posicaoNota ?? 0,
+                        ).toFixed(6),
+                    )
+                    : null,
+
+            updated_at:
+                new Date()
+                    .toISOString(),
+        };
+
+        let resultado;
+
+        if (notaEditando) {
+            resultado =
+                await supabase
+                    .from(
+                        "notas_sermao",
+                    )
+                    .update(
+                        dadosNota,
+                    )
+                    .eq(
+                        "id",
+                        notaEditando.id,
+                    )
+                    .eq(
+                        "usuario_id",
+                        user.id,
+                    )
+                    .select(`
+                    id,
+                    titulo,
+                    conteudo,
+                    pagina,
+                    posicao,
+                    vinculada_posicao,
+                    created_at,
+                    updated_at
+                `)
+                    .single();
+        } else {
+            resultado =
+                await supabase
+                    .from(
+                        "notas_sermao",
+                    )
+                    .insert(
+                        dadosNota,
+                    )
+                    .select(`
+                    id,
+                    titulo,
+                    conteudo,
+                    pagina,
+                    posicao,
+                    vinculada_posicao,
+                    created_at,
+                    updated_at
+                `)
+                    .single();
+        }
+
+        const {
+            data,
+            error,
+        } = resultado;
+
+        if (error) {
+            console.error(
+                "Erro ao salvar nota:",
+                error,
+            );
+
+            setErroNota(
+                "Não conseguimos salvar esta nota.",
+            );
+
+            setSalvandoNota(false);
+            return;
+        }
+
+        if (notaEditando) {
+            setNotasSermao(
+                (anteriores) =>
+                    anteriores.map(
+                        (nota) =>
+                            nota.id ===
+                                data.id
+                                ? data
+                                : nota,
+                    ),
+            );
+        } else {
+            setNotasSermao(
+                (anteriores) => [
+                    data,
+                    ...anteriores,
+                ],
+            );
+        }
+
+        setModalNotaAberto(false);
+        setNotaEditando(null);
+
+        setTituloNota("");
+        setConteudoNota("");
+        setNotaVinculada(false);
+
+        setSalvandoNota(false);
+    }
+
+    async function excluirNota(
+        nota,
+    ) {
+        const confirmar =
+            window.confirm(
+                "Excluir esta nota?",
+            );
+
+        if (!confirmar) {
+            return;
+        }
+
+        const {
+            error,
+        } = await supabase
+            .from(
+                "notas_sermao",
+            )
+            .delete()
+            .eq(
+                "id",
+                nota.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (error) {
+            console.error(
+                "Erro ao excluir nota:",
+                error,
+            );
+
+            return;
+        }
+
+        setNotasSermao(
+            (anteriores) =>
+                anteriores.filter(
+                    (item) =>
+                        item.id !==
+                        nota.id,
+                ),
+        );
+    }
+
+    function irParaNota(
+        nota,
+    ) {
+        if (
+            !nota.vinculada_posicao ||
+            nota.pagina === null
+        ) {
+            return;
+        }
+
+        setModoVisualizacao(
+            "texto",
+        );
+
+        setPainelNotasAberto(
+            false,
+        );
+
+        const pagina =
+            Number(
+                nota.pagina,
+            );
+
+        const posicao =
+            Math.min(
+                Math.max(
+                    Number(
+                        nota.posicao,
+                    ) || 0,
+                    0,
+                ),
+                1,
+            );
+
+        setPaginaAtual(
+            pagina,
+        );
+
+        setPosicaoPagina(
+            posicao,
+        );
+
+        requestAnimationFrame(
+            () => {
+                requestAnimationFrame(
+                    () => {
+                        const elemento =
+                            paginaRefs
+                                .current[
+                            pagina
+                            ];
+
+                        if (!elemento) {
+                            return;
+                        }
+
+                        const rect =
+                            elemento
+                                .getBoundingClientRect();
+
+                        const topo =
+                            window.scrollY +
+                            rect.top;
+
+                        const altura =
+                            Math.max(
+                                elemento
+                                    .offsetHeight,
+                                1,
+                            );
+
+                        window.scrollTo({
+                            top:
+                                Math.max(
+                                    0,
+                                    topo +
+                                    altura *
+                                    posicao -
+                                    100,
+                                ),
+
+                            behavior:
+                                "smooth",
+                        });
+                    },
+                );
+            },
+        );
     }
 
     function nomeTipoMarcador(
@@ -2965,6 +3468,25 @@ function SermaoPage() {
 
                     <button
                         type="button"
+                        title="Notas"
+                        className={
+                            notasSermao.length > 0
+                                ? "sermon-note-button-active"
+                                : ""
+                        }
+                        onClick={() =>
+                            setPainelNotasAberto(
+                                true,
+                            )
+                        }
+                    >
+                        <NotebookPen
+                            size={18}
+                        />
+                    </button>
+
+                    <button
+                        type="button"
                         title="Histórico de pregações"
                         onClick={() =>
                             setModalHistoricoAberto(
@@ -3287,6 +3809,423 @@ function SermaoPage() {
                         </span>
                     </div>
                 )}
+
+            {modalNotaAberto && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(
+                        event,
+                    ) => {
+                        if (
+                            event.target ===
+                            event.currentTarget &&
+                            !salvandoNota
+                        ) {
+                            setModalNotaAberto(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <NotebookPen
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                aria-label="Fechar"
+                                disabled={
+                                    salvandoNota
+                                }
+                                onClick={() =>
+                                    setModalNotaAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Notas
+                            </span>
+
+                            <h2>
+                                {notaEditando
+                                    ? "Editar nota"
+                                    : "Nova nota"}
+                            </h2>
+
+                            <p>
+                                Registre uma ideia,
+                                aplicação ou observação
+                                para este sermão.
+                            </p>
+                        </div>
+
+                        <form
+                            className="trimestre-form"
+                            onSubmit={
+                                salvarNota
+                            }
+                        >
+                            <label>
+                                Título
+
+                                <span className="optional-field">
+                                    Opcional
+                                </span>
+
+                                <input
+                                    type="text"
+                                    value={
+                                        tituloNota
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setTituloNota(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Ex.: Aplicação final"
+                                />
+                            </label>
+
+                            <label>
+                                Nota
+
+                                <textarea
+                                    value={
+                                        conteudoNota
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) =>
+                                        setConteudoNota(
+                                            event
+                                                .target
+                                                .value,
+                                        )
+                                    }
+                                    placeholder="Escreva sua observação..."
+                                    rows={6}
+                                    required
+                                />
+                            </label>
+
+                            <label className="sermon-note-position-option">
+                                <input
+                                    type="checkbox"
+                                    checked={
+                                        notaVinculada
+                                    }
+                                    onChange={(
+                                        event,
+                                    ) => {
+                                        const ativo =
+                                            event
+                                                .target
+                                                .checked;
+
+                                        setNotaVinculada(
+                                            ativo,
+                                        );
+
+                                        if (ativo) {
+                                            const progresso =
+                                                progressoAtualRef
+                                                    .current;
+
+                                            setPaginaNota(
+                                                Number(
+                                                    progresso
+                                                        ?.pagina ??
+                                                    paginaAtual ??
+                                                    1,
+                                                ),
+                                            );
+
+                                            setPosicaoNota(
+                                                Number(
+                                                    progresso
+                                                        ?.posicao ??
+                                                    posicaoPagina ??
+                                                    0,
+                                                ),
+                                            );
+                                        } else {
+                                            setPaginaNota(
+                                                null,
+                                            );
+
+                                            setPosicaoNota(
+                                                null,
+                                            );
+                                        }
+                                    }}
+                                />
+
+                                <div>
+                                    <strong>
+                                        Vincular ao ponto atual
+                                    </strong>
+
+                                    <span>
+                                        Ao abrir esta nota,
+                                        será possível voltar
+                                        exatamente para este
+                                        trecho.
+                                    </span>
+                                </div>
+                            </label>
+
+                            {notaVinculada && (
+                                <div className="sermon-note-position-info">
+                                    <Bookmark
+                                        size={16}
+                                    />
+
+                                    <span>
+                                        Página{" "}
+                                        {paginaNota}
+                                    </span>
+                                </div>
+                            )}
+
+                            {erroNota && (
+                                <div className="library-message">
+                                    {erroNota}
+                                </div>
+                            )}
+
+                            <div className="modal-actions">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={
+                                        salvandoNota
+                                    }
+                                    onClick={() =>
+                                        setModalNotaAberto(
+                                            false,
+                                        )
+                                    }
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="primary-button"
+                                    disabled={
+                                        salvandoNota ||
+                                        !conteudoNota.trim()
+                                    }
+                                >
+                                    {salvandoNota
+                                        ? "Salvando..."
+                                        : notaEditando
+                                            ? "Salvar alterações"
+                                            : "Salvar nota"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {painelNotasAberto && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(
+                        event,
+                    ) => {
+                        if (
+                            event.target ===
+                            event.currentTarget
+                        ) {
+                            setPainelNotasAberto(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card sermon-notes-modal">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <NotebookPen
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                aria-label="Fechar"
+                                onClick={() =>
+                                    setPainelNotasAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Preparação
+                            </span>
+
+                            <h2>
+                                Notas do sermão
+                            </h2>
+
+                            <p>
+                                {notasSermao.length}
+                                {" "}
+                                {notasSermao.length === 1
+                                    ? "nota salva"
+                                    : "notas salvas"}
+                            </p>
+                        </div>
+
+                        {notasSermao.length ===
+                            0 ? (
+                            <div className="sermon-history-empty">
+                                Nenhuma nota foi
+                                criada para este
+                                sermão.
+                            </div>
+                        ) : (
+                            <div className="sermon-notes-list">
+                                {notasSermao.map(
+                                    (nota) => (
+                                        <article
+                                            key={
+                                                nota.id
+                                            }
+                                            className="sermon-note-item"
+                                        >
+                                            <div className="sermon-note-item-top">
+                                                <div>
+                                                    <span>
+                                                        {nota.vinculada_posicao
+                                                            ? `Página ${nota.pagina}`
+                                                            : "Nota geral"}
+                                                    </span>
+
+                                                    <strong>
+                                                        {nota.titulo ||
+                                                            "Sem título"}
+                                                    </strong>
+                                                </div>
+
+                                                <div className="sermon-note-item-actions">
+                                                    <button
+                                                        type="button"
+                                                        title="Editar"
+                                                        onClick={() => {
+                                                            setPainelNotasAberto(
+                                                                false,
+                                                            );
+
+                                                            editarNota(
+                                                                nota,
+                                                            );
+                                                        }}
+                                                    >
+                                                        <Pencil
+                                                            size={16}
+                                                        />
+                                                    </button>
+
+                                                    <button
+                                                        type="button"
+                                                        title="Excluir"
+                                                        onClick={() =>
+                                                            excluirNota(
+                                                                nota,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Trash2
+                                                            size={16}
+                                                        />
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <p>
+                                                {nota.conteudo}
+                                            </p>
+
+                                            {nota.vinculada_posicao && (
+                                                <button
+                                                    type="button"
+                                                    className="sermon-note-go"
+                                                    onClick={() =>
+                                                        irParaNota(
+                                                            nota,
+                                                        )
+                                                    }
+                                                >
+                                                    <Bookmark
+                                                        size={15}
+                                                    />
+
+                                                    Ir para este ponto
+                                                </button>
+                                            )}
+                                        </article>
+                                    ),
+                                )}
+                            </div>
+                        )}
+
+                        <div className="modal-actions">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={() =>
+                                    setPainelNotasAberto(
+                                        false,
+                                    )
+                                }
+                            >
+                                Fechar
+                            </button>
+
+                            <button
+                                type="button"
+                                className="primary-button"
+                                onClick={() => {
+                                    setPainelNotasAberto(
+                                        false,
+                                    );
+
+                                    abrirNovaNota(
+                                        false,
+                                    );
+                                }}
+                            >
+                                <Plus size={17} />
+                                Nova nota
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {modalMarcadorAberto && (
                 <div
