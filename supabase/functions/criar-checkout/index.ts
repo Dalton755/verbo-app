@@ -398,13 +398,13 @@ export default {
               config: {
                 online: {
                   success_url:
-                    "https://biblia-slides.vercel.app/acesso?pagamento=aprovado",
+                    "https://verbo.nethanel.com.br/acesso?pagamento=aprovado",
 
                   failure_url:
-                    "https://biblia-slides.vercel.app/acesso?pagamento=falhou",
+                    "https://verbo.nethanel.com.br/acesso?pagamento=falhou",
 
                   pending_url:
-                    "https://biblia-slides.vercel.app/acesso?pagamento=pendente",
+                    "https://verbo.nethanel.com.br/acesso?pagamento=pendente",
 
                   auto_return:
                     "approved",
