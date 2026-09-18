@@ -34,6 +34,12 @@ function LoginPage() {
       ? redirectInformado
       : "/";
 
+  const sessaoSubstituida =
+    searchParams.get(
+      "motivo",
+    ) ===
+    "sessao-substituida";
+
   const {
     entrar,
     cadastrar,
@@ -213,6 +219,13 @@ function LoginPage() {
               : "Sua EBD, seus sermões e seus livros ficam organizados em uma única biblioteca."}
           </p>
         </div>
+
+        {sessaoSubstituida && (
+          <div className="auth-message auth-error">
+            Sua conta foi acessada em outro dispositivo.
+            Entre novamente para continuar neste aparelho.
+          </div>
+        )}
 
         {sucesso && (
           <div className="auth-message auth-success">
