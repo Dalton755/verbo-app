@@ -39,6 +39,10 @@ import {
 } from "../lib/bookCover";
 
 import {
+    extrairDadosLivro,
+} from "../lib/bookMetadata";
+
+import {
     limparLivroCache,
     salvarLivroCache,
 } from "../lib/bookCache";
@@ -197,6 +201,11 @@ function LivrosPage() {
         arquivo,
         setArquivo,
     ] = useState(null);
+
+    const [
+        identificandoLivro,
+        setIdentificandoLivro,
+    ] = useState(false);
 
 
     const [
@@ -519,7 +528,7 @@ function LivrosPage() {
         setModalAberto(false);
     }
 
-    function selecionarArquivo(
+    async function selecionarArquivo(
         event,
     ) {
         const arquivoSelecionado =
@@ -527,12 +536,6 @@ function LivrosPage() {
                 .files?.[0] ??
             null;
 
-        /*
-         * Mantemos explicitamente o modal
-         * marcado como aberto porque alguns
-         * navegadores Android remontam partes
-         * da interface ao voltar do seletor.
-         */
         sessionStorage.setItem(
             STORAGE_MODAL,
             "1",
@@ -541,6 +544,57 @@ function LivrosPage() {
         setArquivo(
             arquivoSelecionado,
         );
+
+        if (
+            !arquivoSelecionado ||
+            arquivoSelecionado.type !==
+            "application/pdf"
+        ) {
+            return;
+        }
+
+        setIdentificandoLivro(
+            true,
+        );
+
+        try {
+            const dados =
+                await extrairDadosLivro(
+                    arquivoSelecionado,
+                );
+
+            /*
+             * Só preenche automaticamente
+             * campos ainda vazios.
+             *
+             * Se o usuário já digitou algo,
+             * o VERBO não sobrescreve.
+             */
+            setTitulo(
+                (atual) =>
+                    atual.trim()
+                        ? atual
+                        : dados.titulo ??
+                        "",
+            );
+
+            setAutor(
+                (atual) =>
+                    atual.trim()
+                        ? atual
+                        : dados.autor ??
+                        "",
+            );
+        } catch (error) {
+            console.warn(
+                "Não conseguimos identificar automaticamente o livro:",
+                error,
+            );
+        } finally {
+            setIdentificandoLivro(
+                false,
+            );
+        }
     }
 
     async function importarLivro(
@@ -2773,6 +2827,11 @@ function LivrosPage() {
                                                 )} MB`
                                                 : "Arquivo de até 50 MB"}
                                         </span>
+                                        {identificandoLivro && (
+                                            <small>
+                                                Identificando título e autor...
+                                            </small>
+                                        )}
                                     </div>
                                 </div>
                             </label>
@@ -2796,6 +2855,7 @@ function LivrosPage() {
                                     className="primary-button"
                                     disabled={
                                         salvando ||
+                                        identificandoLivro ||
                                         !titulo.trim() ||
                                         !arquivo
                                     }
