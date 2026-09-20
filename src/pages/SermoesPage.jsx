@@ -8,7 +8,9 @@ import {
     ChevronRight,
     FileText,
     Mic2,
+    MoreVertical,
     Plus,
+    Trash2,
     Upload,
     X,
 } from "lucide-react";
@@ -30,6 +32,7 @@ import {
 } from "../lib/sermonPdfProcessor";
 
 import {
+    limparSermaoCache,
     salvarSermaoCache,
 } from "../lib/sermonCache";
 
@@ -79,6 +82,16 @@ function SermoesPage() {
 
     const [erro, setErro] =
         useState("");
+
+    const [
+        menuSermaoAberto,
+        setMenuSermaoAberto,
+    ] = useState(null);
+
+    const [
+        excluindoSermao,
+        setExcluindoSermao,
+    ] = useState(null);
 
     const [titulo, setTitulo] =
         useState("");
@@ -494,6 +507,122 @@ function SermoesPage() {
         setSalvando(false);
     }
 
+    async function excluirSermao(
+        sermao,
+    ) {
+        if (
+            !user ||
+            !sermao?.id
+        ) {
+            return;
+        }
+
+        const confirmou =
+            window.confirm(
+                `Excluir "${sermao.titulo}"?\n\nO sermão e o PDF serão removidos permanentemente. O espaço ocupado será liberado.`,
+            );
+
+        if (!confirmou) {
+            return;
+        }
+
+        setExcluindoSermao(
+            sermao.id,
+        );
+
+        setErro("");
+
+        /*
+         * 1. Remove o PDF do Storage.
+         */
+        if (sermao.storage_path) {
+            const {
+                error:
+                storageError,
+            } =
+                await supabase.storage
+                    .from(
+                        "biblia-slides-pdfs",
+                    )
+                    .remove([
+                        sermao.storage_path,
+                    ]);
+
+            if (storageError) {
+                console.error(
+                    "Erro ao remover PDF do sermão:",
+                    storageError,
+                );
+
+                setErro(
+                    "Não conseguimos remover o PDF. O sermão não foi excluído.",
+                );
+
+                setExcluindoSermao(
+                    null,
+                );
+
+                return;
+            }
+        }
+
+        /*
+         * 2. Remove o registro do banco.
+         */
+        const {
+            error:
+            sermaoError,
+        } = await supabase
+            .from("sermoes")
+            .delete()
+            .eq(
+                "id",
+                sermao.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (sermaoError) {
+            console.error(
+                "Erro ao excluir sermão:",
+                sermaoError,
+            );
+
+            setErro(
+                "O PDF foi removido, mas ocorreu um erro ao excluir o sermão do banco.",
+            );
+
+            setExcluindoSermao(
+                null,
+            );
+
+            return;
+        }
+
+        limparSermaoCache(
+            sermao.id,
+        );
+
+        setSermoes(
+            (anteriores) =>
+                anteriores.filter(
+                    (item) =>
+                        item.id !==
+                        sermao.id,
+                ),
+        );
+
+        setMenuSermaoAberto(
+            null,
+        );
+
+        setExcluindoSermao(
+            null,
+        );
+    }
+
     function nomeDaSerie(serieIdAtual) {
         if (!serieIdAtual) {
             return "";
@@ -739,54 +868,106 @@ function SermoesPage() {
                             <section className="sermons-list">
                                 {sermoesFiltrados.map(
                                     (sermao) => (
-                                        <button
+                                        <article
                                             key={
                                                 sermao.id
                                             }
-                                            type="button"
-                                            className="sermon-card"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/sermoes/${sermao.id}`,
-                                                )
-                                            }
+                                            className="sermon-card sermon-card-manage"
                                         >
-                                            <div className="sermon-card-icon">
-                                                <FileText
-                                                    size={21}
-                                                />
-                                            </div>
-
-                                            <div className="sermon-card-content">
-                                                <span>
-                                                    {nomeDaSerie(
-                                                        sermao.serie_id,
+                                            <button
+                                                type="button"
+                                                className="sermon-card-main"
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/sermoes/${sermao.id}`,
                                                     )
-                                                        ? `${nomeDaSerie(
+                                                }
+                                            >
+                                                <div className="sermon-card-icon">
+                                                    <FileText
+                                                        size={21}
+                                                    />
+                                                </div>
+
+                                                <div className="sermon-card-content">
+                                                    <span>
+                                                        {nomeDaSerie(
                                                             sermao.serie_id,
-                                                        )} · ${sermao.tema ||
-                                                        "Sermão"
-                                                        }`
-                                                        : sermao.tema ||
-                                                        "Sermão"}
-                                                </span>
+                                                        )
+                                                            ? `${nomeDaSerie(
+                                                                sermao.serie_id,
+                                                            )} · ${sermao.tema ||
+                                                            "Sermão"}`
+                                                            : sermao.tema ||
+                                                            "Sermão"}
+                                                    </span>
 
-                                                <h3>
-                                                    {sermao.titulo}
-                                                </h3>
+                                                    <h3>
+                                                        {sermao.titulo}
+                                                    </h3>
 
-                                                <p>
-                                                    {sermao.texto_base
-                                                        ? `Texto base: ${sermao.texto_base}`
-                                                        : sermao.arquivo_nome}
-                                                </p>
+                                                    <p>
+                                                        {sermao.texto_base
+                                                            ? `Texto base: ${sermao.texto_base}`
+                                                            : sermao.arquivo_nome}
+                                                    </p>
+                                                </div>
+
+                                                <ChevronRight
+                                                    size={20}
+                                                    className="module-card-arrow-inline"
+                                                />
+                                            </button>
+
+                                            <div className="sermon-item-menu-area">
+                                                <button
+                                                    type="button"
+                                                    className="book-theme-menu-button"
+                                                    aria-label={`Opções de ${sermao.titulo}`}
+                                                    onClick={() =>
+                                                        setMenuSermaoAberto(
+                                                            (atual) =>
+                                                                atual ===
+                                                                    sermao.id
+                                                                    ? null
+                                                                    : sermao.id,
+                                                        )
+                                                    }
+                                                >
+                                                    <MoreVertical
+                                                        size={19}
+                                                    />
+                                                </button>
+
+                                                {menuSermaoAberto ===
+                                                    sermao.id && (
+                                                        <div className="book-theme-menu">
+                                                            <button
+                                                                type="button"
+                                                                className="danger"
+                                                                disabled={
+                                                                    excluindoSermao ===
+                                                                    sermao.id
+                                                                }
+                                                                onClick={() =>
+                                                                    excluirSermao(
+                                                                        sermao,
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Trash2
+                                                                    size={16}
+                                                                />
+
+                                                                {excluindoSermao ===
+                                                                    sermao.id
+                                                                    ? "Excluindo..."
+                                                                    : "Excluir"}
+                                                            </button>
+                                                        </div>
+                                                    )}
                                             </div>
-
-                                            <ChevronRight
-                                                size={20}
-                                                className="module-card-arrow-inline"
-                                            />
-                                        </button>
+                                        </article>
                                     ),
                                 )}
                             </section>

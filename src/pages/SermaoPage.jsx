@@ -10,6 +10,10 @@ import {
     ArrowLeft,
     BookOpen,
     Bookmark,
+    Bold,
+    Italic,
+    Redo2,
+    Undo2,
     CalendarDays,
     Clock3,
     Expand,
@@ -19,6 +23,7 @@ import {
     Maximize2,
     Minus,
     NotebookPen,
+    Palette,
     Pause,
     Pencil,
     Play,
@@ -697,6 +702,284 @@ function lerProgressoSalvo(id) {
     }
 }
 
+function BlocoEditorSermao({
+    bloco,
+    onChange,
+    onAtivar,
+    elemento = "p",
+    className = "",
+}) {
+    const editorRef =
+        useRef(null);
+
+    useEffect(() => {
+        const editor =
+            editorRef.current;
+
+        if (!editor) {
+            return;
+        }
+
+        if (bloco.html) {
+            editor.innerHTML =
+                bloco.html;
+        } else {
+            editor.innerText =
+                bloco.texto ?? "";
+        }
+    }, []);
+
+    function atualizar() {
+        const editor =
+            editorRef.current;
+
+        if (!editor) {
+            return;
+        }
+
+        onChange({
+            texto:
+                editor.innerText,
+
+            html:
+                editor.innerHTML,
+        });
+    }
+
+    const Elemento =
+        elemento;
+
+    return (
+        <Elemento
+            ref={editorRef}
+            className={`sermon-inline-editor ${className}`}
+            contentEditable
+            suppressContentEditableWarning
+            spellCheck
+            onFocus={() =>
+                onAtivar?.(
+                    editorRef.current,
+                )
+            }
+            onMouseUp={() =>
+                onAtivar?.(
+                    editorRef.current,
+                )
+            }
+            onKeyUp={() =>
+                onAtivar?.(
+                    editorRef.current,
+                )
+            }
+            onInput={atualizar}
+        />
+    );
+}
+
+function ConteudoRicoSermao({
+    bloco,
+    onReferencia,
+}) {
+    const html =
+        bloco?.html?.trim();
+
+    if (!html) {
+        return (
+            <BibleLinkedText
+                texto={
+                    bloco?.texto ??
+                    ""
+                }
+                onReferencia={
+                    onReferencia
+                }
+            />
+        );
+    }
+
+    function renderizarNo(
+        no,
+        chave,
+    ) {
+        if (
+            no.nodeType ===
+            Node.TEXT_NODE
+        ) {
+            const texto =
+                no.textContent ?? "";
+
+            if (!texto) {
+                return null;
+            }
+
+            return (
+                <BibleLinkedText
+                    key={chave}
+                    texto={texto}
+                    onReferencia={
+                        onReferencia
+                    }
+                />
+            );
+        }
+
+        if (
+            no.nodeType !==
+            Node.ELEMENT_NODE
+        ) {
+            return null;
+        }
+
+        const tag =
+            no.tagName
+                .toLowerCase();
+
+        const filhos =
+            Array.from(
+                no.childNodes,
+            ).map(
+                (
+                    filho,
+                    indice,
+                ) =>
+                    renderizarNo(
+                        filho,
+                        `${chave}-${indice}`,
+                    ),
+            );
+
+        if (
+            tag === "strong" ||
+            tag === "b"
+        ) {
+            return (
+                <strong key={chave}>
+                    {filhos}
+                </strong>
+            );
+        }
+
+        if (
+            tag === "em" ||
+            tag === "i"
+        ) {
+            return (
+                <em key={chave}>
+                    {filhos}
+                </em>
+            );
+        }
+
+        if (tag === "br") {
+            return (
+                <br key={chave} />
+            );
+        }
+
+        if (
+            tag === "div" ||
+            tag === "p"
+        ) {
+            return (
+                <span
+                    key={chave}
+                    style={{
+                        display:
+                            "block",
+                    }}
+                >
+                    {filhos}
+                </span>
+            );
+        }
+
+        if (tag === "span") {
+            const estilo = {};
+
+            const backgroundColor =
+                no.style
+                    ?.backgroundColor;
+
+            const color =
+                no.style?.color;
+
+            const fontSize =
+                no.style
+                    ?.fontSize;
+
+            if (
+                backgroundColor
+            ) {
+                estilo.backgroundColor =
+                    backgroundColor;
+            }
+
+            if (color) {
+                estilo.color =
+                    color;
+            }
+
+            if (fontSize) {
+                estilo.fontSize =
+                    fontSize;
+            }
+
+            return (
+                <span
+                    key={chave}
+                    style={estilo}
+                >
+                    {filhos}
+                </span>
+            );
+        }
+
+        return (
+            <span key={chave}>
+                {filhos}
+            </span>
+        );
+    }
+
+    const documento =
+        new DOMParser()
+            .parseFromString(
+                `<div>${html}</div>`,
+                "text/html",
+            );
+
+    const raiz =
+        documento.body
+            .firstElementChild;
+
+    if (!raiz) {
+        return (
+            <BibleLinkedText
+                texto={
+                    bloco?.texto ??
+                    ""
+                }
+                onReferencia={
+                    onReferencia
+                }
+            />
+        );
+    }
+
+    return Array.from(
+        raiz.childNodes,
+    ).map(
+        (
+            no,
+            indice,
+        ) =>
+            renderizarNo(
+                no,
+                `rico-${indice}`,
+            ),
+    );
+}
+
 function SermaoPage() {
     const { id } =
         useParams();
@@ -718,6 +1001,9 @@ function SermaoPage() {
 
     const paginaRefs =
         useRef({});
+
+    const editorAtivoRef =
+        useRef(null);
 
     const restaurandoProgresso =
         useRef(true);
@@ -763,6 +1049,27 @@ function SermaoPage() {
             cacheInicial?.paginas ??
             [],
         );
+
+    const [
+        modoEdicao,
+        setModoEdicao,
+    ] = useState(false);
+
+    const [
+        salvandoEdicao,
+        setSalvandoEdicao,
+    ] = useState(false);
+
+    const [
+        erroEdicao,
+        setErroEdicao,
+    ] = useState("");
+
+
+    const [
+        paletaEdicaoAberta,
+        setPaletaEdicaoAberta,
+    ] = useState(false);
 
     const [carregando, setCarregando] =
         useState(
@@ -835,6 +1142,11 @@ function SermaoPage() {
         modoPulpito,
         setModoPulpito,
     ] = useState(false);
+
+    const [
+        modoSermao,
+        setModoSermao,
+    ] = useState("preparar");
 
     const [
         historicoPregacoes,
@@ -1185,6 +1497,9 @@ function SermaoPage() {
                 ultima_pagina,
                 ultima_posicao,
                 conteudo_processado,
+                conteudo_editado,
+                editado_em,
+                possui_edicao,
                 processado_em,
                 processador_versao
             `)
@@ -1230,18 +1545,23 @@ function SermaoPage() {
              *
              * Aqui NÃO abrimos PDF.js.
              */
+            const conteudoDisponivel =
+                data.possui_edicao === true &&
+                    data.conteudo_editado &&
+                    Array.isArray(
+                        data.conteudo_editado.paginas,
+                    )
+                    ? data.conteudo_editado
+                    : data.conteudo_processado;
+
             if (
-                data.conteudo_processado &&
+                conteudoDisponivel &&
                 Array.isArray(
-                    data
-                        .conteudo_processado
-                        .paginas,
+                    conteudoDisponivel.paginas,
                 )
             ) {
                 const paginasProntas =
-                    data
-                        .conteudo_processado
-                        .paginas;
+                    conteudoDisponivel.paginas;
 
                 if (!ativo) {
                     return;
@@ -2297,6 +2617,448 @@ function SermaoPage() {
         };
     }, []);
 
+    function clonarPaginas(
+        valor,
+    ) {
+        return JSON.parse(
+            JSON.stringify(
+                valor ?? [],
+            ),
+        );
+    }
+
+    function executarComandoEditor(
+        comando,
+    ) {
+        if (!modoEdicao) {
+            return;
+        }
+
+        const editor =
+            editorAtivoRef.current;
+
+        if (!editor) {
+            return;
+        }
+
+        /*
+         * O botão da barra não pode
+         * roubar a seleção do texto.
+         */
+        editor.focus();
+
+        document.execCommand(
+            comando,
+            false,
+            null,
+        );
+
+        /*
+         * Força o editor a atualizar
+         * texto + HTML no estado React.
+         */
+        editor.dispatchEvent(
+            new Event(
+                "input",
+                {
+                    bubbles: true,
+                },
+            ),
+        );
+    }
+
+    function aplicarEstiloSelecao({
+        tamanhoDelta = 0,
+        corDestaque = null,
+        removerDestaque = false,
+    } = {}) {
+        if (!modoEdicao) {
+            return;
+        }
+
+        const editor =
+            editorAtivoRef.current;
+
+        const selecao =
+            window.getSelection();
+
+        if (
+            !editor ||
+            !selecao ||
+            selecao.rangeCount === 0
+        ) {
+            return;
+        }
+
+        const range =
+            selecao.getRangeAt(0);
+
+        if (
+            range.collapsed ||
+            !editor.contains(
+                range.commonAncestorContainer,
+            )
+        ) {
+            return;
+        }
+
+        const fragmento =
+            range.extractContents();
+
+        const span =
+            document.createElement(
+                "span",
+            );
+
+        if (
+            tamanhoDelta !== 0
+        ) {
+            const elementoBase =
+                range.startContainer
+                    .nodeType ===
+                    Node.ELEMENT_NODE
+                    ? range.startContainer
+                    : range.startContainer
+                        .parentElement;
+
+            const tamanhoAtual =
+                Number.parseFloat(
+                    window
+                        .getComputedStyle(
+                            elementoBase ||
+                            editor,
+                        )
+                        .fontSize,
+                ) || 20;
+
+            const novoTamanho =
+                Math.min(
+                    48,
+                    Math.max(
+                        12,
+                        tamanhoAtual +
+                        tamanhoDelta,
+                    ),
+                );
+
+            span.style.fontSize =
+                `${novoTamanho}px`;
+        }
+
+        if (corDestaque) {
+            span.style.backgroundColor =
+                corDestaque;
+
+            span.style.borderRadius =
+                "3px";
+
+            span.style.padding =
+                "0 1px";
+        }
+
+        if (removerDestaque) {
+            span.style.backgroundColor =
+                "transparent";
+        }
+
+        span.appendChild(
+            fragmento,
+        );
+
+        range.insertNode(
+            span,
+        );
+
+        const novoRange =
+            document.createRange();
+
+        novoRange.selectNodeContents(
+            span,
+        );
+
+        selecao.removeAllRanges();
+
+        selecao.addRange(
+            novoRange,
+        );
+
+        editor.dispatchEvent(
+            new Event(
+                "input",
+                {
+                    bubbles: true,
+                },
+            ),
+        );
+    }
+
+    function iniciarEdicao() {
+        if (
+            modoVisualizacao !==
+            "texto"
+        ) {
+            setModoVisualizacao(
+                "texto",
+            );
+        }
+
+        setErroEdicao("");
+        setModoEdicao(true);
+    }
+
+    function cancelarEdicao() {
+        const conteudoSalvo =
+            sermao?.possui_edicao ===
+                true &&
+                sermao?.conteudo_editado &&
+                Array.isArray(
+                    sermao
+                        .conteudo_editado
+                        .paginas,
+                )
+                ? sermao
+                    .conteudo_editado
+                    .paginas
+                : sermao
+                    ?.conteudo_processado
+                    ?.paginas;
+
+        if (
+            Array.isArray(
+                conteudoSalvo,
+            )
+        ) {
+            setPaginas(
+                clonarPaginas(
+                    conteudoSalvo,
+                ),
+            );
+        }
+
+        setErroEdicao("");
+        setModoEdicao(false);
+    }
+
+    function alterarTextoBloco(
+        numeroPagina,
+        indiceBloco,
+        conteudo,
+    ) {
+        setPaginas(
+            (anteriores) =>
+                anteriores.map(
+                    (pagina) => {
+                        if (
+                            pagina.numero !==
+                            numeroPagina
+                        ) {
+                            return pagina;
+                        }
+
+                        return {
+                            ...pagina,
+
+                            blocos:
+                                pagina.blocos.map(
+                                    (
+                                        bloco,
+                                        indice,
+                                    ) =>
+                                        indice ===
+                                            indiceBloco
+                                            ? {
+                                                ...bloco,
+
+                                                texto:
+                                                    conteudo
+                                                        .texto,
+
+                                                html:
+                                                    conteudo
+                                                        .html,
+                                            }
+                                            : bloco,
+                                ),
+                        };
+                    },
+                ),
+        );
+    }
+
+    function adicionarBlocoDepois(
+        numeroPagina,
+        indiceBloco,
+    ) {
+        setPaginas(
+            (anteriores) =>
+                anteriores.map(
+                    (pagina) => {
+                        if (
+                            pagina.numero !==
+                            numeroPagina
+                        ) {
+                            return pagina;
+                        }
+
+                        const blocos =
+                            [
+                                ...pagina
+                                    .blocos,
+                            ];
+
+                        blocos.splice(
+                            indiceBloco +
+                            1,
+                            0,
+                            {
+                                tipo:
+                                    "texto",
+
+                                texto:
+                                    "",
+
+                                html:
+                                    "",
+                            },
+                        );
+
+                        return {
+                            ...pagina,
+                            blocos,
+                        };
+                    },
+                ),
+        );
+    }
+
+    function excluirBloco(
+        numeroPagina,
+        indiceBloco,
+    ) {
+        setPaginas(
+            (anteriores) =>
+                anteriores.map(
+                    (pagina) => {
+                        if (
+                            pagina.numero !==
+                            numeroPagina
+                        ) {
+                            return pagina;
+                        }
+
+                        return {
+                            ...pagina,
+
+                            blocos:
+                                pagina.blocos.filter(
+                                    (
+                                        _bloco,
+                                        indice,
+                                    ) =>
+                                        indice !==
+                                        indiceBloco,
+                                ),
+                        };
+                    },
+                ),
+        );
+    }
+
+    async function salvarEdicaoSermao() {
+        if (
+            !user ||
+            !sermao?.id
+        ) {
+            return;
+        }
+
+        setSalvandoEdicao(true);
+        setErroEdicao("");
+
+        const agora =
+            new Date()
+                .toISOString();
+
+        const conteudoEditado = {
+            versao: 1,
+
+            paginas:
+                clonarPaginas(
+                    paginas,
+                ),
+        };
+
+        const {
+            error,
+        } = await supabase
+            .from("sermoes")
+            .update({
+                conteudo_editado:
+                    conteudoEditado,
+
+                possui_edicao:
+                    true,
+
+                editado_em:
+                    agora,
+            })
+            .eq(
+                "id",
+                sermao.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (error) {
+            console.error(
+                "Erro ao salvar edição do sermão:",
+                error,
+            );
+
+            setErroEdicao(
+                "Não conseguimos salvar as alterações.",
+            );
+
+            setSalvandoEdicao(false);
+            return;
+        }
+
+        const sermaoAtualizado = {
+            ...sermao,
+
+            conteudo_editado:
+                conteudoEditado,
+
+            possui_edicao:
+                true,
+
+            editado_em:
+                agora,
+        };
+
+        setSermao(
+            sermaoAtualizado,
+        );
+
+        salvarSermaoCache(
+            id,
+            {
+                sermao:
+                    sermaoAtualizado,
+
+                paginas:
+                    clonarPaginas(
+                        paginas,
+                    ),
+            },
+        );
+
+        setModoEdicao(false);
+        setSalvandoEdicao(false);
+    }
+
     async function alternarTelaCheia() {
         try {
             if (
@@ -3340,209 +4102,747 @@ function SermaoPage() {
                 </div>
 
                 <div className="sermon-toolbar-actions">
-                    <div className="sermon-view-toggle">
-                        <button
-                            type="button"
-                            className={
-                                modoVisualizacao ===
-                                    "texto"
-                                    ? "active"
-                                    : ""
-                            }
-                            title="Modo texto"
-                            onClick={() =>
-                                setModoVisualizacao(
-                                    "texto",
-                                )
-                            }
-                        >
-                            <FileText
-                                size={16}
-                            />
-
-                            <span>
-                                Texto
-                            </span>
-                        </button>
-
-                        <button
-                            type="button"
-                            className={
-                                modoVisualizacao ===
-                                    "pdf"
-                                    ? "active"
-                                    : ""
-                            }
-                            title="PDF original"
-                            onClick={() =>
-                                setModoVisualizacao(
-                                    "pdf",
-                                )
-                            }
-                        >
-                            <BookOpen
-                                size={16}
-                            />
-
-                            <span>
-                                PDF
-                            </span>
-                        </button>
-                    </div>
-                    {modoVisualizacao ===
-                        "texto" && (
-                            <>
-                                <button
-                                    type="button"
-                                    title="Diminuir fonte"
-                                    onClick={() =>
-                                        setTamanhoFonte(
-                                            (atual) =>
-                                                Math.max(
-                                                    16,
-                                                    atual - 2,
-                                                ),
-                                        )
-                                    }
-                                >
-                                    <Minus
-                                        size={18}
-                                    />
-                                </button>
-
-                                <button
-                                    type="button"
-                                    title="Aumentar fonte"
-                                    onClick={() =>
-                                        setTamanhoFonte(
-                                            (atual) =>
-                                                Math.min(
-                                                    34,
-                                                    atual + 2,
-                                                ),
-                                        )
-                                    }
-                                >
-                                    <Plus
-                                        size={18}
-                                    />
-                                </button>
-                            </>
-                        )}
 
                     <button
                         type="button"
-                        title="Marcar este ponto"
-                        onClick={
-                            abrirNovoMarcador
-                        }
-                    >
-                        <Bookmark
-                            size={18}
-                        />
-                    </button>
-
-                    <button
-                        type="button"
-                        title="Ver marcadores"
                         className={
-                            marcadores.length > 0
-                                ? "sermon-marker-button-active"
-                                : ""
+                            modoSermao === "preparar"
+                                ? "sermon-mode-button active"
+                                : "sermon-mode-button"
                         }
                         onClick={() =>
-                            setPainelMarcadoresAberto(
-                                true,
+                            setModoSermao(
+                                "preparar",
                             )
                         }
                     >
-                        <Bookmark
-                            size={18}
-                            fill={
-                                marcadores.length > 0
-                                    ? "currentColor"
-                                    : "none"
-                            }
-                        />
+                        Preparar
                     </button>
 
                     <button
                         type="button"
-                        title="Notas"
                         className={
-                            notasSermao.length > 0
-                                ? "sermon-note-button-active"
-                                : ""
+                            modoSermao === "pregar"
+                                ? "sermon-mode-button active"
+                                : "sermon-mode-button"
                         }
-                        onClick={() =>
-                            setPainelNotasAberto(
-                                true,
-                            )
+                        disabled={
+                            modoEdicao
                         }
+                        onClick={() => {
+                            setModoSermao(
+                                "pregar",
+                            );
+
+                            setModoVisualizacao(
+                                "texto",
+                            );
+                        }}
                     >
-                        <NotebookPen
-                            size={18}
-                        />
+                        Pregar
                     </button>
 
-                    <button
-                        type="button"
-                        title="Histórico de pregações"
-                        onClick={() =>
-                            setModalHistoricoAberto(
-                                true,
-                            )
-                        }
-                    >
-                        <History size={18} />
-                    </button>
-
-                    <button
-                        type="button"
-                        title="Registrar pregação"
-                        onClick={
-                            abrirRegistroPregacao
-                        }
-                    >
-                        <CalendarDays
-                            size={18}
-                        />
-                    </button>
-
-                    <button
-                        type="button"
-                        title="Modo púlpito"
-                        onClick={() =>
-                            setModoPulpito(
-                                (atual) =>
-                                    !atual,
-                            )
-                        }
-                    >
-                        {modoPulpito ? (
-                            <Shrink
-                                size={18}
-                            />
-                        ) : (
-                            <Maximize2
-                                size={18}
-                            />
-                        )}
-                    </button>
-
-                    <button
-                        type="button"
-                        title="Tela cheia"
-                        onClick={
-                            alternarTelaCheia
-                        }
-                    >
-                        <Expand
-                            size={18}
-                        />
-                    </button>
                 </div>
             </header>
+
+            {modoSermao ===
+                "preparar" && (
+                    <div className="sermon-context-toolbar">
+                        <div className="sermon-view-toggle">
+                            <button
+                                type="button"
+                                className={
+                                    modoVisualizacao ===
+                                        "texto"
+                                        ? "active"
+                                        : ""
+                                }
+                                onClick={() =>
+                                    setModoVisualizacao(
+                                        "texto",
+                                    )
+                                }
+                            >
+                                <FileText
+                                    size={17}
+                                />
+
+                                <span>
+                                    Texto
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className={
+                                    modoVisualizacao ===
+                                        "pdf"
+                                        ? "active"
+                                        : ""
+                                }
+                                onClick={() =>
+                                    setModoVisualizacao(
+                                        "pdf",
+                                    )
+                                }
+                            >
+                                <BookOpen
+                                    size={17}
+                                />
+
+                                <span>
+                                    PDF
+                                </span>
+                            </button>
+                        </div>
+
+                        {modoVisualizacao ===
+                            "texto" && (
+                                <>
+                                    <button
+                                        type="button"
+                                        title="Diminuir fonte"
+                                        onClick={() =>
+                                            setTamanhoFonte(
+                                                (
+                                                    atual,
+                                                ) =>
+                                                    Math.max(
+                                                        16,
+                                                        atual -
+                                                        2,
+                                                    ),
+                                            )
+                                        }
+                                    >
+                                        <Minus
+                                            size={18}
+                                        />
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        title="Aumentar fonte"
+                                        onClick={() =>
+                                            setTamanhoFonte(
+                                                (
+                                                    atual,
+                                                ) =>
+                                                    Math.min(
+                                                        34,
+                                                        atual +
+                                                        2,
+                                                    ),
+                                            )
+                                        }
+                                    >
+                                        <Plus
+                                            size={18}
+                                        />
+                                    </button>
+                                </>
+                            )}
+
+                        <button
+                            type="button"
+                            title="Marcar este ponto"
+                            onClick={
+                                abrirNovoMarcador
+                            }
+                        >
+                            <Bookmark
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Ver marcadores"
+                            onClick={() =>
+                                setPainelMarcadoresAberto(
+                                    true,
+                                )
+                            }
+                        >
+                            <Bookmark
+                                size={18}
+                                fill={
+                                    marcadores.length >
+                                        0
+                                        ? "currentColor"
+                                        : "none"
+                                }
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Notas"
+                            onClick={() =>
+                                setPainelNotasAberto(
+                                    true,
+                                )
+                            }
+                        >
+                            <NotebookPen
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Histórico"
+                            onClick={() =>
+                                setModalHistoricoAberto(
+                                    true,
+                                )
+                            }
+                        >
+                            <History
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Registrar pregação"
+                            onClick={
+                                abrirRegistroPregacao
+                            }
+                        >
+                            <CalendarDays
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Tela cheia"
+                            onClick={
+                                alternarTelaCheia
+                            }
+                        >
+                            <Expand
+                                size={18}
+                            />
+                        </button>
+
+                        {modoVisualizacao ===
+                            "texto" &&
+                            !modoEdicao && (
+                                <button
+                                    type="button"
+                                    title="Editar sermão"
+                                    onClick={
+                                        iniciarEdicao
+                                    }
+                                >
+                                    <Pencil
+                                        size={18}
+                                    />
+
+                                    <span>
+                                        Editar
+                                    </span>
+                                </button>
+                            )}
+                    </div>
+                )}
+
+            {modoSermao ===
+                "preparar" &&
+                modoEdicao && (
+                    <div className="sermon-edit-toolbar">
+                        <button
+                            type="button"
+                            title="Desfazer"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                executarComandoEditor(
+                                    "undo",
+                                )
+                            }
+                        >
+                            <Undo2
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Refazer"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                executarComandoEditor(
+                                    "redo",
+                                )
+                            }
+                        >
+                            <Redo2
+                                size={18}
+                            />
+                        </button>
+
+                        <span className="sermon-toolbar-divider" />
+
+                        <button
+                            type="button"
+                            title="Negrito"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                executarComandoEditor(
+                                    "bold",
+                                )
+                            }
+                        >
+                            <Bold
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Itálico"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                executarComandoEditor(
+                                    "italic",
+                                )
+                            }
+                        >
+                            <Italic
+                                size={18}
+                            />
+                        </button>
+
+                        <span className="sermon-toolbar-divider" />
+
+                        <button
+                            type="button"
+                            title="Diminuir texto selecionado"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                aplicarEstiloSelecao({
+                                    tamanhoDelta: -2,
+                                })
+                            }
+                        >
+                            <span className="sermon-editor-font-button">
+                                A−
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Aumentar texto selecionado"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                aplicarEstiloSelecao({
+                                    tamanhoDelta: 2,
+                                })
+                            }
+                        >
+                            <span className="sermon-editor-font-button">
+                                A+
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Destacar texto"
+                            className={
+                                paletaEdicaoAberta
+                                    ? "active"
+                                    : ""
+                            }
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() =>
+                                setPaletaEdicaoAberta(
+                                    (atual) =>
+                                        !atual,
+                                )
+                            }
+                        >
+                            <Palette
+                                size={18}
+                            />
+                        </button>
+
+                        <div className="sermon-edit-spacer" />
+
+                        <button
+                            type="button"
+                            className="sermon-editor-cancel"
+                            disabled={
+                                salvandoEdicao
+                            }
+                            onClick={
+                                cancelarEdicao
+                            }
+                        >
+                            Cancelar
+                        </button>
+
+                        <button
+                            type="button"
+                            className="sermon-editor-save"
+                            disabled={
+                                salvandoEdicao
+                            }
+                            onClick={
+                                salvarEdicaoSermao
+                            }
+                        >
+                            {salvandoEdicao
+                                ? "Salvando..."
+                                : "Salvar"}
+                        </button>
+                    </div>
+                )}
+
+            {modoSermao ===
+                "pregar" && (
+                    <div className="sermon-context-toolbar sermon-preach-toolbar">
+                        <div className="sermon-preach-time">
+                            <Clock3
+                                size={18}
+                            />
+
+                            <strong>
+                                {formatarCronometro(
+                                    cronometroSegundos,
+                                )}
+                            </strong>
+                        </div>
+
+                        {!cronometroRodando ? (
+                            <button
+                                type="button"
+                                title="Iniciar"
+                                onClick={
+                                    iniciarCronometro
+                                }
+                            >
+                                <Play
+                                    size={18}
+                                />
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                title="Pausar"
+                                onClick={
+                                    pausarCronometro
+                                }
+                            >
+                                <Pause
+                                    size={18}
+                                />
+                            </button>
+                        )}
+
+                        <button
+                            type="button"
+                            title="Zerar"
+                            onClick={
+                                zerarCronometro
+                            }
+                        >
+                            <RotateCcw
+                                size={17}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Finalizar pregação"
+                            onClick={
+                                finalizarPregacao
+                            }
+                        >
+                            <Square
+                                size={16}
+                            />
+                        </button>
+
+                        <span className="sermon-toolbar-divider" />
+
+                        <button
+                            type="button"
+                            title="Modo púlpito"
+                            onClick={() =>
+                                setModoPulpito(
+                                    (
+                                        atual,
+                                    ) =>
+                                        !atual,
+                                )
+                            }
+                        >
+                            {modoPulpito ? (
+                                <Shrink
+                                    size={18}
+                                />
+                            ) : (
+                                <Maximize2
+                                    size={18}
+                                />
+                            )}
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Tela cheia"
+                            onClick={
+                                alternarTelaCheia
+                            }
+                        >
+                            <Expand
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Marcar ponto"
+                            onClick={
+                                abrirNovoMarcador
+                            }
+                        >
+                            <Bookmark
+                                size={18}
+                            />
+                        </button>
+
+                        <button
+                            type="button"
+                            title="Marcadores"
+                            onClick={() =>
+                                setPainelMarcadoresAberto(
+                                    true,
+                                )
+                            }
+                        >
+                            <Bookmark
+                                size={18}
+                                fill={
+                                    marcadores.length >
+                                        0
+                                        ? "currentColor"
+                                        : "none"
+                                }
+                            />
+                        </button>
+                    </div>
+                )}
+
+            {modoSermao ===
+                "preparar" &&
+                modoEdicao &&
+                paletaEdicaoAberta && (
+                    <div className="sermon-highlight-palette">
+                        <button
+                            type="button"
+                            title="Amarelo"
+                            className="highlight-yellow"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() => {
+                                aplicarEstiloSelecao({
+                                    corDestaque:
+                                        "#fff59d",
+                                });
+
+                                setPaletaEdicaoAberta(
+                                    false,
+                                );
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            title="Verde"
+                            className="highlight-green"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() => {
+                                aplicarEstiloSelecao({
+                                    corDestaque:
+                                        "#c8e6c9",
+                                });
+
+                                setPaletaEdicaoAberta(
+                                    false,
+                                );
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            title="Azul"
+                            className="highlight-blue"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() => {
+                                aplicarEstiloSelecao({
+                                    corDestaque:
+                                        "#bbdefb",
+                                });
+
+                                setPaletaEdicaoAberta(
+                                    false,
+                                );
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            title="Rosa"
+                            className="highlight-pink"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() => {
+                                aplicarEstiloSelecao({
+                                    corDestaque:
+                                        "#f8bbd0",
+                                });
+
+                                setPaletaEdicaoAberta(
+                                    false,
+                                );
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            title="Roxo"
+                            className="highlight-purple"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() => {
+                                aplicarEstiloSelecao({
+                                    corDestaque:
+                                        "#e1bee7",
+                                });
+
+                                setPaletaEdicaoAberta(
+                                    false,
+                                );
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            className="highlight-clear"
+                            title="Remover destaque"
+                            onMouseDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onPointerDown={(
+                                event,
+                            ) =>
+                                event.preventDefault()
+                            }
+                            onClick={() => {
+                                aplicarEstiloSelecao({
+                                    removerDestaque:
+                                        true,
+                                });
+
+                                setPaletaEdicaoAberta(
+                                    false,
+                                );
+                            }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
 
             <div className="sermon-progress">
                 <div
@@ -3553,78 +4853,7 @@ function SermaoPage() {
                 />
             </div>
 
-            <div
-                className={`sermon-timer ${cronometroRodando
-                    ? "sermon-timer-running"
-                    : ""
-                    }`}
-            >
-                <div className="sermon-timer-time">
-                    <Clock3 size={17} />
 
-                    <strong>
-                        {formatarCronometro(
-                            cronometroSegundos,
-                        )}
-                    </strong>
-                </div>
-
-                <div className="sermon-timer-actions">
-                    {!cronometroRodando ? (
-                        <button
-                            type="button"
-                            title="Iniciar cronômetro"
-                            onClick={
-                                iniciarCronometro
-                            }
-                        >
-                            <Play size={17} />
-                        </button>
-                    ) : (
-                        <button
-                            type="button"
-                            title="Pausar cronômetro"
-                            onClick={
-                                pausarCronometro
-                            }
-                        >
-                            <Pause size={17} />
-                        </button>
-                    )}
-
-                    <button
-                        type="button"
-                        title="Zerar cronômetro"
-                        disabled={
-                            cronometroSegundos ===
-                            0 &&
-                            !cronometroRodando
-                        }
-                        onClick={
-                            zerarCronometro
-                        }
-                    >
-                        <RotateCcw
-                            size={16}
-                        />
-                    </button>
-
-                    <button
-                        type="button"
-                        title="Finalizar pregação"
-                        disabled={
-                            cronometroSegundos ===
-                            0 &&
-                            !cronometroRodando
-                        }
-                        onClick={
-                            finalizarPregacao
-                        }
-                    >
-                        <Square size={15} />
-                    </button>
-                </div>
-            </div>
 
             {modoVisualizacao ===
                 "pdf" ? (
@@ -3696,6 +4925,120 @@ function SermaoPage() {
                                             bloco,
                                             indice,
                                         ) => {
+                                            if (modoEdicao) {
+                                                if (
+                                                    bloco.tipo ===
+                                                    "campo"
+                                                ) {
+                                                    return (
+                                                        <div
+                                                            key={indice}
+                                                            className="sermon-meta-field"
+                                                        >
+                                                            <span>
+                                                                {bloco.rotulo}
+                                                            </span>
+
+                                                            <BlocoEditorSermao
+                                                                bloco={bloco}
+                                                                onAtivar={(
+                                                                    elemento,
+                                                                ) => {
+                                                                    editorAtivoRef.current =
+                                                                        elemento;
+                                                                }}
+                                                                onChange={(
+                                                                    conteudo,
+                                                                ) =>
+                                                                    alterarTextoBloco(
+                                                                        pagina.numero,
+                                                                        indice,
+                                                                        conteudo,
+                                                                    )
+                                                                }
+                                                            />
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (
+                                                    bloco.tipo ===
+                                                    "titulo"
+                                                ) {
+                                                    return (
+                                                        <BlocoEditorSermao
+                                                            key={indice}
+                                                            bloco={bloco}
+                                                            elemento="h2"
+                                                            onAtivar={(
+                                                                elemento,
+                                                            ) => {
+                                                                editorAtivoRef.current =
+                                                                    elemento;
+                                                            }}
+                                                            onChange={(
+                                                                conteudo,
+                                                            ) =>
+                                                                alterarTextoBloco(
+                                                                    pagina.numero,
+                                                                    indice,
+                                                                    conteudo,
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                }
+
+                                                if (
+                                                    bloco.tipo ===
+                                                    "item"
+                                                ) {
+                                                    return (
+                                                        <BlocoEditorSermao
+                                                            key={indice}
+                                                            bloco={bloco}
+                                                            className="sermon-list-item"
+                                                            onAtivar={(
+                                                                elemento,
+                                                            ) => {
+                                                                editorAtivoRef.current =
+                                                                    elemento;
+                                                            }}
+                                                            onChange={(
+                                                                conteudo,
+                                                            ) =>
+                                                                alterarTextoBloco(
+                                                                    pagina.numero,
+                                                                    indice,
+                                                                    conteudo,
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                }
+
+                                                return (
+                                                    <BlocoEditorSermao
+                                                        key={indice}
+                                                        bloco={bloco}
+                                                        onAtivar={(
+                                                            elemento,
+                                                        ) => {
+                                                            editorAtivoRef.current =
+                                                                elemento;
+                                                        }}
+                                                        onChange={(
+                                                            conteudo,
+                                                        ) =>
+                                                            alterarTextoBloco(
+                                                                pagina.numero,
+                                                                indice,
+                                                                conteudo,
+                                                            )
+                                                        }
+                                                    />
+                                                );
+                                            }
                                             if (
                                                 bloco.tipo ===
                                                 "campo"
@@ -3714,10 +5057,8 @@ function SermaoPage() {
                                                         </span>
 
                                                         <p>
-                                                            <BibleLinkedText
-                                                                texto={
-                                                                    bloco.texto
-                                                                }
+                                                            <ConteudoRicoSermao
+                                                                bloco={bloco}
                                                                 onReferencia={
                                                                     setReferenciaAtiva
                                                                 }
@@ -3737,10 +5078,8 @@ function SermaoPage() {
                                                             indice
                                                         }
                                                     >
-                                                        <BibleLinkedText
-                                                            texto={
-                                                                bloco.texto
-                                                            }
+                                                        <ConteudoRicoSermao
+                                                            bloco={bloco}
                                                             onReferencia={
                                                                 setReferenciaAtiva
                                                             }
@@ -3760,10 +5099,8 @@ function SermaoPage() {
                                                         }
                                                         className="sermon-list-item"
                                                     >
-                                                        <BibleLinkedText
-                                                            texto={
-                                                                bloco.texto
-                                                            }
+                                                        <ConteudoRicoSermao
+                                                            bloco={bloco}
                                                             onReferencia={
                                                                 setReferenciaAtiva
                                                             }
@@ -3778,10 +5115,8 @@ function SermaoPage() {
                                                         indice
                                                     }
                                                 >
-                                                    <BibleLinkedText
-                                                        texto={
-                                                            bloco.texto
-                                                        }
+                                                    <ConteudoRicoSermao
+                                                        bloco={bloco}
                                                         onReferencia={
                                                             setReferenciaAtiva
                                                         }

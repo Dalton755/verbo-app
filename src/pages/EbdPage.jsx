@@ -2,14 +2,18 @@ import {
     useEffect,
     useState,
 } from "react";
+
 import {
     ArrowLeft,
     BookOpen,
+    CalendarDays,
     ChevronRight,
+    MoreVertical,
+    Pencil,
     Plus,
     Search,
+    Trash2,
     X,
-    CalendarDays,
 } from "lucide-react";
 
 import { supabase } from "../lib/supabase";
@@ -26,6 +30,20 @@ function EbdPage() {
     const [erro, setErro] = useState("");
     const [modalAberto, setModalAberto] = useState(false);
     const [trimestres, setTrimestres] = useState([]);
+    const [
+        trimestreEditando,
+        setTrimestreEditando,
+    ] = useState(null);
+
+    const [
+        menuTrimestreAberto,
+        setMenuTrimestreAberto,
+    ] = useState(null);
+
+    const [
+        excluindoTrimestre,
+        setExcluindoTrimestre,
+    ] = useState(null);
 
     const [form, setForm] = useState({
         numero: "1",
@@ -40,22 +58,34 @@ function EbdPage() {
             setCarregando(true);
             setErro("");
 
-            const { data, error } = await supabase
+            const {
+                data,
+                error,
+            } = await supabase
                 .from("trimestres")
                 .select(`
-          id,
-          numero,
-          ano,
-          tema,
-          created_at
-        `)
-                .eq("usuario_id", user.id)
-                .order("ano", {
-                    ascending: false,
-                })
-                .order("numero", {
-                    ascending: true,
-                });
+                    id,
+                    numero,
+                    ano,
+                    tema,
+                    created_at
+                `)
+                .eq(
+                    "usuario_id",
+                    user.id,
+                )
+                .order(
+                    "ano",
+                    {
+                        ascending: false,
+                    },
+                )
+                .order(
+                    "numero",
+                    {
+                        ascending: true,
+                    },
+                );
 
             if (error) {
                 console.error(error);
@@ -68,11 +98,53 @@ function EbdPage() {
                 return;
             }
 
+            const {
+                data: aulasData,
+                error: aulasError,
+            } = await supabase
+                .from("aulas")
+                .select(
+                    "trimestre_id",
+                )
+                .eq(
+                    "usuario_id",
+                    user.id,
+                );
+
+            if (aulasError) {
+                console.error(
+                    "Erro ao contar aulas:",
+                    aulasError,
+                );
+            }
+
+            const quantidadePorTrimestre = {};
+
+            for (
+                const aula of
+                aulasData ?? []
+            ) {
+                quantidadePorTrimestre[
+                    aula.trimestre_id
+                ] =
+                    (
+                        quantidadePorTrimestre[
+                        aula.trimestre_id
+                        ] ?? 0
+                    ) + 1;
+            }
+
             setTrimestres(
-                (data ?? []).map((item) => ({
-                    ...item,
-                    aulas: 0,
-                })),
+                (data ?? []).map(
+                    (item) => ({
+                        ...item,
+
+                        aulas:
+                            quantidadePorTrimestre[
+                            item.id
+                            ] ?? 0,
+                    }),
+                ),
             );
 
             setCarregando(false);
@@ -80,6 +152,62 @@ function EbdPage() {
 
         carregarTrimestres();
     }, [user]);
+
+    function abrirNovoTrimestre() {
+        setTrimestreEditando(
+            null,
+        );
+
+        setForm({
+            numero: "1",
+
+            ano:
+                new Date()
+                    .getFullYear()
+                    .toString(),
+
+            tema: "",
+        });
+
+        setErro("");
+
+        setModalAberto(
+            true,
+        );
+    }
+
+    function abrirEdicaoTrimestre(
+        trimestre,
+    ) {
+        setTrimestreEditando(
+            trimestre,
+        );
+
+        setForm({
+            numero:
+                String(
+                    trimestre.numero,
+                ),
+
+            ano:
+                String(
+                    trimestre.ano,
+                ),
+
+            tema:
+                trimestre.tema ?? "",
+        });
+
+        setErro("");
+
+        setMenuTrimestreAberto(
+            null,
+        );
+
+        setModalAberto(
+            true,
+        );
+    }
 
     function atualizarCampo(event) {
         const { name, value } = event.target;
@@ -90,76 +218,368 @@ function EbdPage() {
         }));
     }
 
-    async function criarTrimestre(event) {
+    async function salvarTrimestre(
+        event,
+    ) {
         event.preventDefault();
 
-        if (!form.tema.trim() || !user) return;
+        if (
+            !form.tema.trim() ||
+            !user
+        ) {
+            return;
+        }
 
         setSalvando(true);
         setErro("");
 
-        const { data, error } = await supabase
-            .from("trimestres")
-            .insert({
-                usuario_id: user.id,
-                numero: Number(form.numero),
-                ano: Number(form.ano),
-                tema: form.tema.trim(),
-            })
-            .select(`
-        id,
-        numero,
-        ano,
-        tema,
-        created_at
-      `)
-            .single();
+        let resultado;
 
-        setSalvando(false);
+        if (trimestreEditando) {
+            resultado =
+                await supabase
+                    .from(
+                        "trimestres",
+                    )
+                    .update({
+                        numero:
+                            Number(
+                                form.numero,
+                            ),
+
+                        ano:
+                            Number(
+                                form.ano,
+                            ),
+
+                        tema:
+                            form.tema.trim(),
+                    })
+                    .eq(
+                        "id",
+                        trimestreEditando.id,
+                    )
+                    .eq(
+                        "usuario_id",
+                        user.id,
+                    )
+                    .select(`
+                    id,
+                    numero,
+                    ano,
+                    tema,
+                    created_at
+                `)
+                    .single();
+        } else {
+            resultado =
+                await supabase
+                    .from(
+                        "trimestres",
+                    )
+                    .insert({
+                        usuario_id:
+                            user.id,
+
+                        numero:
+                            Number(
+                                form.numero,
+                            ),
+
+                        ano:
+                            Number(
+                                form.ano,
+                            ),
+
+                        tema:
+                            form.tema.trim(),
+                    })
+                    .select(`
+                    id,
+                    numero,
+                    ano,
+                    tema,
+                    created_at
+                `)
+                    .single();
+        }
+
+        const {
+            data,
+            error,
+        } = resultado;
 
         if (error) {
-            console.error(error);
+            console.error(
+                "Erro ao salvar trimestre:",
+                error,
+            );
 
-            if (error.code === "23505") {
+            if (
+                error.code ===
+                "23505"
+            ) {
                 setErro(
                     `O ${form.numero}º trimestre de ${form.ano} já existe.`,
                 );
-
-                return;
+            } else {
+                setErro(
+                    "Não conseguimos salvar o trimestre.",
+                );
             }
 
+            setSalvando(false);
+            return;
+        }
+
+        if (trimestreEditando) {
+            setTrimestres(
+                (anteriores) =>
+                    anteriores
+                        .map(
+                            (item) =>
+                                item.id ===
+                                    data.id
+                                    ? {
+                                        ...item,
+                                        ...data,
+                                    }
+                                    : item,
+                        )
+                        .sort(
+                            (a, b) => {
+                                if (
+                                    a.ano !==
+                                    b.ano
+                                ) {
+                                    return (
+                                        b.ano -
+                                        a.ano
+                                    );
+                                }
+
+                                return (
+                                    a.numero -
+                                    b.numero
+                                );
+                            },
+                        ),
+            );
+        } else {
+            setTrimestres(
+                (anteriores) => {
+                    const novos = [
+                        ...anteriores,
+
+                        {
+                            ...data,
+                            aulas: 0,
+                        },
+                    ];
+
+                    return novos.sort(
+                        (a, b) => {
+                            if (
+                                a.ano !==
+                                b.ano
+                            ) {
+                                return (
+                                    b.ano -
+                                    a.ano
+                                );
+                            }
+
+                            return (
+                                a.numero -
+                                b.numero
+                            );
+                        },
+                    );
+                },
+            );
+        }
+
+        setModalAberto(false);
+        setTrimestreEditando(null);
+
+        setForm({
+            numero: "1",
+
+            ano:
+                new Date()
+                    .getFullYear()
+                    .toString(),
+
+            tema: "",
+        });
+
+        setSalvando(false);
+    }
+
+    async function excluirTrimestre(
+        trimestre,
+    ) {
+        if (
+            !user ||
+            !trimestre?.id
+        ) {
+            return;
+        }
+
+        const confirmou =
+            window.confirm(
+                `Excluir "${trimestre.tema}"?\n\nTodas as aulas deste trimestre e seus PDFs serão removidos permanentemente. O espaço ocupado será liberado.`,
+            );
+
+        if (!confirmou) {
+            return;
+        }
+
+        setExcluindoTrimestre(
+            trimestre.id,
+        );
+
+        setErro("");
+
+        /*
+         * Busca todos os PDFs das aulas
+         * antes de apagar o trimestre.
+         */
+        const {
+            data: aulasDoTrimestre,
+            error: aulasError,
+        } = await supabase
+            .from("aulas")
+            .select(`
+            id,
+            storage_path
+        `)
+            .eq(
+                "trimestre_id",
+                trimestre.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (aulasError) {
+            console.error(
+                "Erro ao localizar aulas:",
+                aulasError,
+            );
+
             setErro(
-                "Não conseguimos criar o trimestre. Tente novamente.",
+                "Não conseguimos localizar as aulas deste trimestre.",
+            );
+
+            setExcluindoTrimestre(
+                null,
             );
 
             return;
         }
 
-        setTrimestres((anteriores) => {
-            const novos = [
-                ...anteriores,
-                {
-                    ...data,
-                    aulas: 0,
-                },
-            ];
+        const caminhos =
+            (
+                aulasDoTrimestre ??
+                []
+            )
+                .map(
+                    (aula) =>
+                        aula.storage_path,
+                )
+                .filter(Boolean);
 
-            return novos.sort((a, b) => {
-                if (a.ano !== b.ano) {
-                    return b.ano - a.ano;
-                }
+        /*
+         * Remove os PDFs físicos.
+         */
+        if (
+            caminhos.length > 0
+        ) {
+            const {
+                error:
+                storageError,
+            } =
+                await supabase.storage
+                    .from(
+                        "biblia-slides-pdfs",
+                    )
+                    .remove(
+                        caminhos,
+                    );
 
-                return a.numero - b.numero;
-            });
-        });
+            if (storageError) {
+                console.error(
+                    "Erro ao remover PDFs:",
+                    storageError,
+                );
 
-        setForm({
-            numero: "1",
-            ano: new Date().getFullYear().toString(),
-            tema: "",
-        });
+                setErro(
+                    "Não conseguimos remover os PDFs. O trimestre não foi excluído.",
+                );
 
-        setModalAberto(false);
+                setExcluindoTrimestre(
+                    null,
+                );
+
+                return;
+            }
+        }
+
+        /*
+         * Excluindo o trimestre,
+         * o banco exclui as aulas
+         * por ON DELETE CASCADE.
+         */
+        const {
+            error:
+            trimestreError,
+        } = await supabase
+            .from("trimestres")
+            .delete()
+            .eq(
+                "id",
+                trimestre.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (trimestreError) {
+            console.error(
+                "Erro ao excluir trimestre:",
+                trimestreError,
+            );
+
+            setErro(
+                "Os PDFs foram removidos, mas ocorreu um erro ao excluir o trimestre.",
+            );
+
+            setExcluindoTrimestre(
+                null,
+            );
+
+            return;
+        }
+
+        setTrimestres(
+            (anteriores) =>
+                anteriores.filter(
+                    (item) =>
+                        item.id !==
+                        trimestre.id,
+                ),
+        );
+
+        setMenuTrimestreAberto(
+            null,
+        );
+
+        setExcluindoTrimestre(
+            null,
+        );
     }
 
     return (
@@ -186,7 +606,7 @@ function EbdPage() {
                     </div>
                 </div>
 
-                
+
             </header>
 
             <main className="page-content">
@@ -232,7 +652,9 @@ function EbdPage() {
                     {trimestres.length > 0 && (
                         <button
                             className="secondary-button"
-                            onClick={() => setModalAberto(true)}
+                            onClick={
+                                abrirNovoTrimestre
+                            }
                         >
                             <Plus size={18} />
                             Novo trimestre
@@ -259,7 +681,9 @@ function EbdPage() {
 
                         <button
                             className="primary-button"
-                            onClick={() => setModalAberto(true)}
+                            onClick={
+                                abrirNovoTrimestre
+                            }
                         >
                             <Plus size={19} />
                             Criar primeiro trimestre
@@ -273,33 +697,120 @@ function EbdPage() {
                 ) : (
                     <section className="trimestres-grid">
                         {trimestres.map((trimestre) => (
-                            <button
-                                className="trimestre-card"
-                                key={trimestre.id}
-                                onClick={() =>
-                                    navigate(`/trimestres/${trimestre.id}`)
+                            <article
+                                className="trimestre-card ebd-trimestre-manage"
+                                key={
+                                    trimestre.id
                                 }
                             >
-                                <div className="trimestre-card-icon">
-                                    <BookOpen size={21} />
+                                <button
+                                    type="button"
+                                    className="ebd-trimestre-main"
+                                    onClick={() =>
+                                        navigate(
+                                            `/trimestres/${trimestre.id}`,
+                                        )
+                                    }
+                                >
+                                    <div className="trimestre-card-icon">
+                                        <BookOpen
+                                            size={21}
+                                        />
+                                    </div>
+
+                                    <div className="trimestre-card-content">
+                                        <span>
+                                            {trimestre.numero}
+                                            º trimestre ·{" "}
+                                            {trimestre.ano}
+                                        </span>
+
+                                        <h3>
+                                            {trimestre.tema}
+                                        </h3>
+
+                                        <p>
+                                            {trimestre.aulas ===
+                                                0
+                                                ? "Nenhuma aula adicionada"
+                                                : `${trimestre.aulas} ${trimestre.aulas ===
+                                                    1
+                                                    ? "aula"
+                                                    : "aulas"
+                                                }`}
+                                        </p>
+                                    </div>
+
+                                    <ChevronRight
+                                        size={20}
+                                        className="trimestre-arrow"
+                                    />
+                                </button>
+
+                                <div className="ebd-trimestre-menu-area">
+                                    <button
+                                        type="button"
+                                        className="book-theme-menu-button"
+                                        aria-label={`Opções de ${trimestre.tema}`}
+                                        onClick={() =>
+                                            setMenuTrimestreAberto(
+                                                (atual) =>
+                                                    atual ===
+                                                        trimestre.id
+                                                        ? null
+                                                        : trimestre.id,
+                                            )
+                                        }
+                                    >
+                                        <MoreVertical
+                                            size={19}
+                                        />
+                                    </button>
+
+                                    {menuTrimestreAberto ===
+                                        trimestre.id && (
+                                            <div className="book-theme-menu">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        abrirEdicaoTrimestre(
+                                                            trimestre,
+                                                        )
+                                                    }
+                                                >
+                                                    <Pencil
+                                                        size={16}
+                                                    />
+
+                                                    Editar
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    className="danger"
+                                                    disabled={
+                                                        excluindoTrimestre ===
+                                                        trimestre.id
+                                                    }
+                                                    onClick={() =>
+                                                        excluirTrimestre(
+                                                            trimestre,
+                                                        )
+                                                    }
+                                                >
+                                                    <Trash2
+                                                        size={16}
+                                                    />
+
+                                                    {excluindoTrimestre ===
+                                                        trimestre.id
+                                                        ? "Excluindo..."
+                                                        : "Excluir"}
+                                                </button>
+                                            </div>
+                                        )}
                                 </div>
-
-                                <div className="trimestre-card-content">
-                                    <span>
-                                        {trimestre.numero}º trimestre · {trimestre.ano}
-                                    </span>
-
-                                    <h3>{trimestre.tema}</h3>
-
-                                    <p>
-                                        {trimestre.aulas === 0
-                                            ? "Nenhuma aula adicionada"
-                                            : `${trimestre.aulas} aulas`}
-                                    </p>
-                                </div>
-
-                                <ChevronRight size={20} className="trimestre-arrow" />
-                            </button>
+                            </article>
                         ))}
                     </section>
                 )}
@@ -308,7 +819,9 @@ function EbdPage() {
             <div className="mobile-action">
                 <button
                     className="primary-button"
-                    onClick={() => setModalAberto(true)}
+                    onClick={
+                        abrirNovoTrimestre
+                    }
                 >
                     <Plus size={19} />
                     Novo trimestre
@@ -340,8 +853,11 @@ function EbdPage() {
                         </div>
 
                         <div className="modal-heading">
-                            <span className="app-kicker">Vamos organizar suas aulas</span>
-                            <h2>Criar um trimestre</h2>
+                            <h2>
+                                {trimestreEditando
+                                    ? "Editar trimestre"
+                                    : "Criar um trimestre"}
+                            </h2>
 
                             <p>
                                 Informe o período e o tema. Depois você poderá começar a
@@ -349,7 +865,7 @@ function EbdPage() {
                             </p>
                         </div>
 
-                        <form className="trimestre-form" onSubmit={criarTrimestre}>
+                        <form className="trimestre-form" onSubmit={salvarTrimestre}>
                             <div className="form-row">
                                 <label>
                                     Trimestre
@@ -409,7 +925,11 @@ function EbdPage() {
                                     className="primary-button"
                                     disabled={!form.tema.trim() || salvando}
                                 >
-                                    {salvando ? "Criando..." : "Criar trimestre"}
+                                    {salvando
+                                        ? "Salvando..."
+                                        : trimestreEditando
+                                            ? "Salvar alterações"
+                                            : "Criar trimestre"}
 
                                     {!salvando && <ChevronRight size={18} />}
                                 </button>

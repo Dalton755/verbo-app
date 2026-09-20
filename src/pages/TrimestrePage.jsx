@@ -9,7 +9,10 @@ import {
     BookOpen,
     ChevronRight,
     FileText,
+    MoreVertical,
+    Pencil,
     Plus,
+    Trash2,
     Upload,
     X,
 } from "lucide-react";
@@ -42,6 +45,46 @@ function TrimestrePage() {
     const [numero, setNumero] = useState("1");
     const [titulo, setTitulo] = useState("");
     const [arquivo, setArquivo] = useState(null);
+
+    const [
+        aulaEditando,
+        setAulaEditando,
+    ] = useState(null);
+
+    const [
+        modalEditarAulaAberto,
+        setModalEditarAulaAberto,
+    ] = useState(false);
+
+    const [
+        numeroAulaEditando,
+        setNumeroAulaEditando,
+    ] = useState("");
+
+    const [
+        tituloAulaEditando,
+        setTituloAulaEditando,
+    ] = useState("");
+
+    const [
+        salvandoAulaEditada,
+        setSalvandoAulaEditada,
+    ] = useState(false);
+
+    const [
+        menuAulaAberto,
+        setMenuAulaAberto,
+    ] = useState(null);
+
+    const [
+        excluindoAula,
+        setExcluindoAula,
+    ] = useState(null);
+
+    const [
+        erroGerenciarAula,
+        setErroGerenciarAula,
+    ] = useState("");
 
 
 
@@ -144,6 +187,386 @@ function TrimestrePage() {
         carregar();
     }, [id, user]);
 
+    function abrirEdicaoAula(
+        aula,
+    ) {
+        setAulaEditando(
+            aula,
+        );
+
+        setNumeroAulaEditando(
+            String(
+                aula.numero,
+            ),
+        );
+
+        setTituloAulaEditando(
+            aula.titulo ?? "",
+        );
+
+        setErroGerenciarAula("");
+
+        setMenuAulaAberto(
+            null,
+        );
+
+        setModalEditarAulaAberto(
+            true,
+        );
+    }
+
+    async function salvarEdicaoAula(
+        event,
+    ) {
+        event.preventDefault();
+
+        if (
+            !user ||
+            !aulaEditando?.id ||
+            !tituloAulaEditando.trim() ||
+            !numeroAulaEditando
+        ) {
+            return;
+        }
+
+        setSalvandoAulaEditada(
+            true,
+        );
+
+        setErroGerenciarAula("");
+
+        const {
+            data,
+            error,
+        } = await supabase
+            .from("aulas")
+            .update({
+                numero:
+                    Number(
+                        numeroAulaEditando,
+                    ),
+
+                titulo:
+                    tituloAulaEditando.trim(),
+            })
+            .eq(
+                "id",
+                aulaEditando.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            )
+            .select(`
+            id,
+            numero,
+            titulo,
+            arquivo_nome,
+            storage_path,
+            total_paginas,
+            created_at
+        `)
+            .single();
+
+        if (error) {
+            console.error(
+                "Erro ao editar aula:",
+                error,
+            );
+
+            if (
+                error.code ===
+                "23505"
+            ) {
+                setErroGerenciarAula(
+                    `A aula ${numeroAulaEditando} já existe neste trimestre.`,
+                );
+            } else {
+                setErroGerenciarAula(
+                    "Não conseguimos salvar as alterações.",
+                );
+            }
+
+            setSalvandoAulaEditada(
+                false,
+            );
+
+            return;
+        }
+
+        setAulas(
+            (anteriores) =>
+                anteriores
+                    .map(
+                        (aula) =>
+                            aula.id ===
+                                data.id
+                                ? data
+                                : aula,
+                    )
+                    .sort(
+                        (a, b) =>
+                            Number(
+                                a.numero,
+                            ) -
+                            Number(
+                                b.numero,
+                            ),
+                    ),
+        );
+
+        setModalEditarAulaAberto(
+            false,
+        );
+
+        setAulaEditando(
+            null,
+        );
+
+        setNumeroAulaEditando("");
+        setTituloAulaEditando("");
+
+        setSalvandoAulaEditada(
+            false,
+        );
+    }
+
+    async function salvarEdicaoAula(
+        event,
+    ) {
+        event.preventDefault();
+
+        if (
+            !user ||
+            !aulaEditando?.id ||
+            !tituloAulaEditando.trim() ||
+            !numeroAulaEditando
+        ) {
+            return;
+        }
+
+        setSalvandoAulaEditada(
+            true,
+        );
+
+        setErroGerenciarAula("");
+
+        const {
+            data,
+            error,
+        } = await supabase
+            .from("aulas")
+            .update({
+                numero:
+                    Number(
+                        numeroAulaEditando,
+                    ),
+
+                titulo:
+                    tituloAulaEditando.trim(),
+            })
+            .eq(
+                "id",
+                aulaEditando.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            )
+            .select(`
+            id,
+            numero,
+            titulo,
+            arquivo_nome,
+            storage_path,
+            total_paginas,
+            created_at
+        `)
+            .single();
+
+        if (error) {
+            console.error(
+                "Erro ao editar aula:",
+                error,
+            );
+
+            if (
+                error.code ===
+                "23505"
+            ) {
+                setErroGerenciarAula(
+                    `A aula ${numeroAulaEditando} já existe neste trimestre.`,
+                );
+            } else {
+                setErroGerenciarAula(
+                    "Não conseguimos salvar as alterações.",
+                );
+            }
+
+            setSalvandoAulaEditada(
+                false,
+            );
+
+            return;
+        }
+
+        setAulas(
+            (anteriores) =>
+                anteriores
+                    .map(
+                        (aula) =>
+                            aula.id ===
+                                data.id
+                                ? data
+                                : aula,
+                    )
+                    .sort(
+                        (a, b) =>
+                            Number(
+                                a.numero,
+                            ) -
+                            Number(
+                                b.numero,
+                            ),
+                    ),
+        );
+
+        setModalEditarAulaAberto(
+            false,
+        );
+
+        setAulaEditando(
+            null,
+        );
+
+        setNumeroAulaEditando("");
+        setTituloAulaEditando("");
+
+        setSalvandoAulaEditada(
+            false,
+        );
+    }
+
+    async function excluirAula(
+        aula,
+    ) {
+        if (
+            !user ||
+            !aula?.id
+        ) {
+            return;
+        }
+
+        const confirmou =
+            window.confirm(
+                `Excluir a aula ${aula.numero} — "${aula.titulo}"?\n\nA aula e o PDF serão removidos permanentemente. O espaço ocupado será liberado.`,
+            );
+
+        if (!confirmou) {
+            return;
+        }
+
+        setExcluindoAula(
+            aula.id,
+        );
+
+        setErro("");
+
+        /*
+         * 1. Remove o PDF físico.
+         */
+        if (aula.storage_path) {
+            const {
+                error:
+                storageError,
+            } =
+                await supabase.storage
+                    .from(
+                        "biblia-slides-pdfs",
+                    )
+                    .remove([
+                        aula.storage_path,
+                    ]);
+
+            if (storageError) {
+                console.error(
+                    "Erro ao excluir PDF da aula:",
+                    storageError,
+                );
+
+                setErro(
+                    "Não conseguimos remover o PDF. A aula não foi excluída.",
+                );
+
+                setExcluindoAula(
+                    null,
+                );
+
+                return;
+            }
+        }
+
+        /*
+         * 2. Remove a aula do banco.
+         */
+        const {
+            error:
+            aulaError,
+        } = await supabase
+            .from("aulas")
+            .delete()
+            .eq(
+                "id",
+                aula.id,
+            )
+            .eq(
+                "usuario_id",
+                user.id,
+            );
+
+        if (aulaError) {
+            console.error(
+                "Erro ao excluir aula:",
+                aulaError,
+            );
+
+            setErro(
+                "O PDF foi removido, mas ocorreu um erro ao excluir a aula do banco.",
+            );
+
+            setExcluindoAula(
+                null,
+            );
+
+            return;
+        }
+
+        setAulas(
+            (anteriores) =>
+                anteriores.filter(
+                    (item) =>
+                        item.id !==
+                        aula.id,
+                ),
+        );
+
+        setTotalAulasUsuario(
+            (total) =>
+                Math.max(
+                    0,
+                    total - 1,
+                ),
+        );
+
+        setMenuAulaAberto(
+            null,
+        );
+
+        setExcluindoAula(
+            null,
+        );
+    }
+
     function abrirImportacao() {
         setErro("");
 
@@ -238,7 +661,7 @@ function TrimestrePage() {
                 .from("biblia-slides-pdfs")
                 .remove([storagePath]);
 
-            
+
 
             if (aulaError.code === "23505") {
                 setErro(
@@ -357,35 +780,121 @@ function TrimestrePage() {
                 ) : (
                     <section className="aulas-list">
                         {aulas.map((aula) => (
-                            <button
-                                key={aula.id}
-                                className="aula-card"
-                                type="button"
-                                onClick={() =>
-                                    navigate(`/aulas/${aula.id}/apresentar`)
+                            <article
+                                key={
+                                    aula.id
                                 }
+                                className="aula-card aula-card-manage"
                             >
-                                <div className="aula-numero">
-                                    {String(aula.numero).padStart(2, "0")}
+                                <button
+                                    type="button"
+                                    className="aula-card-main"
+                                    onClick={() =>
+                                        navigate(
+                                            `/aulas/${aula.id}/apresentar`,
+                                        )
+                                    }
+                                >
+                                    <div className="aula-numero">
+                                        {String(
+                                            aula.numero,
+                                        ).padStart(
+                                            2,
+                                            "0",
+                                        )}
+                                    </div>
+
+                                    <div className="aula-icon">
+                                        <FileText
+                                            size={21}
+                                        />
+                                    </div>
+
+                                    <div className="aula-content">
+                                        <span>
+                                            Aula{" "}
+                                            {aula.numero}
+                                        </span>
+
+                                        <h3>
+                                            {aula.titulo}
+                                        </h3>
+
+                                        <p>
+                                            {aula.arquivo_nome}
+                                        </p>
+                                    </div>
+
+                                    <ChevronRight
+                                        size={20}
+                                        className="trimestre-arrow"
+                                    />
+                                </button>
+
+                                <div className="aula-menu-area">
+                                    <button
+                                        type="button"
+                                        className="book-theme-menu-button"
+                                        aria-label={`Opções da aula ${aula.numero}`}
+                                        onClick={() =>
+                                            setMenuAulaAberto(
+                                                (atual) =>
+                                                    atual ===
+                                                        aula.id
+                                                        ? null
+                                                        : aula.id,
+                                            )
+                                        }
+                                    >
+                                        <MoreVertical
+                                            size={19}
+                                        />
+                                    </button>
+
+                                    {menuAulaAberto ===
+                                        aula.id && (
+                                            <div className="book-theme-menu">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        abrirEdicaoAula(
+                                                            aula,
+                                                        )
+                                                    }
+                                                >
+                                                    <Pencil
+                                                        size={16}
+                                                    />
+
+                                                    Editar
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    className="danger"
+                                                    disabled={
+                                                        excluindoAula ===
+                                                        aula.id
+                                                    }
+                                                    onClick={() =>
+                                                        excluirAula(
+                                                            aula,
+                                                        )
+                                                    }
+                                                >
+                                                    <Trash2
+                                                        size={16}
+                                                    />
+
+                                                    {excluindoAula ===
+                                                        aula.id
+                                                        ? "Excluindo..."
+                                                        : "Excluir"}
+                                                </button>
+                                            </div>
+                                        )}
                                 </div>
-
-                                <div className="aula-icon">
-                                    <FileText size={21} />
-                                </div>
-
-                                <div className="aula-content">
-                                    <span>Aula {aula.numero}</span>
-
-                                    <h3>{aula.titulo}</h3>
-
-                                    <p>{aula.arquivo_nome}</p>
-                                </div>
-
-                                <ChevronRight
-                                    size={20}
-                                    className="trimestre-arrow"
-                                />
-                            </button>
+                            </article>
                         ))}
                     </section>
                 )}
@@ -400,6 +909,157 @@ function TrimestrePage() {
                     Importar aula
                 </button>
             </div>
+
+            {modalEditarAulaAberto && (
+                <div
+                    className="modal-overlay"
+                    onMouseDown={(
+                        event,
+                    ) => {
+                        if (
+                            event.target ===
+                            event.currentTarget &&
+                            !salvandoAulaEditada
+                        ) {
+                            setModalEditarAulaAberto(
+                                false,
+                            );
+                        }
+                    }}
+                >
+                    <div className="modal-card">
+                        <div className="modal-header">
+                            <div className="modal-icon">
+                                <FileText
+                                    size={22}
+                                />
+                            </div>
+
+                            <button
+                                type="button"
+                                className="modal-close"
+                                disabled={
+                                    salvandoAulaEditada
+                                }
+                                onClick={() =>
+                                    setModalEditarAulaAberto(
+                                        false,
+                                    )
+                                }
+                                aria-label="Fechar"
+                            >
+                                <X
+                                    size={20}
+                                />
+                            </button>
+                        </div>
+
+                        <div className="modal-heading">
+                            <span className="app-kicker">
+                                Aula
+                            </span>
+
+                            <h2>
+                                Editar aula
+                            </h2>
+
+                            <p>
+                                Altere o número ou o título da aula.
+                            </p>
+                        </div>
+
+                        <form
+                            className="trimestre-form"
+                            onSubmit={
+                                salvarEdicaoAula
+                            }
+                        >
+                            <div className="form-row aula-form-row">
+                                <label>
+                                    Número da aula
+
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        value={
+                                            numeroAulaEditando
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
+                                            setNumeroAulaEditando(
+                                                event
+                                                    .target
+                                                    .value,
+                                            )
+                                        }
+                                    />
+                                </label>
+
+                                <label className="titulo-aula-field">
+                                    Título
+
+                                    <input
+                                        type="text"
+                                        value={
+                                            tituloAulaEditando
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
+                                            setTituloAulaEditando(
+                                                event
+                                                    .target
+                                                    .value,
+                                            )
+                                        }
+                                        autoFocus
+                                    />
+                                </label>
+                            </div>
+
+                            {erroGerenciarAula && (
+                                <div className="library-message">
+                                    {
+                                        erroGerenciarAula
+                                    }
+                                </div>
+                            )}
+
+                            <div className="modal-actions">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={
+                                        salvandoAulaEditada
+                                    }
+                                    onClick={() =>
+                                        setModalEditarAulaAberto(
+                                            false,
+                                        )
+                                    }
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    type="submit"
+                                    className="primary-button"
+                                    disabled={
+                                        salvandoAulaEditada ||
+                                        !tituloAulaEditando.trim() ||
+                                        !numeroAulaEditando
+                                    }
+                                >
+                                    {salvandoAulaEditada
+                                        ? "Salvando..."
+                                        : "Salvar alterações"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {modalAberto && (
                 <div
@@ -541,7 +1201,7 @@ function TrimestrePage() {
                 </div>
             )}
 
-            
+
         </div>
     );
 }
