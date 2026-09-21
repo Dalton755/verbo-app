@@ -63,6 +63,9 @@ import BiblePassageModal
 import DictionaryModal
     from "../components/DictionaryModal";
 
+import DictionarySelectionAction
+    from "../components/DictionarySelectionAction";
+
 import {
     ehUmaPalavraSelecionada,
     normalizarPalavraSelecionada,
@@ -6884,6 +6887,17 @@ function LivroPage() {
                     </div>
                 )}
 
+            <DictionarySelectionAction
+                containerSelector=".book-content, .book-paged-content"
+                disabled={
+                    modoVisualizacao !==
+                    "texto"
+                }
+                onOpen={
+                    setPalavraDicionario
+                }
+            />
+
             {(
                 selecaoDestaque ||
                 destaqueAtivo
@@ -6988,30 +7002,6 @@ function LivroPage() {
                                 )
                             }
                         />
-
-                        {selecaoDestaque &&
-                            ehUmaPalavraSelecionada(
-                                selecaoDestaque
-                                    .textoSelecionado,
-                            ) && (
-                            <button
-                                type="button"
-                                className="book-highlight-dictionary"
-                                title="Ver significado"
-                                aria-label="Ver significado"
-                                onClick={
-                                    abrirDicionarioSelecao
-                                }
-                            >
-                                <BookOpen
-                                    size={17}
-                                />
-
-                                <span>
-                                    Significado
-                                </span>
-                            </button>
-                        )}
 
                         {selecaoDestaque && (
                             <button
