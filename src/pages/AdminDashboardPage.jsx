@@ -6,12 +6,14 @@ import {
   CreditCard,
   Database,
   HardDrive,
+  KeyRound,
   RefreshCw,
   ShieldCheck,
   TrendingUp,
   UserCheck,
   Users,
   WalletCards,
+  X,
 } from "lucide-react";
 
 import {
@@ -100,6 +102,7 @@ function statusClasse(status) {
       "PAGO",
       "PAID",
       "VITALICIO",
+      "LIBERADO",
       "ATIVA",
       "ATIVO",
     ].includes(valor)
@@ -150,17 +153,72 @@ function AdminDashboardPage() {
     setErro,
   ] = useState("");
 
+  const [
+    usuariosGerenciais,
+    setUsuariosGerenciais,
+  ] = useState([]);
+
+  const [
+    liberacaoAberta,
+    setLiberacaoAberta,
+  ] = useState(false);
+
+  const [
+    usuarioLiberacao,
+    setUsuarioLiberacao,
+  ] = useState("");
+
+  const [
+    limiteMb,
+    setLimiteMb,
+  ] = useState("25");
+
+  const [
+    duracaoVitalicia,
+    setDuracaoVitalicia,
+  ] = useState(false);
+
+  const [
+    mesesLiberacao,
+    setMesesLiberacao,
+  ] = useState("1");
+
+  const [
+    salvandoLiberacao,
+    setSalvandoLiberacao,
+  ] = useState(false);
+
+  const [
+    erroLiberacao,
+    setErroLiberacao,
+  ] = useState("");
+
+  const [
+    sucessoLiberacao,
+    setSucessoLiberacao,
+  ] = useState("");
+
   const carregar = useCallback(
     async () => {
       setCarregando(true);
       setErro("");
 
-      const {
-        data,
-        error,
-      } = await supabase
-        .schema("biblia_slides")
-        .rpc("admin_dashboard");
+      const [
+        painelResposta,
+        usuariosResposta,
+      ] = await Promise.all([
+        supabase
+          .schema("biblia_slides")
+          .rpc("admin_dashboard"),
+
+        supabase
+          .schema("biblia_slides")
+          .rpc("admin_listar_usuarios"),
+      ]);
+
+      const error =
+        painelResposta.error ||
+        usuariosResposta.error;
 
       if (error) {
         console.error(
@@ -180,7 +238,18 @@ function AdminDashboardPage() {
         return;
       }
 
-      setDados(data);
+      setDados(
+        painelResposta.data,
+      );
+
+      setUsuariosGerenciais(
+        Array.isArray(
+          usuariosResposta.data,
+        )
+          ? usuariosResposta.data
+          : [],
+      );
+
       setCarregando(false);
     },
     [],
@@ -189,6 +258,126 @@ function AdminDashboardPage() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  function abrirLiberacao() {
+    setErroLiberacao("");
+    setSucessoLiberacao("");
+
+    if (
+      !usuarioLiberacao &&
+      usuariosGerenciais.length > 0
+    ) {
+      setUsuarioLiberacao(
+        usuariosGerenciais[0].id,
+      );
+    }
+
+    setLiberacaoAberta(true);
+  }
+
+  async function liberarAcesso() {
+    setErroLiberacao("");
+    setSucessoLiberacao("");
+
+    const mb =
+      Number(limiteMb);
+
+    const meses =
+      Number(mesesLiberacao);
+
+    if (!usuarioLiberacao) {
+      setErroLiberacao(
+        "Escolha um usuário.",
+      );
+      return;
+    }
+
+    if (
+      !Number.isInteger(mb) ||
+      mb < 1 ||
+      mb > 102400
+    ) {
+      setErroLiberacao(
+        "Informe uma quantidade entre 1 e 102400 MB.",
+      );
+      return;
+    }
+
+    if (
+      !duracaoVitalicia &&
+      (
+        !Number.isInteger(meses) ||
+        meses < 1 ||
+        meses > 120
+      )
+    ) {
+      setErroLiberacao(
+        "Informe uma duração entre 1 e 120 meses.",
+      );
+      return;
+    }
+
+    setSalvandoLiberacao(true);
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .schema("biblia_slides")
+      .rpc(
+        "admin_liberar_acesso",
+        {
+          p_usuario_id:
+            usuarioLiberacao,
+
+          p_limite_mb:
+            mb,
+
+          p_meses:
+            duracaoVitalicia
+              ? null
+              : meses,
+
+          p_vitalicio:
+            duracaoVitalicia,
+        },
+      );
+
+    if (error) {
+      console.error(
+        "Erro ao liberar acesso:",
+        error,
+      );
+
+      setErroLiberacao(
+        "Não foi possível liberar o acesso.",
+      );
+
+      setSalvandoLiberacao(false);
+      return;
+    }
+
+    const usuario =
+      usuariosGerenciais.find(
+        (item) =>
+          item.id ===
+          usuarioLiberacao,
+      );
+
+    setSucessoLiberacao(
+      `Acesso de ${usuario?.nome || usuario?.email || "usuário"} liberado com ${mb} MB ${duracaoVitalicia ? "em caráter vitalício" : `por ${meses} mês(es)`}.`,
+    );
+
+    setSalvandoLiberacao(false);
+
+    await carregar();
+
+    if (data?.ok !== true) {
+      setErroLiberacao(
+        "A liberação foi processada, mas a confirmação retornou incompleta.",
+      );
+    }
+  }
 
   const maxCadastros =
     useMemo(
@@ -298,6 +487,17 @@ function AdminDashboardPage() {
         </div>
 
         <div className="admin-dashboard-top-actions">
+          <button
+            type="button"
+            className="admin-release-button"
+            onClick={abrirLiberacao}
+          >
+            <KeyRound size={18} />
+            <span>
+              Liberar acesso
+            </span>
+          </button>
+
           <button
             type="button"
             className="admin-icon-button"
@@ -996,9 +1196,16 @@ function AdminDashboardPage() {
 
                 <tbody>
                   {(
-                    dados
-                      ?.clientes_recentes ??
-                    []
+                    usuariosGerenciais.length > 0
+                      ? usuariosGerenciais.slice(
+                          0,
+                          12,
+                        )
+                      : (
+                          dados
+                            ?.clientes_recentes ??
+                          []
+                        )
                   ).map(
                     (cliente) => (
                       <tr
@@ -1156,6 +1363,284 @@ function AdminDashboardPage() {
           </span>
         </footer>
       </main>
+
+      {liberacaoAberta && (
+        <div
+          className="admin-release-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Liberar acesso"
+        >
+          <div className="admin-release-modal">
+            <div className="admin-release-head">
+              <div>
+                <span>
+                  ACESSO ADMINISTRATIVO
+                </span>
+
+                <h2>
+                  Liberar acesso
+                </h2>
+
+                <p>
+                  Escolha o usuário, defina o espaço e por quanto tempo o acesso ficará liberado.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="admin-release-close"
+                aria-label="Fechar"
+                onClick={() =>
+                  setLiberacaoAberta(
+                    false,
+                  )
+                }
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <div className="admin-release-form">
+              <label>
+                <span>
+                  Usuário
+                </span>
+
+                <select
+                  value={
+                    usuarioLiberacao
+                  }
+                  onChange={(event) => {
+                    setUsuarioLiberacao(
+                      event.target.value,
+                    );
+
+                    setErroLiberacao("");
+                    setSucessoLiberacao("");
+                  }}
+                >
+                  <option value="">
+                    Selecione um usuário
+                  </option>
+
+                  {usuariosGerenciais.map(
+                    (usuario) => (
+                      <option
+                        key={usuario.id}
+                        value={usuario.id}
+                      >
+                        {usuario.nome ||
+                          "Sem nome"}{" "}
+                        — {usuario.email}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
+
+              {usuarioLiberacao && (
+                <div className="admin-release-current">
+                  {(() => {
+                    const usuario =
+                      usuariosGerenciais.find(
+                        (item) =>
+                          item.id ===
+                          usuarioLiberacao,
+                      );
+
+                    if (!usuario) {
+                      return null;
+                    }
+
+                    return (
+                      <>
+                        <div>
+                          <span>
+                            Acesso atual
+                          </span>
+
+                          <strong>
+                            {usuario.acesso}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>
+                            Uso atual
+                          </span>
+
+                          <strong>
+                            {formatarBytes(
+                              usuario.storage_bytes,
+                            )}
+                          </strong>
+                        </div>
+
+                        {usuario.liberacao_mb && (
+                          <div>
+                            <span>
+                              Liberação atual
+                            </span>
+
+                            <strong>
+                              {usuario.liberacao_mb} MB
+                            </strong>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+
+              <label>
+                <span>
+                  Espaço liberado
+                </span>
+
+                <div className="admin-input-with-suffix">
+                  <input
+                    type="number"
+                    min="1"
+                    max="102400"
+                    step="1"
+                    inputMode="numeric"
+                    value={limiteMb}
+                    onChange={(event) =>
+                      setLimiteMb(
+                        event.target.value,
+                      )
+                    }
+                  />
+
+                  <strong>
+                    MB
+                  </strong>
+                </div>
+              </label>
+
+              <div className="admin-release-duration">
+                <span className="admin-release-label">
+                  Duração do acesso
+                </span>
+
+                <div className="admin-release-options">
+                  <button
+                    type="button"
+                    className={
+                      !duracaoVitalicia
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setDuracaoVitalicia(
+                        false,
+                      )
+                    }
+                  >
+                    Por meses
+                  </button>
+
+                  <button
+                    type="button"
+                    className={
+                      duracaoVitalicia
+                        ? "active"
+                        : ""
+                    }
+                    onClick={() =>
+                      setDuracaoVitalicia(
+                        true,
+                      )
+                    }
+                  >
+                    Vitalício
+                  </button>
+                </div>
+              </div>
+
+              {!duracaoVitalicia && (
+                <label>
+                  <span>
+                    Quantos meses
+                  </span>
+
+                  <input
+                    type="number"
+                    min="1"
+                    max="120"
+                    step="1"
+                    inputMode="numeric"
+                    value={
+                      mesesLiberacao
+                    }
+                    onChange={(event) =>
+                      setMesesLiberacao(
+                        event.target.value,
+                      )
+                    }
+                  />
+                </label>
+              )}
+
+              <div className="admin-release-note">
+                <ShieldCheck size={18} />
+
+                <p>
+                  Esta liberação dá acesso ao VERBO e usa a quantidade de MB definida aqui. Ela não cria cobrança no Mercado Pago.
+                </p>
+              </div>
+
+              {erroLiberacao && (
+                <div className="admin-release-message error">
+                  {erroLiberacao}
+                </div>
+              )}
+
+              {sucessoLiberacao && (
+                <div className="admin-release-message success">
+                  {sucessoLiberacao}
+                </div>
+              )}
+            </div>
+
+            <div className="admin-release-actions">
+              <button
+                type="button"
+                className="admin-release-cancel"
+                disabled={
+                  salvandoLiberacao
+                }
+                onClick={() =>
+                  setLiberacaoAberta(
+                    false,
+                  )
+                }
+              >
+                Fechar
+              </button>
+
+              <button
+                type="button"
+                className="admin-release-submit"
+                disabled={
+                  salvandoLiberacao
+                }
+                onClick={
+                  liberarAcesso
+                }
+              >
+                <KeyRound size={18} />
+
+                {salvandoLiberacao
+                  ? "Liberando..."
+                  : "Liberar acesso"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
