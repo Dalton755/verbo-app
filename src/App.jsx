@@ -12,6 +12,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LicensedRoute from "./components/LicensedRoute";
 import PwaManager from "./components/PwaManager";
 import OfflineStatus from "./components/OfflineStatus";
+import GuidedTour from "./components/GuidedTour";
 
 import BibliotecaPage from "./pages/BibliotecaPage";
 import EbdPage from "./pages/EbdPage";
@@ -37,6 +38,7 @@ function App() {
         <LicenseProvider>
           <PwaManager />
           <OfflineStatus />
+          <GuidedTour />
 
           <Routes>
             <Route
