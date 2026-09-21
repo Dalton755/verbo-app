@@ -525,11 +525,27 @@ function ModulosConfigPage() {
                 </small>
               </>
             ) : (
-              <p>
-                Sua avaliação aparecerá aqui depois
-                que você experimentar o aplicativo
-                e responder ao pedido de feedback.
-              </p>
+              <>
+                <p>
+                  Sua avaliação aparecerá aqui depois
+                  que você experimentar o aplicativo
+                  e responder ao pedido de feedback.
+                </p>
+
+                <button
+                  type="button"
+                  className="settings-feedback-button"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent(
+                        "verbo:abrir-feedback",
+                      ),
+                    )
+                  }
+                >
+                  Avaliar o VERBO agora
+                </button>
+              </>
             )}
           </div>
         </section>
