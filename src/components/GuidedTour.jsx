@@ -10,7 +10,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 
@@ -525,17 +524,6 @@ function obterTour(caminho) {
   );
 }
 
-function limitar(
-  valor,
-  minimo,
-  maximo,
-) {
-  return Math.min(
-    Math.max(valor, minimo),
-    maximo,
-  );
-}
-
 function GuidedTour() {
   const location = useLocation();
   const { user } = useAuth();
@@ -562,9 +550,6 @@ function GuidedTour() {
     alvoRect,
     setAlvoRect,
   ] = useState(null);
-
-  const cardRef =
-    useRef(null);
 
   const passo =
     tour?.passos?.[passoAtual] ??
@@ -870,7 +855,6 @@ function GuidedTour() {
           )}
 
           <article
-            ref={cardRef}
             className={
               alvoRect
                 ? `guided-tour-card guided-tour-card-${posicaoCard}`
