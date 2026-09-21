@@ -71,6 +71,7 @@ const STORAGE_AUTOR =
     "verbo_livros_autor";
 
 function LivrosPage() {
+
     const navigate =
         useNavigate();
 
