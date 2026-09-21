@@ -30,6 +30,7 @@ import SplashPage from "./pages/SplashPage";
 import ModulosConfigPage from "./pages/ModulosConfigPage";
 import PrivacidadePage from "./pages/PrivacidadePage";
 import TermosPage from "./pages/TermosPage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
 
 function App() {
   return (
@@ -125,6 +126,15 @@ function App() {
                   <LicensedRoute>
                     <ApresentacaoPage />
                   </LicensedRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboardPage />
                 </ProtectedRoute>
               }
             />
