@@ -12,6 +12,7 @@ import {
   Mic2,
   Plus,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 
 import {
@@ -83,6 +84,48 @@ function BibliotecaPage() {
     mensagemUpgrade,
     setMensagemUpgrade,
   ] = useState("");
+
+  const [
+    ehAdmin,
+    setEhAdmin,
+  ] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let ativo = true;
+
+    async function verificarAdmin() {
+      const {
+        data,
+        error,
+      } = await supabase
+        .schema("biblia_slides")
+        .rpc("eh_admin");
+
+      if (!ativo) return;
+
+      if (error) {
+        console.debug(
+          "Não foi possível verificar acesso administrativo:",
+          error,
+        );
+
+        setEhAdmin(false);
+        return;
+      }
+
+      setEhAdmin(
+        data === true,
+      );
+    }
+
+    verificarAdmin();
+
+    return () => {
+      ativo = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -602,6 +645,20 @@ function BibliotecaPage() {
             gap: "8px",
           }}
         >
+          {ehAdmin && (
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Painel gerencial"
+              title="Painel gerencial"
+              onClick={() =>
+                navigate("/admin")
+              }
+            >
+              <ShieldCheck size={19} />
+            </button>
+          )}
+
           <button
             type="button"
             className="icon-button"
