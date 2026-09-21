@@ -10061,3 +10061,217 @@ input:focus-visible {
     justify-content: flex-end;
   }
 }
+
+
+/* =========================================
+   TOUR GUIADO — POSIÇÃO OPOSTA + IDENTIDADE
+========================================= */
+
+.guided-tour-card-cima,
+.guided-tour-card-baixo {
+  max-height:
+    min(44vh, 360px);
+}
+
+.guided-tour-card-direita,
+.guided-tour-card-esquerda {
+  max-height:
+    calc(100vh - 32px);
+}
+
+.guided-tour-spotlight {
+  border-radius: 18px;
+
+  box-shadow:
+    0 0 0 9999px
+    rgba(13, 8, 25, 0.62),
+    0 0 0 4px
+    #f4c95d,
+    0 0 0 8px
+    rgba(244, 201, 93, 0.20),
+    0 16px 40px
+    rgba(0, 0, 0, 0.34);
+}
+
+.guided-tour-card {
+  border:
+    1px solid
+    rgba(214, 196, 255, 0.34);
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      150deg,
+      #2d1b4f 0%,
+      #39235f 52%,
+      #201437 100%
+    );
+
+  box-shadow:
+    0 24px 70px
+    rgba(10, 5, 22, 0.48),
+    inset 0 1px 0
+    rgba(255, 255, 255, 0.10);
+}
+
+.guided-tour-card::before {
+  content: "";
+
+  position: absolute;
+  inset: 0 0 auto 0;
+
+  height: 4px;
+
+  border-radius:
+    20px 20px 0 0;
+
+  background:
+    linear-gradient(
+      90deg,
+      #f4c95d,
+      #c8a5ff,
+      #7dd3fc
+    );
+}
+
+.guided-tour-symbol {
+  color: #2d1b4f;
+
+  background:
+    linear-gradient(
+      145deg,
+      #f7d778,
+      #f0bd3f
+    );
+
+  box-shadow:
+    0 8px 20px
+    rgba(244, 201, 93, 0.22);
+}
+
+.guided-tour-card-top span,
+.guided-tour-badge {
+  color: #f7d778;
+}
+
+.guided-tour-badge {
+  display: inline-flex;
+  align-items: center;
+
+  width: fit-content;
+
+  padding: 3px 7px;
+
+  border:
+    1px solid
+    rgba(247, 215, 120, 0.30);
+  border-radius: 999px;
+
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+
+  background:
+    rgba(247, 215, 120, 0.09);
+}
+
+.guided-tour-section {
+  display: block;
+
+  margin-top: 4px;
+
+  font-size: 0.83rem;
+  font-weight: 800;
+  line-height: 1.2;
+
+  color: #ffffff;
+}
+
+.guided-tour-card-top small {
+  margin-top: 2px;
+
+  color:
+    rgba(255, 255, 255, 0.66);
+}
+
+.guided-tour-close {
+  color: #ffffff;
+
+  background:
+    rgba(255, 255, 255, 0.10);
+}
+
+.guided-tour-copy h3 {
+  color: #ffffff;
+}
+
+.guided-tour-copy p {
+  color:
+    rgba(255, 255, 255, 0.82);
+}
+
+.guided-tour-progress {
+  background:
+    rgba(255, 255, 255, 0.12);
+}
+
+.guided-tour-progress > div {
+  background:
+    linear-gradient(
+      90deg,
+      #f4c95d,
+      #d2b0ff
+    );
+}
+
+.guided-tour-skip,
+.guided-tour-back {
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.18);
+
+  color:
+    rgba(255, 255, 255, 0.88);
+
+  background:
+    rgba(255, 255, 255, 0.06);
+}
+
+.guided-tour-next {
+  color: #2d1b4f;
+
+  background:
+    linear-gradient(
+      145deg,
+      #f7d778,
+      #f0bd3f
+    );
+
+  box-shadow:
+    0 8px 18px
+    rgba(244, 201, 93, 0.18);
+}
+
+.guided-tour-help {
+  border:
+    1px solid
+    rgba(247, 215, 120, 0.55);
+
+  color: #f7d778;
+
+  background:
+    linear-gradient(
+      145deg,
+      #372159,
+      #24163e
+    );
+}
+
+@media (max-width: 640px) {
+  .guided-tour-card-cima,
+  .guided-tour-card-baixo {
+    max-height:
+      min(46vh, 350px);
+  }
+}
