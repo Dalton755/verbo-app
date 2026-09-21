@@ -66,11 +66,6 @@ import DictionaryModal
 import DictionarySelectionAction
     from "../components/DictionarySelectionAction";
 
-import {
-    ehUmaPalavraSelecionada,
-    normalizarPalavraSelecionada,
-} from "../lib/dictionaryService";
-
 function lerProgressoLivro(id) {
     if (!id) {
         return null;
@@ -3901,40 +3896,6 @@ function LivroPage() {
     }, [
         modoVisualizacao,
     ]);
-
-    function abrirDicionarioSelecao() {
-        if (
-            !selecaoDestaque ||
-            !ehUmaPalavraSelecionada(
-                selecaoDestaque
-                    .textoSelecionado,
-            )
-        ) {
-            return;
-        }
-
-        const palavra =
-            normalizarPalavraSelecionada(
-                selecaoDestaque
-                    .textoSelecionado,
-            );
-
-        setPalavraDicionario(
-            palavra,
-        );
-
-        setSelecaoDestaque(
-            null,
-        );
-
-        setDestaqueAtivo(
-            null,
-        );
-
-        window
-            .getSelection()
-            ?.removeAllRanges();
-    }
 
     function abrirNovaNota() {
         if (
