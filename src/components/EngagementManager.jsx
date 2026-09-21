@@ -54,6 +54,25 @@ const ROTAS_SEGURAS_FEEDBACK = [
   "/configuracoes/modulos",
 ];
 
+function rotaEhMaterial(
+  pathname,
+) {
+  return (
+    /^\/livros\/[^/]+$/.test(
+      pathname,
+    ) ||
+    /^\/sermoes\/[^/]+$/.test(
+      pathname,
+    ) ||
+    /^\/trimestres\/[^/]+$/.test(
+      pathname,
+    ) ||
+    /^\/aulas\/[^/]+\/apresentar$/.test(
+      pathname,
+    )
+  );
+}
+
 const PALAVRAS_RECURSOS = [
   "referência",
   "referencia",
@@ -564,12 +583,25 @@ function EngagementManager() {
       dados.paginas.push(
         location.pathname,
       );
+    }
 
-      salvarExperiencia(
-        user.id,
-        dados,
+    if (
+      rotaEhMaterial(
+        location.pathname,
+      ) &&
+      !dados.recursos.includes(
+        "material_aberto",
+      )
+    ) {
+      dados.recursos.push(
+        "material_aberto",
       );
     }
+
+    salvarExperiencia(
+      user.id,
+      dados,
+    );
   }, [
     user?.id,
     location.pathname,
@@ -657,9 +689,9 @@ function EngagementManager() {
 
     if (
       experiencia.paginas.length <
-        4 ||
+        3 ||
       experiencia.recursos.length <
-        2
+        1
     ) {
       return;
     }
@@ -744,6 +776,34 @@ function EngagementManager() {
     rotaIgnorada,
     rotaSeguraFeedback,
     feedbackAberto,
+  ]);
+
+  useEffect(() => {
+    if (
+      !user?.id
+    ) {
+      return;
+    }
+
+    function abrirFeedbackManual() {
+      setErroFeedback("");
+      setNota(0);
+      setComentario("");
+      setFeedbackAberto(true);
+    }
+
+    window.addEventListener(
+      "verbo:abrir-feedback",
+      abrirFeedbackManual,
+    );
+
+    return () =>
+      window.removeEventListener(
+        "verbo:abrir-feedback",
+        abrirFeedbackManual,
+      );
+  }, [
+    user?.id,
   ]);
 
   async function enviarFeedback() {
