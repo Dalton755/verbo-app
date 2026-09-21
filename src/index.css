@@ -12588,3 +12588,28 @@ button.primary {
     grid-column: auto;
   }
 }
+
+
+.settings-feedback-button {
+  margin-top: 12px;
+  min-height: 42px;
+
+  padding: 0 14px;
+
+  border:
+    1px solid
+    rgba(53, 85, 67, 0.16);
+  border-radius: 12px;
+
+  color: #ffffff;
+  background:
+    linear-gradient(
+      135deg,
+      #3f6a50,
+      #294737
+    );
+
+  font-weight: 800;
+
+  cursor: pointer;
+}
