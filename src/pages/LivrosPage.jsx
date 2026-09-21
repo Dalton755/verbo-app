@@ -1,5 +1,6 @@
 import {
     useEffect,
+    useRef,
     useState,
 } from "react";
 
@@ -70,6 +71,7 @@ const STORAGE_AUTOR =
     "verbo_livros_autor";
 
 function LivrosPage() {
+
     const navigate =
         useNavigate();
 
@@ -203,6 +205,32 @@ function LivrosPage() {
         temaNovoLivro,
         setTemaNovoLivro,
     ] = useState("");
+
+    const [
+        adicionandoTemaNovoLivro,
+        setAdicionandoTemaNovoLivro,
+    ] = useState(false);
+
+    const [
+        nomeTemaNovoLivro,
+        setNomeTemaNovoLivro,
+    ] = useState("");
+
+    const [
+        salvandoTemaNovoLivro,
+        setSalvandoTemaNovoLivro,
+    ] = useState(false);
+
+    const [
+        erroTemaNovoLivro,
+        setErroTemaNovoLivro,
+    ] = useState("");
+
+    const temaNovoLivroRef =
+        useRef(null);
+
+    const nomeTemaNovoLivroRef =
+        useRef(null);
 
     const [
         arquivo,
@@ -500,6 +528,9 @@ function LivrosPage() {
         setTitulo("");
         setAutor("");
         setTemaNovoLivro("");
+        setAdicionandoTemaNovoLivro(false);
+        setNomeTemaNovoLivro("");
+        setErroTemaNovoLivro("");
         setArquivo(null);
 
         sessionStorage.setItem(
@@ -530,6 +561,9 @@ function LivrosPage() {
         setTitulo("");
         setAutor("");
         setTemaNovoLivro("");
+        setAdicionandoTemaNovoLivro(false);
+        setNomeTemaNovoLivro("");
+        setErroTemaNovoLivro("");
         setArquivo(null);
 
         setModalAberto(false);
@@ -601,7 +635,177 @@ function LivrosPage() {
             setIdentificandoLivro(
                 false,
             );
+
+            /*
+             * O PDF é o primeiro passo.
+             * Depois de preencher título e autor
+             * automaticamente, seguimos direto
+             * para a escolha do tema.
+             */
+            setTimeout(() => {
+                temaNovoLivroRef
+                    .current
+                    ?.focus();
+            }, 0);
         }
+    }
+
+    function abrirCriacaoTemaNoFormulario() {
+        setAdicionandoTemaNovoLivro(
+            true,
+        );
+
+        setErroTemaNovoLivro("");
+
+        setTimeout(() => {
+            nomeTemaNovoLivroRef
+                .current
+                ?.focus();
+        }, 0);
+    }
+
+    async function criarTemaNoFormulario() {
+        const nome =
+            nomeTemaNovoLivro.trim();
+
+        if (
+            !user ||
+            !nome ||
+            salvandoTemaNovoLivro
+        ) {
+            return;
+        }
+
+        setSalvandoTemaNovoLivro(
+            true,
+        );
+
+        setErroTemaNovoLivro("");
+
+        const {
+            data,
+            error,
+        } = await supabase
+            .from(
+                "temas_livros",
+            )
+            .insert({
+                usuario_id:
+                    user.id,
+
+                nome,
+            })
+            .select(`
+                id,
+                nome,
+                created_at
+            `)
+            .single();
+
+        if (error) {
+            if (
+                error.code ===
+                "23505"
+            ) {
+                const temaExistente =
+                    temas.find(
+                        (tema) =>
+                            tema.nome.localeCompare(
+                                nome,
+                                "pt-BR",
+                                {
+                                    sensitivity:
+                                        "base",
+                                },
+                            ) ===
+                            0,
+                    );
+
+                if (temaExistente) {
+                    setTemaNovoLivro(
+                        temaExistente.id,
+                    );
+
+                    setAdicionandoTemaNovoLivro(
+                        false,
+                    );
+
+                    setNomeTemaNovoLivro(
+                        "",
+                    );
+
+                    setSalvandoTemaNovoLivro(
+                        false,
+                    );
+
+                    setTimeout(() => {
+                        temaNovoLivroRef
+                            .current
+                            ?.focus();
+                    }, 0);
+
+                    return;
+                }
+
+                setErroTemaNovoLivro(
+                    "Você já possui um tema com esse nome.",
+                );
+            } else {
+                console.error(
+                    "Erro ao criar tema durante a importação:",
+                    error,
+                );
+
+                setErroTemaNovoLivro(
+                    "Não conseguimos criar este tema agora.",
+                );
+            }
+
+            setSalvandoTemaNovoLivro(
+                false,
+            );
+
+            return;
+        }
+
+        setTemas(
+            (anteriores) =>
+                [
+                    ...anteriores,
+                    data,
+                ].sort(
+                    (
+                        a,
+                        b,
+                    ) =>
+                        a.nome.localeCompare(
+                            b.nome,
+                            "pt-BR",
+                        ),
+                ),
+        );
+
+        /*
+         * O novo tema já fica selecionado
+         * no livro que está sendo importado.
+         */
+        setTemaNovoLivro(
+            data.id,
+        );
+
+        setNomeTemaNovoLivro("");
+        setAdicionandoTemaNovoLivro(
+            false,
+        );
+        setSalvandoTemaNovoLivro(
+            false,
+        );
+
+        setTimeout(() => {
+            temaNovoLivroRef
+                .current
+                ?.focus();
+        }, 0);
     }
 
     async function importarLivro(
@@ -906,6 +1110,10 @@ function LivrosPage() {
 
         setTitulo("");
         setAutor("");
+        setTemaNovoLivro("");
+        setAdicionandoTemaNovoLivro(false);
+        setNomeTemaNovoLivro("");
+        setErroTemaNovoLivro("");
         setArquivo(null);
 
         setModalAberto(false);
@@ -2697,9 +2905,9 @@ function LivrosPage() {
                             </h2>
 
                             <p>
-                                Informe o título,
-                                o autor e selecione
-                                o PDF.
+                                Selecione primeiro o PDF.
+                                O VERBO identifica título e
+                                autor automaticamente.
                             </p>
                         </div>
 
@@ -2709,6 +2917,53 @@ function LivrosPage() {
                                 importarLivro
                             }
                         >
+                            <label>
+                                Arquivo PDF
+
+                                <div className="pdf-picker">
+                                    <input
+                                        type="file"
+                                        accept="application/pdf,.pdf"
+                                        onChange={
+                                            selecionarArquivo
+                                        }
+                                        autoFocus
+                                    />
+
+                                    <Upload
+                                        size={
+                                            21
+                                        }
+                                    />
+
+                                    <div>
+                                        <strong>
+                                            {arquivo
+                                                ? arquivo.name
+                                                : "Selecionar PDF"}
+                                        </strong>
+
+                                        <span>
+                                            {arquivo
+                                                ? `${(
+                                                    arquivo.size /
+                                                    1024 /
+                                                    1024
+                                                ).toFixed(
+                                                    1,
+                                                )} MB`
+                                                : "Arquivo de até 50 MB"}
+                                        </span>
+
+                                        {identificandoLivro && (
+                                            <small>
+                                                Identificando título e autor...
+                                            </small>
+                                        )}
+                                    </div>
+                                </div>
+                            </label>
+
                             <label>
                                 Título do livro
 
@@ -2727,7 +2982,6 @@ function LivrosPage() {
                                         )
                                     }
                                     placeholder="Ex.: O Peregrino"
-                                    autoFocus
                                 />
                             </label>
 
@@ -2764,18 +3018,45 @@ function LivrosPage() {
                                 </span>
 
                                 <select
+                                    ref={
+                                        temaNovoLivroRef
+                                    }
                                     value={
                                         temaNovoLivro
                                     }
                                     onChange={(
                                         event,
-                                    ) =>
-                                        setTemaNovoLivro(
+                                    ) => {
+                                        const valor =
                                             event
                                                 .target
-                                                .value,
-                                        )
-                                    }
+                                                .value;
+
+                                        if (
+                                            valor ===
+                                            "__NOVO_TEMA__"
+                                        ) {
+                                            setTemaNovoLivro(
+                                                "",
+                                            );
+
+                                            abrirCriacaoTemaNoFormulario();
+
+                                            return;
+                                        }
+
+                                        setTemaNovoLivro(
+                                            valor,
+                                        );
+
+                                        setAdicionandoTemaNovoLivro(
+                                            false,
+                                        );
+
+                                        setErroTemaNovoLivro(
+                                            "",
+                                        );
+                                    }}
                                 >
                                     <option value="">
                                         Sem tema
@@ -2795,53 +3076,110 @@ function LivrosPage() {
                                             </option>
                                         ),
                                     )}
+
+                                    <option value="__NOVO_TEMA__">
+                                        + Adicionar novo tema
+                                    </option>
                                 </select>
                             </label>
 
-                            <label>
-                                Arquivo PDF
+                            {adicionandoTemaNovoLivro && (
+                                <div className="library-message">
+                                    <strong>
+                                        Novo tema
+                                    </strong>
 
-                                <div className="pdf-picker">
                                     <input
-                                        type="file"
-                                        accept="application/pdf,.pdf"
-                                        onChange={
-                                            selecionarArquivo
+                                        ref={
+                                            nomeTemaNovoLivroRef
+                                        }
+                                        type="text"
+                                        value={
+                                            nomeTemaNovoLivro
+                                        }
+                                        onChange={(
+                                            event,
+                                        ) =>
+                                            setNomeTemaNovoLivro(
+                                                event
+                                                    .target
+                                                    .value,
+                                            )
+                                        }
+                                        onKeyDown={(
+                                            event,
+                                        ) => {
+                                            if (
+                                                event.key ===
+                                                "Enter"
+                                            ) {
+                                                event.preventDefault();
+
+                                                criarTemaNoFormulario();
+                                            }
+                                        }}
+                                        placeholder="Ex.: Teologia, Biografias..."
+                                        disabled={
+                                            salvandoTemaNovoLivro
                                         }
                                     />
 
-                                    <Upload
-                                        size={
-                                            21
-                                        }
-                                    />
+                                    {erroTemaNovoLivro && (
+                                        <small>
+                                            {
+                                                erroTemaNovoLivro
+                                            }
+                                        </small>
+                                    )}
 
-                                    <div>
-                                        <strong>
-                                            {arquivo
-                                                ? arquivo.name
-                                                : "Selecionar PDF"}
-                                        </strong>
+                                    <div className="modal-actions">
+                                        <button
+                                            type="button"
+                                            className="secondary-button"
+                                            disabled={
+                                                salvandoTemaNovoLivro
+                                            }
+                                            onClick={() => {
+                                                setAdicionandoTemaNovoLivro(
+                                                    false,
+                                                );
 
-                                        <span>
-                                            {arquivo
-                                                ? `${(
-                                                    arquivo.size /
-                                                    1024 /
-                                                    1024
-                                                ).toFixed(
-                                                    1,
-                                                )} MB`
-                                                : "Arquivo de até 50 MB"}
-                                        </span>
-                                        {identificandoLivro && (
-                                            <small>
-                                                Identificando título e autor...
-                                            </small>
-                                        )}
+                                                setNomeTemaNovoLivro(
+                                                    "",
+                                                );
+
+                                                setErroTemaNovoLivro(
+                                                    "",
+                                                );
+
+                                                setTimeout(() => {
+                                                    temaNovoLivroRef
+                                                        .current
+                                                        ?.focus();
+                                                }, 0);
+                                            }}
+                                        >
+                                            Cancelar
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className="primary-button"
+                                            disabled={
+                                                salvandoTemaNovoLivro ||
+                                                !nomeTemaNovoLivro.trim()
+                                            }
+                                            onClick={
+                                                criarTemaNoFormulario
+                                            }
+                                        >
+                                            {salvandoTemaNovoLivro
+                                                ? "Criando..."
+                                                : "Criar e selecionar"}
+                                        </button>
                                     </div>
                                 </div>
-                            </label>
+                            )}
 
                             <div className="modal-actions">
                                 <button
