@@ -146,18 +146,43 @@ function DictionarySelectionAction({
                   10,
               );
 
+            const mobile =
+              window.innerWidth <=
+              760;
+
+            const espacoAbaixo =
+              window.innerHeight -
+              rect.bottom;
+
             const top =
-              rect.top > 70
-                ? Math.max(
-                    10,
-                    rect.top -
-                      52,
+              mobile
+                ? (
+                    espacoAbaixo >= 62
+                      ? Math.min(
+                          window.innerHeight -
+                            54,
+                          rect.bottom +
+                            10,
+                        )
+                      : Math.max(
+                          10,
+                          rect.top -
+                            52,
+                        )
                   )
-                : Math.min(
-                    window.innerHeight -
-                      54,
-                    rect.bottom +
-                      10,
+                : (
+                    rect.top > 70
+                      ? Math.max(
+                          10,
+                          rect.top -
+                            52,
+                        )
+                      : Math.min(
+                          window.innerHeight -
+                            54,
+                          rect.bottom +
+                            10,
+                        )
                   );
 
             setSelecao({
@@ -248,7 +273,7 @@ function DictionarySelectionAction({
       <BookOpen size={16} />
 
       <span>
-        Significado
+        Ver significado
       </span>
     </button>
   );
