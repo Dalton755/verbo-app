@@ -60,6 +60,14 @@ import BookLinkedText
 import BiblePassageModal
     from "../components/BiblePassageModal";
 
+import DictionaryModal
+    from "../components/DictionaryModal";
+
+import {
+    ehUmaPalavraSelecionada,
+    normalizarPalavraSelecionada,
+} from "../lib/dictionaryService";
+
 function lerProgressoLivro(id) {
     if (!id) {
         return null;
@@ -418,6 +426,11 @@ function LivroPage() {
         salvandoDestaque,
         setSalvandoDestaque,
     ] = useState(false);
+
+    const [
+        palavraDicionario,
+        setPalavraDicionario,
+    ] = useState("");
 
     const [
         destaqueAtivo,
@@ -3886,6 +3899,40 @@ function LivroPage() {
         modoVisualizacao,
     ]);
 
+    function abrirDicionarioSelecao() {
+        if (
+            !selecaoDestaque ||
+            !ehUmaPalavraSelecionada(
+                selecaoDestaque
+                    .textoSelecionado,
+            )
+        ) {
+            return;
+        }
+
+        const palavra =
+            normalizarPalavraSelecionada(
+                selecaoDestaque
+                    .textoSelecionado,
+            );
+
+        setPalavraDicionario(
+            palavra,
+        );
+
+        setSelecaoDestaque(
+            null,
+        );
+
+        setDestaqueAtivo(
+            null,
+        );
+
+        window
+            .getSelection()
+            ?.removeAllRanges();
+    }
+
     function abrirNovaNota() {
         if (
             !selecaoDestaque
@@ -6942,6 +6989,30 @@ function LivroPage() {
                             }
                         />
 
+                        {selecaoDestaque &&
+                            ehUmaPalavraSelecionada(
+                                selecaoDestaque
+                                    .textoSelecionado,
+                            ) && (
+                            <button
+                                type="button"
+                                className="book-highlight-dictionary"
+                                title="Ver significado"
+                                aria-label="Ver significado"
+                                onClick={
+                                    abrirDicionarioSelecao
+                                }
+                            >
+                                <BookOpen
+                                    size={17}
+                                />
+
+                                <span>
+                                    Significado
+                                </span>
+                            </button>
+                        )}
+
                         {selecaoDestaque && (
                             <button
                                 type="button"
@@ -7002,6 +7073,22 @@ function LivroPage() {
                         </button>
                     </div>
                 )}
+
+            <DictionaryModal
+                aberto={
+                    Boolean(
+                        palavraDicionario,
+                    )
+                }
+                palavra={
+                    palavraDicionario
+                }
+                onClose={() =>
+                    setPalavraDicionario(
+                        "",
+                    )
+                }
+            />
 
             {notaEditor && (
                 <div
