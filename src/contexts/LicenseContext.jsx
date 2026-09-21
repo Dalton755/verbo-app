@@ -120,6 +120,49 @@ function lerAcessoLocal(userId) {
     }
 
     /*
+     * Liberação administrativa temporária:
+     * respeita a data de expiração também
+     * quando o aparelho estiver offline.
+     */
+    if (
+      acesso.estado ===
+      "LIBERADO"
+    ) {
+      if (
+        !acesso.teste_expira_em
+      ) {
+        return null;
+      }
+
+      const expira =
+        new Date(
+          acesso.teste_expira_em,
+        ).getTime();
+
+      if (
+        !Number.isFinite(expira) ||
+        expira <= Date.now()
+      ) {
+        return null;
+      }
+
+      return {
+        ...acesso,
+
+        segundos_restantes:
+          Math.max(
+            0,
+            Math.floor(
+              (
+                expira -
+                Date.now()
+              ) / 1000,
+            ),
+          ),
+      };
+    }
+
+    /*
      * Para qualquer outro tipo
      * de acesso já validado pelo
      * servidor, respeitamos
