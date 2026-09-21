@@ -7,8 +7,10 @@ import {
   Database,
   HardDrive,
   KeyRound,
+  MessageSquareText,
   RefreshCw,
   ShieldCheck,
+  Star,
   TrendingUp,
   UserCheck,
   Users,
@@ -159,6 +161,11 @@ function AdminDashboardPage() {
   ] = useState([]);
 
   const [
+    feedbackGerencial,
+    setFeedbackGerencial,
+  ] = useState(null);
+
+  const [
     liberacaoAberta,
     setLiberacaoAberta,
   ] = useState(false);
@@ -206,6 +213,7 @@ function AdminDashboardPage() {
       const [
         painelResposta,
         usuariosResposta,
+        feedbackResposta,
       ] = await Promise.all([
         supabase
           .schema("biblia_slides")
@@ -214,11 +222,16 @@ function AdminDashboardPage() {
         supabase
           .schema("biblia_slides")
           .rpc("admin_listar_usuarios"),
+
+        supabase
+          .schema("biblia_slides")
+          .rpc("admin_feedback"),
       ]);
 
       const error =
         painelResposta.error ||
-        usuariosResposta.error;
+        usuariosResposta.error ||
+        feedbackResposta.error;
 
       if (error) {
         console.error(
@@ -248,6 +261,10 @@ function AdminDashboardPage() {
         )
           ? usuariosResposta.data
           : [],
+      );
+
+      setFeedbackGerencial(
+        feedbackResposta.data ?? null,
       );
 
       setCarregando(false);
@@ -1156,6 +1173,220 @@ function AdminDashboardPage() {
               </div>
             </article>
           </div>
+        </section>
+
+        <section className="admin-section">
+          <div className="admin-section-title">
+            <div>
+              <span>
+                Experiência
+              </span>
+
+              <h2>
+                Avaliações dos usuários
+              </h2>
+            </div>
+
+            <MessageSquareText size={22} />
+          </div>
+
+          <div className="admin-feedback-summary">
+            <article className="admin-feedback-score">
+              <span>
+                Nota média
+              </span>
+
+              <strong>
+                {Number(
+                  feedbackGerencial?.media ?? 0,
+                ).toLocaleString(
+                  "pt-BR",
+                  {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 2,
+                  },
+                )}
+              </strong>
+
+              <div className="admin-feedback-stars">
+                {[1, 2, 3, 4, 5].map(
+                  (valor) => (
+                    <Star
+                      key={valor}
+                      size={18}
+                      fill={
+                        Number(
+                          feedbackGerencial?.media ?? 0,
+                        ) >= valor
+                          ? "currentColor"
+                          : "none"
+                      }
+                    />
+                  ),
+                )}
+              </div>
+
+              <small>
+                {feedbackGerencial?.total ?? 0}
+                {" "}avaliação(ões)
+              </small>
+            </article>
+
+            <article className="admin-feedback-positive">
+              <span>
+                Avaliações positivas
+              </span>
+
+              <strong>
+                {feedbackGerencial?.total
+                  ? (
+                      (
+                        Number(
+                          feedbackGerencial?.positivas ?? 0,
+                        ) /
+                        Number(
+                          feedbackGerencial.total,
+                        )
+                      ) *
+                      100
+                    ).toLocaleString(
+                      "pt-BR",
+                      {
+                        maximumFractionDigits: 1,
+                      },
+                    )
+                  : "0"}
+                %
+              </strong>
+
+              <small>
+                Notas 4 e 5
+              </small>
+            </article>
+
+            <article className="admin-feedback-distribution">
+              {[5, 4, 3, 2, 1].map(
+                (valor) => {
+                  const quantidade =
+                    Number(
+                      feedbackGerencial?.[
+                        `nota_${valor}`
+                      ] ?? 0,
+                    );
+
+                  const total =
+                    Math.max(
+                      1,
+                      Number(
+                        feedbackGerencial?.total ?? 0,
+                      ),
+                    );
+
+                  return (
+                    <div
+                      key={valor}
+                      className="admin-feedback-distribution-row"
+                    >
+                      <span>
+                        {valor}
+                        <Star
+                          size={13}
+                          fill="currentColor"
+                        />
+                      </span>
+
+                      <div>
+                        <i
+                          style={{
+                            width:
+                              `${(quantidade / total) * 100}%`,
+                          }}
+                        />
+                      </div>
+
+                      <strong>
+                        {quantidade}
+                      </strong>
+                    </div>
+                  );
+                },
+              )}
+            </article>
+          </div>
+
+          <article className="admin-list-card admin-feedback-list-card">
+            <div className="admin-list-head">
+              <div>
+                <span>
+                  Feedback
+                </span>
+
+                <h3>
+                  Comentários recentes
+                </h3>
+              </div>
+            </div>
+
+            {(
+              feedbackGerencial?.recentes ?? []
+            ).length === 0 ? (
+              <div className="admin-feedback-empty">
+                Ainda não há avaliações enviadas.
+              </div>
+            ) : (
+              <div className="admin-feedback-cards">
+                {(
+                  feedbackGerencial?.recentes ?? []
+                ).map(
+                  (item) => (
+                    <article
+                      key={item.id}
+                      className="admin-feedback-card"
+                    >
+                      <div className="admin-feedback-card-head">
+                        <div>
+                          <strong>
+                            {item.nome || "Usuário"}
+                          </strong>
+
+                          <span>
+                            {item.email}
+                          </span>
+                        </div>
+
+                        <div className="admin-feedback-card-rating">
+                          <Star
+                            size={15}
+                            fill="currentColor"
+                          />
+
+                          <strong>
+                            {item.nota}/5
+                          </strong>
+                        </div>
+                      </div>
+
+                      {item.comentario ? (
+                        <p>
+                          “{item.comentario}”
+                        </p>
+                      ) : (
+                        <p className="muted">
+                          Avaliou sem comentário.
+                        </p>
+                      )}
+
+                      <small>
+                        {formatarData(
+                          item.created_at,
+                        )}
+                      </small>
+                    </article>
+                  ),
+                )}
+              </div>
+            )}
+          </article>
         </section>
 
         <section className="admin-two-columns">
