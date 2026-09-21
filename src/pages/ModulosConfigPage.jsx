@@ -7,7 +7,9 @@ import {
   ArrowLeft,
   BookOpen,
   LibraryBig,
+  MessageSquareText,
   Mic2,
+  Star,
 } from "lucide-react";
 
 import { useNavigate } from "react-router-dom";
@@ -59,6 +61,58 @@ function ModulosConfigPage() {
 
   const [erro, setErro] =
     useState("");
+
+  const [
+    feedback,
+    setFeedback,
+  ] = useState(null);
+
+  const [
+    carregandoFeedback,
+    setCarregandoFeedback,
+  ] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let ativo = true;
+
+    async function carregarFeedback() {
+      setCarregandoFeedback(true);
+
+      const {
+        data,
+        error,
+      } = await supabase
+        .schema("biblia_slides")
+        .rpc("meu_feedback");
+
+      if (!ativo) return;
+
+      if (error) {
+        console.debug(
+          "Não foi possível carregar a avaliação:",
+          error,
+        );
+
+        setFeedback(null);
+        setCarregandoFeedback(false);
+        return;
+      }
+
+      setFeedback(
+        data ?? null,
+      );
+
+      setCarregandoFeedback(false);
+    }
+
+    carregarFeedback();
+
+    return () => {
+      ativo = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -180,10 +234,10 @@ function ModulosConfigPage() {
 
           <div>
             <span className="app-kicker">
-              Personalize seu VERBO
+              Seu VERBO
             </span>
 
-            <h1>Módulos</h1>
+            <h1>Configurações</h1>
           </div>
         </div>
 
@@ -218,9 +272,9 @@ function ModulosConfigPage() {
               opacity: 0.78,
             }}
           >
-            Escolha o que você deseja ver na sua
-            Biblioteca. Desativar um módulo não
-            apaga nenhum conteúdo.
+            Personalize os módulos que aparecem na
+            Biblioteca e consulte sua avaliação do
+            VERBO.
           </p>
         </section>
 
@@ -239,11 +293,45 @@ function ModulosConfigPage() {
           </div>
         )}
 
-        {carregando ? (
-          <p>
-            Carregando seus módulos...
-          </p>
-        ) : (
+        <section
+          style={{
+            marginBottom: "28px",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "12px",
+            }}
+          >
+            <span
+              style={{
+                display: "block",
+                fontSize: "0.76rem",
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                opacity: 0.55,
+                marginBottom: "4px",
+              }}
+            >
+              Biblioteca
+            </span>
+
+            <h2
+              style={{
+                margin: 0,
+                fontSize: "1.08rem",
+              }}
+            >
+              Módulos visíveis
+            </h2>
+          </div>
+
+          {carregando ? (
+            <p>
+              Carregando seus módulos...
+            </p>
+          ) : (
           <section
             style={{
               display: "grid",
@@ -357,7 +445,110 @@ function ModulosConfigPage() {
               );
             })}
           </section>
-        )}
+          )}
+        </section>
+
+        <section
+          className="settings-feedback-card"
+        >
+          <div className="settings-feedback-icon">
+            <MessageSquareText
+              size={22}
+            />
+          </div>
+
+          <div className="settings-feedback-content">
+            <span className="settings-feedback-kicker">
+              SUA AVALIAÇÃO
+            </span>
+
+            <h2>
+              O que você achou do VERBO
+            </h2>
+
+            {carregandoFeedback ? (
+              <p>
+                Carregando sua avaliação...
+              </p>
+            ) : feedback ? (
+              <>
+                <div
+                  className="settings-feedback-stars"
+                  aria-label={`Avaliação: ${feedback.nota} de 5`}
+                >
+                  {[1, 2, 3, 4, 5].map(
+                    (valor) => (
+                      <Star
+                        key={valor}
+                        size={21}
+                        fill={
+                          Number(
+                            feedback.nota,
+                          ) >= valor
+                            ? "currentColor"
+                            : "none"
+                        }
+                      />
+                    ),
+                  )}
+
+                  <strong>
+                    {feedback.nota}/5
+                  </strong>
+                </div>
+
+                {feedback.comentario ? (
+                  <blockquote>
+                    “{feedback.comentario}”
+                  </blockquote>
+                ) : (
+                  <p>
+                    Você avaliou o VERBO sem deixar
+                    um comentário.
+                  </p>
+                )}
+
+                <small>
+                  Avaliação enviada em{" "}
+                  {new Intl.DateTimeFormat(
+                    "pt-BR",
+                    {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    },
+                  ).format(
+                    new Date(
+                      feedback.created_at,
+                    ),
+                  )}
+                </small>
+              </>
+            ) : (
+              <>
+                <p>
+                  Sua avaliação aparecerá aqui depois
+                  que você experimentar o aplicativo
+                  e responder ao pedido de feedback.
+                </p>
+
+                <button
+                  type="button"
+                  className="settings-feedback-button"
+                  onClick={() =>
+                    window.dispatchEvent(
+                      new CustomEvent(
+                        "verbo:abrir-feedback",
+                      ),
+                    )
+                  }
+                >
+                  Avaliar o VERBO agora
+                </button>
+              </>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );
