@@ -31,6 +31,13 @@ import {
 } from "../contexts/AuthContext";
 
 import {
+    concluirCadastroModuloPendente,
+    inicializarModulosUsuario,
+    normalizarModulo,
+    registrarCadastroModuloPendente,
+} from "../lib/modulosUsuario";
+
+import {
     processarPdfLivro,
 } from "../lib/bookPdfProcessor";
 

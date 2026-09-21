@@ -26,9 +26,6 @@ import SermaoPage from "./pages/SermaoPage";
 import AcessoPage from "./pages/AcessoPage";
 import AssinaturaRetornoPage from "./pages/AssinaturaRetornoPage";
 import SplashPage from "./pages/SplashPage";
-import ModulosConfigPage from "./pages/ModulosConfigPage";
-import PrivacidadePage from "./pages/PrivacidadePage";
-import TermosPage from "./pages/TermosPage";
 
 function App() {
   return (
@@ -128,17 +125,6 @@ function App() {
             />
 
             <Route
-              path="/configuracoes/modulos"
-              element={
-                <ProtectedRoute>
-                  <LicensedRoute>
-                    <ModulosConfigPage />
-                  </LicensedRoute>
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
               path="/boas-vindas"
               element={
                 <ProtectedRoute>
@@ -161,16 +147,6 @@ function App() {
               element={
                 <AssinaturaRetornoPage />
               }
-            />
-
-            <Route
-              path="/privacidade"
-              element={<PrivacidadePage />}
-            />
-
-            <Route
-              path="/termos"
-              element={<TermosPage />}
             />
 
             <Route path="/login" element={<LoginPage />} />

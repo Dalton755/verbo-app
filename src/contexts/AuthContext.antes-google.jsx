@@ -8,14 +8,6 @@ import {
 
 import { supabase } from "../lib/supabase";
 
-import {
-  existeOAuthPendente,
-  inicializarModulosOAuth,
-  limparOAuthPendente,
-  obterModuloInicial,
-  salvarOAuthPendente,
-} from "../lib/oauthGoogle";
-
 const AuthContext = createContext(null);
 
 const PREFIXO_SESSAO =
@@ -437,7 +429,7 @@ export function AuthProvider({
       const {
         data: {
           session:
-          sessaoAtual,
+            sessaoAtual,
         },
       } =
         await supabase.auth
@@ -452,40 +444,9 @@ export function AuthProvider({
           sessaoAtual.user,
         );
 
-        if (
-          existeOAuthPendente()
-        ) {
-          const registro =
-            await registrarSessaoAtiva(
-              sessaoAtual.user,
-            );
-
-          if (!registro.ok) {
-            await supabase.auth
-              .signOut({
-                scope: "local",
-              });
-
-            setSession(null);
-            setUser(null);
-            setLoading(false);
-
-            return;
-          }
-
-          const inicializacao =
-            await inicializarModulosOAuth(
-              obterModuloInicial(),
-            );
-
-          if (inicializacao.ok) {
-            limparOAuthPendente();
-          }
-        } else {
-          await verificarSessaoAtiva(
-            sessaoAtual.user,
-          );
-        }
+        await verificarSessaoAtiva(
+          sessaoAtual.user,
+        );
 
         if (!ativo) {
           return;
@@ -498,7 +459,7 @@ export function AuthProvider({
 
       setUser(
         sessaoAtual?.user ??
-        null,
+          null,
       );
 
       setLoading(false);
@@ -523,7 +484,7 @@ export function AuthProvider({
 
             setUser(
               novaSessao?.user ??
-              null,
+                null,
             );
 
             setLoading(false);
@@ -630,31 +591,6 @@ export function AuthProvider({
   }, [
     user,
   ]);
-
-  async function entrarComGoogle(
-    moduloInicial = "TODOS",
-  ) {
-    salvarOAuthPendente(
-      moduloInicial,
-    );
-
-    const resultado =
-      await supabase.auth
-        .signInWithOAuth({
-          provider: "google",
-
-          options: {
-            redirectTo:
-              `${window.location.origin}/`,
-          },
-        });
-
-    if (resultado.error) {
-      limparOAuthPendente();
-    }
-
-    return resultado;
-  }
 
   async function entrar(
     email,
@@ -793,8 +729,8 @@ export function AuthProvider({
     const sessaoLocal =
       usuarioAtual
         ? lerSessaoLocal(
-          usuarioAtual.id,
-        )
+            usuarioAtual.id,
+          )
         : null;
 
     /*
@@ -844,7 +780,6 @@ export function AuthProvider({
         session,
         user,
         loading,
-        entrarComGoogle,
         entrar,
         cadastrar,
         recuperarSenha,

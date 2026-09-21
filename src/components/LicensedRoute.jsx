@@ -5,6 +5,7 @@ function LicensedRoute({ children }) {
   const {
     temLicenca,
     carregandoLicenca,
+    acessoExpirado,
   } = useLicense();
 
   /*
@@ -50,7 +51,11 @@ function LicensedRoute({ children }) {
   ) {
     return (
       <Navigate
-        to="/acesso"
+        to={
+          acessoExpirado
+            ? "/acesso?motivo=demo-expirada"
+            : "/acesso"
+        }
         replace
       />
     );

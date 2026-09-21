@@ -5,6 +5,12 @@ function statusPorCodigo(codigo: string) {
     case "SEM_LICENCA":
       return 403;
 
+    case "DEMO_EXPIRADA":
+      return 403;
+
+    case "DEMO_LIMITE_MODULO":
+      return 409;
+
     case "ARQUIVO_MUITO_GRANDE":
       return 413;
 
@@ -124,6 +130,189 @@ export default {
           },
           { status: 400 },
         );
+      }
+
+      /*
+ * Identifica o módulo pelo caminho.
+ *
+ * Sermões:
+ * userId/sermoes/arquivo.pdf
+ *
+ * Livros:
+ * userId/livros/arquivo.pdf
+ *
+ * EBD:
+ * userId/trimestreId/arquivo.pdf
+ */
+      const partesCaminho =
+        caminho.split("/");
+
+      const segundoSegmento =
+        String(
+          partesCaminho[1] ?? "",
+        ).toLowerCase();
+
+      const modulo =
+        segundoSegmento === "sermoes"
+          ? "SERMOES"
+          : segundoSegmento === "livros"
+            ? "LIVROS"
+            : "EBD";
+
+
+      /*
+       * Consulta o estado oficial do acesso.
+       */
+      const {
+        data: acessoData,
+        error: erroAcesso,
+      } =
+        await ctx.supabase
+          .schema("biblia_slides")
+          .rpc("meu_acesso_app");
+
+
+      if (erroAcesso) {
+        console.error(
+          "Erro ao consultar acesso:",
+          erroAcesso,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            codigo: "ERRO_ACESSO",
+            erro:
+              "Não foi possível verificar seu acesso.",
+          },
+          {
+            status: 500,
+          },
+        );
+      }
+
+
+      const acesso =
+        Array.isArray(acessoData)
+          ? acessoData[0]
+          : acessoData;
+
+
+      if (!acesso) {
+        return Response.json(
+          {
+            ok: false,
+            codigo: "SEM_LICENCA",
+            erro:
+              "Não foi possível verificar seu acesso.",
+          },
+          {
+            status: 403,
+          },
+        );
+      }
+
+
+      /*
+       * Os 7 dias terminaram.
+       */
+      if (
+        acesso.estado ===
+        "EXPIRADO" ||
+        acesso.tem_acesso !== true
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            codigo:
+              "DEMO_EXPIRADA",
+            erro:
+              "Seu período de demonstração terminou.",
+          },
+          {
+            status:
+              statusPorCodigo(
+                "DEMO_EXPIRADA",
+              ),
+          },
+        );
+      }
+
+
+      /*
+       * Durante a DEMO:
+       * apenas 1 arquivo atual por módulo.
+       */
+      if (
+        acesso.estado === "TESTE"
+      ) {
+        const {
+          data: slotDemo,
+          error: erroSlot,
+        } =
+          await ctx.supabase
+            .schema(
+              "biblia_slides",
+            )
+            .from(
+              "demo_modulo_slots",
+            )
+            .select(
+              "recurso_id",
+            )
+            .eq(
+              "user_id",
+              usuarioId,
+            )
+            .eq(
+              "modulo",
+              modulo,
+            )
+            .maybeSingle();
+
+
+        if (erroSlot) {
+          console.error(
+            "Erro ao consultar limite da demo:",
+            erroSlot,
+          );
+
+          return Response.json(
+            {
+              ok: false,
+              codigo:
+                "ERRO_DEMO",
+              erro:
+                "Não foi possível verificar o limite da demonstração.",
+            },
+            {
+              status: 500,
+            },
+          );
+        }
+
+
+        if (slotDemo) {
+          return Response.json(
+            {
+              ok: false,
+
+              codigo:
+                "DEMO_LIMITE_MODULO",
+
+              modulo,
+
+              erro:
+                "Você já utilizou o arquivo de demonstração deste módulo.",
+            },
+            {
+              status:
+                statusPorCodigo(
+                  "DEMO_LIMITE_MODULO",
+                ),
+            },
+          );
+        }
       }
 
       /*

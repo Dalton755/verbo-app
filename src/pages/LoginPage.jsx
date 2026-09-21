@@ -1,192 +1,123 @@
-import { useState } from "react";
+﻿import {
+  useState,
+} from "react";
 
 import {
-  useNavigate,
   useSearchParams,
 } from "react-router-dom";
-
-import {
-  ArrowRight,
-  CheckCircle2,
-  Eye,
-  EyeOff,
-} from "lucide-react";
 
 import { useAuth } from "../contexts/AuthContext";
 import verboLogoHorizontal from "../assets/verbo-logo-horizontal.png";
 
-function LoginPage() {
-  const navigate = useNavigate();
+function normalizarModulo(
+  valor,
+) {
+  const codigo = String(
+    valor ?? "",
+  )
+    .trim()
+    .toUpperCase();
 
+  if (
+    [
+      "EBD",
+      "SERMOES",
+      "LIVROS",
+    ].includes(codigo)
+  ) {
+    return codigo;
+  }
+
+  return "TODOS";
+}
+
+function LoginPage() {
   const [
     searchParams,
   ] = useSearchParams();
 
-  const redirectInformado =
-    searchParams.get(
-      "redirect",
-    );
-
-  const destinoAposLogin =
-    redirectInformado &&
-      redirectInformado.startsWith("/") &&
-      !redirectInformado.startsWith("//")
-      ? redirectInformado
-      : "/";
-
-  const sessaoSubstituida =
-    searchParams.get(
-      "motivo",
-    ) ===
-    "sessao-substituida";
-
   const {
-    entrar,
-    cadastrar,
-    recuperarSenha,
+    entrarComGoogle,
   } = useAuth();
 
-  const [modo, setModo] = useState("login");
+  const [
+    enviando,
+    setEnviando,
+  ] = useState(false);
 
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [
+    erro,
+    setErro,
+  ] = useState("");
 
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState("");
-  const [sucesso, setSucesso] = useState("");
+  const modulo =
+    normalizarModulo(
+      searchParams.get("modulo"),
+    );
 
-  const cadastro = modo === "cadastro";
+  const sessaoSubstituida =
+    searchParams.get("motivo") ===
+    "sessao-substituida";
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  const textos = {
+    EBD: {
+      kicker: "VERBO EBD",
+      titulo:
+        "Sua EBD organizada",
+      descricao:
+        "Trimestres, aulas e apresentações bíblicas em um só lugar.",
+    },
 
+    SERMOES: {
+      kicker: "VERBO Sermões",
+      titulo:
+        "Seus sermões organizados",
+      descricao:
+        "Prepare, organize e pregue com seus materiais sempre acessíveis.",
+    },
+
+    LIVROS: {
+      kicker: "VERBO Livros",
+      titulo:
+        "Sua biblioteca cristã",
+      descricao:
+        "Organize seus livros e PDFs para estudar onde estiver.",
+    },
+
+    TODOS: {
+      kicker: "VERBO",
+      titulo:
+        "Organize. Ensine. Pregue.",
+      descricao:
+        "Sua EBD, seus sermões e seus livros em uma biblioteca simples e inteligente.",
+    },
+  };
+
+  const texto =
+    textos[modulo];
+
+  async function entrarGoogle() {
     setErro("");
-    setSucesso("");
-    setEnviando(true);
-
-    try {
-      if (cadastro) {
-        if (!nome.trim()) {
-          setErro("Informe seu nome para continuar.");
-          return;
-        }
-
-        const { data, error } = await cadastrar(
-          nome.trim(),
-          email.trim(),
-          senha,
-        );
-
-        if (error) {
-          throw error;
-        }
-
-        if (data.session) {
-          navigate(
-            "/boas-vindas",
-            {
-              replace: true,
-              state: {
-                destino: destinoAposLogin,
-              },
-            },
-          );
-
-          return;
-        }
-
-        setSucesso(
-          "Conta criada. Confira seu e-mail para confirmar seu acesso.",
-        );
-
-        return;
-      }
-
-      const { error } = await entrar(
-        email.trim(),
-        senha,
-      );
-
-      if (error) {
-        throw error;
-      }
-
-      navigate(
-        "/boas-vindas",
-        {
-          replace: true,
-          state: {
-            destino: destinoAposLogin,
-          },
-        },
-      );
-    } catch (error) {
-      console.error(error);
-
-      if (error.message === "Invalid login credentials") {
-        setErro("E-mail ou senha incorretos.");
-        return;
-      }
-
-      if (error.message?.includes("already registered")) {
-        setErro("Este e-mail já possui uma conta.");
-        return;
-      }
-
-      setErro(
-        "Não conseguimos concluir agora. Confira os dados e tente novamente.",
-      );
-    } finally {
-      setEnviando(false);
-    }
-  }
-
-  async function handleRecuperarSenha() {
-    setErro("");
-    setSucesso("");
-
-    const emailInformado = email.trim();
-
-    if (!emailInformado) {
-      setErro(
-        "Informe seu e-mail para recuperar a senha.",
-      );
-      return;
-    }
-
     setEnviando(true);
 
     try {
       const { error } =
-        await recuperarSenha(emailInformado);
+        await entrarComGoogle(
+          modulo,
+        );
 
       if (error) {
         throw error;
       }
-
-      setSucesso(
-        "Enviamos um link para redefinir sua senha. Confira sua caixa de entrada e também o spam.",
-      );
     } catch (error) {
       console.error(error);
 
       setErro(
-        "Não foi possível enviar o link de recuperação. Tente novamente.",
+        "Não conseguimos acessar com o Google. Tente novamente.",
       );
-    } finally {
+
       setEnviando(false);
     }
-  }
-
-  function trocarModo() {
-    setErro("");
-    setSucesso("");
-
-    setModo((atual) =>
-      atual === "login" ? "cadastro" : "login",
-    );
   }
 
   return (
@@ -202,21 +133,15 @@ function LoginPage() {
 
         <div className="auth-heading">
           <span className="app-kicker">
-            {cadastro
-              ? "Comece gratuitamente"
-              : "Bem-vindo"}
+            {texto.kicker}
           </span>
 
           <h1>
-            {cadastro
-              ? "Crie sua biblioteca"
-              : "Entre para acessar suas aulas"}
+            {texto.titulo}
           </h1>
 
           <p>
-            {cadastro
-              ? "Você poderá importar até 3 arquivos gratuitamente e experimentar todos os recursos."
-              : "Sua EBD, seus sermões e seus livros ficam organizados em uma única biblioteca."}
+            {texto.descricao}
           </p>
         </div>
 
@@ -227,154 +152,52 @@ function LoginPage() {
           </div>
         )}
 
-        {sucesso && (
-          <div className="auth-message auth-success">
-            <CheckCircle2 size={19} />
-
-            <span>{sucesso}</span>
+        {erro && (
+          <div className="auth-message auth-error">
+            {erro}
           </div>
         )}
 
-        <form
-          className="auth-form"
-          onSubmit={handleSubmit}
+        <button
+          type="button"
+          className="primary-button auth-submit"
+          onClick={entrarGoogle}
+          disabled={enviando}
+          style={{
+            width: "100%",
+            justifyContent: "center",
+            gap: "12px",
+          }}
         >
-          {cadastro && (
-            <label>
-              Nome
-
-              <input
-                type="text"
-                value={nome}
-                onChange={(event) =>
-                  setNome(event.target.value)
-                }
-                placeholder="Como podemos chamar você?"
-                autoComplete="name"
-              />
-            </label>
-          )}
-
-          <label>
-            E-mail
-
-            <input
-              type="email"
-              value={email}
-              onChange={(event) =>
-                setEmail(event.target.value)
-              }
-              placeholder="seu@email.com"
-              required
-              autoComplete="email"
-            />
-          </label>
-
-          <label>
-            Senha
-
-            <div className="auth-password-field">
-              <input
-                type={
-                  mostrarSenha
-                    ? "text"
-                    : "password"
-                }
-                value={senha}
-                onChange={(event) =>
-                  setSenha(event.target.value)
-                }
-                placeholder={
-                  cadastro
-                    ? "Crie uma senha"
-                    : "Sua senha"
-                }
-                required
-                minLength={6}
-                autoComplete={
-                  cadastro
-                    ? "new-password"
-                    : "current-password"
-                }
-              />
-
-              <button
-                type="button"
-                className="auth-password-toggle"
-                onMouseDown={(event) =>
-                  event.preventDefault()
-                }
-                onClick={() =>
-                  setMostrarSenha(
-                    (atual) => !atual,
-                  )
-                }
-                aria-label={
-                  mostrarSenha
-                    ? "Ocultar senha"
-                    : "Mostrar senha"
-                }
-                title={
-                  mostrarSenha
-                    ? "Ocultar senha"
-                    : "Mostrar senha"
-                }
-              >
-                {mostrarSenha ? (
-                  <EyeOff size={19} />
-                ) : (
-                  <Eye size={19} />
-                )}
-              </button>
-            </div>
-          </label>
-
-          {!cadastro && (
-            <p className="auth-footer">
-              <button
-                type="button"
-                onClick={handleRecuperarSenha}
-                disabled={enviando}
-              >
-                Esqueci minha senha
-              </button>
-            </p>
-          )}
-
-          {erro && (
-            <div className="auth-message auth-error">
-              {erro}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            className="primary-button auth-submit"
-            disabled={enviando}
+          <span
+            aria-hidden="true"
+            style={{
+              width: "24px",
+              height: "24px",
+              borderRadius: "50%",
+              background: "#fff",
+              color: "#4285f4",
+              display: "grid",
+              placeItems: "center",
+              fontWeight: 800,
+            }}
           >
-            {enviando
-              ? "Aguarde..."
-              : cadastro
-                ? "Criar minha biblioteca"
-                : "Entrar"}
+            G
+          </span>
 
-            {!enviando && <ArrowRight size={18} />}
-          </button>
-        </form>
+          {enviando
+            ? "Abrindo Google..."
+            : "Continuar com Google"}
+        </button>
 
-        <p className="auth-footer">
-          {cadastro
-            ? "Já possui uma conta?"
-            : "Ainda não tem acesso?"}
-
-          {" "}
-
-          <button
-            type="button"
-            onClick={trocarModo}
-          >
-            {cadastro ? "Entrar" : "Criar conta"}
-          </button>
+        <p
+          className="auth-footer"
+          style={{
+            marginTop: "18px",
+            opacity: 0.7,
+          }}
+        >
+          Acesso rápido. Nenhum dado de pagamento será solicitado agora.
         </p>
       </div>
     </div>

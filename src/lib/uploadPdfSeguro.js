@@ -2,6 +2,40 @@
 
 const BUCKET = "biblia-slides-pdfs";
 
+function redirecionarBloqueioDemo(codigo) {
+    if (
+        typeof window === "undefined"
+    ) {
+        return false;
+    }
+
+    if (
+        codigo ===
+        "DEMO_LIMITE_MODULO"
+    ) {
+        window.location.assign(
+            "/acesso?motivo=limite-demo"
+        );
+
+        return true;
+    }
+
+    if (
+        codigo ===
+        "DEMO_EXPIRADA"
+    ) {
+        window.location.assign(
+            "/acesso?motivo=demo-expirada"
+        );
+
+        return true;
+    }
+
+    return false;
+}
+
+
+
 function criarErro(
     mensagem,
     codigo = "UPLOAD_ERRO",
@@ -108,9 +142,9 @@ async function confirmarReserva(
     if (!data?.ok) {
         throw criarErro(
             data?.mensagem ??
-                "Não foi possível confirmar o armazenamento do PDF.",
+            "Não foi possível confirmar o armazenamento do PDF.",
             data?.codigo ??
-                "ERRO_CONFIRMAR_UPLOAD",
+            "ERRO_CONFIRMAR_UPLOAD",
             data,
         );
     }
@@ -144,7 +178,7 @@ export async function uploadPdfSeguro({
     if (
         arquivo.type &&
         arquivo.type !==
-            "application/pdf"
+        "application/pdf"
     ) {
         throw criarErro(
             "Somente arquivos PDF são permitidos.",
@@ -188,25 +222,31 @@ export async function uploadPdfSeguro({
                 erroAutorizacao,
             );
 
+        redirecionarBloqueioDemo(
+            detalhe?.codigo,
+        );
+        
+
         throw criarErro(
             detalhe?.erro ??
-                erroAutorizacao.message ??
-                "Não foi possível autorizar o upload.",
+            erroAutorizacao.message ??
+            "Não foi possível autorizar o upload.",
 
             detalhe?.codigo ??
-                "ERRO_AUTORIZAR_UPLOAD",
+            "ERRO_AUTORIZAR_UPLOAD",
 
             detalhe,
         );
     }
 
     if (!autorizacao?.ok) {
+        
         throw criarErro(
             autorizacao?.erro ??
-                "O upload não foi autorizado.",
+            "O upload não foi autorizado.",
 
             autorizacao?.codigo ??
-                "UPLOAD_NEGADO",
+            "UPLOAD_NEGADO",
 
             autorizacao,
         );
@@ -295,7 +335,7 @@ export async function uploadPdfSeguro({
                 reservaId,
 
                 erro?.message ??
-                    "Falha durante o upload",
+                "Falha durante o upload",
             );
         }
 

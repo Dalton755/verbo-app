@@ -21,11 +21,6 @@ import {
 
 import { supabase } from "../lib/supabase";
 
-import {
-  concluirCadastroModuloPendente,
-  existeCadastroModuloPendente,
-} from "../lib/modulosUsuario";
-
 import { useAuth } from "../contexts/AuthContext";
 import { useLicense } from "../contexts/LicenseContext";
 
@@ -123,22 +118,6 @@ function BibliotecaPage() {
     return () => {
       ativo = false;
     };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    async function concluirConfiguracaoInicial() {
-      if (
-        !existeCadastroModuloPendente()
-      ) {
-        return;
-      }
-
-      await concluirCadastroModuloPendente();
-    }
-
-    concluirConfiguracaoInicial();
   }, [user]);
 
   function formatarBytes(bytes) {

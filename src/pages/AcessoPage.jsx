@@ -2,15 +2,22 @@ import { useLicense } from "../contexts/LicenseContext";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 function AcessoPage() {
+
+  const navigate = useNavigate();
+
+
   const {
     temLicenca,
     carregandoLicenca,
     erroLicenca,
     recarregarLicenca,
+    acessoVitalicio,
   } = useLicense();
+
+
 
 
   const { sair } = useAuth();
@@ -25,6 +32,23 @@ function AcessoPage() {
     new URLSearchParams(
       window.location.search
     ).get("pagamento");
+
+  const motivoOferta =
+    new URLSearchParams(
+      window.location.search
+    ).get("motivo");
+
+  const ofertaPorLimiteDemo =
+    motivoOferta ===
+    "limite-demo";
+
+  const retornoPagamento =
+    statusPagamento ===
+    "aprovado" ||
+    statusPagamento ===
+    "pendente" ||
+    statusPagamento ===
+    "falhou";
 
   useEffect(() => {
     const parametros =
@@ -154,7 +178,20 @@ function AcessoPage() {
     );
   }
 
-  if (temLicenca) {
+  if (acessoVitalicio) {
+    return (
+      <Navigate
+        to="/"
+        replace
+      />
+    );
+  }
+
+  if (
+    temLicenca &&
+    !ofertaPorLimiteDemo &&
+    !retornoPagamento
+  ) {
     return (
       <Navigate
         to="/"
@@ -227,13 +264,19 @@ function AcessoPage() {
         {!statusPagamento && (
           <div className="access-status access-status-neutral">
             <strong>
-              Seu período gratuito terminou
+              {ofertaPorLimiteDemo
+                ? "Você concluiu o teste deste módulo"
+                : ofertaPorDemoExpirada
+                  ? "Seus 7 dias de demonstração terminaram"
+                  : "Libere o VERBO completo"}
             </strong>
 
             <span>
-              Continue usando todo o seu conteúdo
-              com acesso vitalício por apenas
-              R$ 9,90, pagamento único.
+              {ofertaPorLimiteDemo
+                ? "Na demonstração você pode importar 1 arquivo em cada módulo. Para importar outro arquivo neste módulo, libere o VERBO Vitalício."
+                : ofertaPorDemoExpirada
+                  ? "Seu período gratuito de 7 dias chegou ao fim. Libere o VERBO Vitalício para continuar usando seus materiais."
+                  : "Tenha acesso vitalício ao VERBO com 25 MB de armazenamento incluídos."}
             </span>
           </div>
         )}
@@ -308,6 +351,25 @@ function AcessoPage() {
           </div>
         </div>
 
+        <div className="access-feature">
+          <span className="access-check">
+            ✓
+          </span>
+
+          <div>
+            <strong>
+              25 MB incluídos
+            </strong>
+
+            <small>
+              Espaço incluído no acesso
+              vitalício. Se precisar de mais
+              espaço no futuro, você poderá
+              contratar separadamente.
+            </small>
+          </div>
+        </div>
+
         <div className="access-price-box">
           <span>
             Pagamento único
@@ -318,7 +380,7 @@ function AcessoPage() {
           </strong>
 
           <small>
-            Acesso vitalício
+            VERBO Vitalício · 25 MB incluídos · Sem mensalidade
           </small>
         </div>
 
@@ -332,9 +394,19 @@ function AcessoPage() {
             >
               {abrindoCheckout
                 ? "Abrindo pagamento..."
-                : "Liberar meu acesso"}
+                : "Liberar VERBO Vitalício"}
             </button>
           )}
+
+        {ofertaPorLimiteDemo && (
+          <button
+            className="access-secondary-button"
+            type="button"
+            onClick={() => navigate("/")}
+          >
+            Continuar minha demonstração
+          </button>
+        )}
 
         <button
           className="access-secondary-button"

@@ -417,10 +417,10 @@ export default {
                     "BIBLIA_SLIDES_VITALICIO",
 
                   title:
-                    "Apresentações Bíblicas - Acesso vitalício",
+                    "VERBO Vitalício + 25 MB",
 
                   description:
-                    "Licença vitalícia do aplicativo Apresentações Bíblicas",
+                    "Acesso vitalício ao VERBO com 25 MB de armazenamento incluídos. Pagamento único, sem mensalidade.",
 
                   quantity: 1,
 

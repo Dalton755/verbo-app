@@ -11,7 +11,6 @@ import {
   LogOut,
   Mic2,
   Plus,
-  Settings,
 } from "lucide-react";
 
 import {
@@ -20,11 +19,6 @@ import {
 } from "react-router-dom";
 
 import { supabase } from "../lib/supabase";
-
-import {
-  concluirCadastroModuloPendente,
-  existeCadastroModuloPendente,
-} from "../lib/modulosUsuario";
 
 import { useAuth } from "../contexts/AuthContext";
 import { useLicense } from "../contexts/LicenseContext";
@@ -70,11 +64,6 @@ function BibliotecaPage() {
   ] = useState({});
 
   const [
-    modulosAtivos,
-    setModulosAtivos,
-  ] = useState({});
-
-  const [
     upgradeAberto,
     setUpgradeAberto,
   ] = useState(false);
@@ -83,63 +72,6 @@ function BibliotecaPage() {
     mensagemUpgrade,
     setMensagemUpgrade,
   ] = useState("");
-
-  useEffect(() => {
-    if (!user) return;
-
-    let ativo = true;
-
-    async function carregarModulosAtivos() {
-      const { data, error } =
-        await supabase
-          .schema("biblia_slides")
-          .from("usuario_modulos_config")
-          .select("modulo_id, ativo")
-          .eq("user_id", user.id);
-
-      if (!ativo) return;
-
-      if (error) {
-        console.error(
-          "Erro ao carregar configuração dos módulos:",
-          error,
-        );
-
-        return;
-      }
-
-      const mapa = {};
-
-      for (const item of data ?? []) {
-        mapa[item.modulo_id] =
-          item.ativo !== false;
-      }
-
-      setModulosAtivos(mapa);
-    }
-
-    carregarModulosAtivos();
-
-    return () => {
-      ativo = false;
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) return;
-
-    async function concluirConfiguracaoInicial() {
-      if (
-        !existeCadastroModuloPendente()
-      ) {
-        return;
-      }
-
-      await concluirCadastroModuloPendente();
-    }
-
-    concluirConfiguracaoInicial();
-  }, [user]);
 
   function formatarBytes(bytes) {
     const valor = Number(bytes ?? 0);
@@ -515,8 +447,6 @@ function BibliotecaPage() {
   const modulos = [
     {
       id: "ebd",
-      moduloId:
-        "0736ccca-d516-4392-a4a5-ab363783596d",
       titulo: "EBD",
       descricao:
         "Organize seus trimestres, aulas e apresentações bíblicas.",
@@ -529,8 +459,6 @@ function BibliotecaPage() {
 
     {
       id: "sermoes",
-      moduloId:
-        "6f21e907-f744-4235-9a7f-26e8e1fdb631",
       titulo: "Sermões",
       descricao:
         "Guarde seus esboços e pregue com uma tela limpa e assistida.",
@@ -543,8 +471,6 @@ function BibliotecaPage() {
 
     {
       id: "livros",
-      moduloId:
-        "dfe1b16e-f01b-44d7-a674-c6d2d3fcd61a",
       titulo: "Livros",
       descricao:
         "Monte sua biblioteca cristã e leia seus PDFs com conforto.",
@@ -555,14 +481,6 @@ function BibliotecaPage() {
         armazenamentoModulos.livros,
     },
   ];
-
-  const modulosVisiveis =
-    modulos.filter(
-      (modulo) =>
-        modulosAtivos[
-        modulo.moduloId
-        ] !== false,
-    );
 
   return (
     <div className="app">
@@ -595,37 +513,14 @@ function BibliotecaPage() {
           </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}
+        <button
+          className="icon-button"
+          aria-label="Sair"
+          title="Sair"
+          onClick={sair}
         >
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Configurar módulos"
-            title="Configurar módulos"
-            onClick={() =>
-              navigate(
-                "/configuracoes/modulos",
-              )
-            }
-          >
-            <Settings size={19} />
-          </button>
-
-          <button
-            type="button"
-            className="icon-button"
-            aria-label="Sair"
-            title="Sair"
-            onClick={sair}
-          >
-            <LogOut size={19} />
-          </button>
-        </div>
+          <LogOut size={19} />
+        </button>
       </header>
 
       <main className="page-content library-home">
@@ -650,7 +545,7 @@ function BibliotecaPage() {
         </section>
 
         <section className="module-grid">
-          {modulosVisiveis.map((modulo) => {
+          {modulos.map((modulo) => {
             const Icon = modulo.icon;
 
             return (
