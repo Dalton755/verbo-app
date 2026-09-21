@@ -10,6 +10,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -562,6 +563,9 @@ function GuidedTour() {
     setAlvoRect,
   ] = useState(null);
 
+  const cardRef =
+    useRef(null);
+
   const passo =
     tour?.passos?.[passoAtual] ??
     null;
@@ -756,41 +760,72 @@ function GuidedTour() {
     width: `${larguraCard}px`,
   };
 
+  let posicaoCard =
+    "centro";
+
   if (alvoRect) {
-    const centro =
+    const alvoCentroX =
       alvoRect.left +
       alvoRect.width / 2;
 
-    const left =
-      limitar(
-        centro -
-          larguraCard / 2,
-        12,
-        window.innerWidth -
-          larguraCard -
-          12,
-      );
+    const alvoCentroY =
+      alvoRect.top +
+      alvoRect.height / 2;
 
-    const espacoAbaixo =
-      window.innerHeight -
-      alvoRect.bottom;
+    const telaLarga =
+      window.innerWidth >= 760;
 
-    estiloCard = {
-      ...estiloCard,
-      left: `${left}px`,
-      top:
-        espacoAbaixo >= 280
-          ? `${Math.min(
-              alvoRect.bottom +
-                14,
-              window.innerHeight -
-                270,
-            )}px`
-          : `${Math.max(
-              12,
-              alvoRect.top - 250,
-            )}px`,
-    };
+    const alvoNaoOcupaTelaToda =
+      alvoRect.width <
+      window.innerWidth * 0.58;
+
+    if (
+      telaLarga &&
+      alvoNaoOcupaTelaToda
+    ) {
+      const alvoNaEsquerda =
+        alvoCentroX <
+        window.innerWidth / 2;
+
+      posicaoCard =
+        alvoNaEsquerda
+          ? "direita"
+          : "esquerda";
+
+      estiloCard = {
+        ...estiloCard,
+        top: "50%",
+        transform:
+          "translateY(-50%)",
+        left:
+          alvoNaEsquerda
+            ? `${window.innerWidth - larguraCard - 18}px`
+            : "18px",
+      };
+    } else {
+      const alvoNaMetadeSuperior =
+        alvoCentroY <
+        window.innerHeight / 2;
+
+      posicaoCard =
+        alvoNaMetadeSuperior
+          ? "baixo"
+          : "cima";
+
+      estiloCard = {
+        ...estiloCard,
+        left: "50%",
+        transform:
+          "translateX(-50%)",
+        ...(alvoNaMetadeSuperior
+          ? {
+              bottom: "14px",
+            }
+          : {
+              top: "14px",
+            }),
+      };
+    }
   }
 
   return (
@@ -835,9 +870,10 @@ function GuidedTour() {
           )}
 
           <article
+            ref={cardRef}
             className={
               alvoRect
-                ? "guided-tour-card"
+                ? `guided-tour-card guided-tour-card-${posicaoCard}`
                 : "guided-tour-card guided-tour-card-centered"
             }
             style={
@@ -855,12 +891,16 @@ function GuidedTour() {
               </div>
 
               <div>
-                <span>
-                  {tour.titulo}
+                <span className="guided-tour-badge">
+                  TOUR GUIADO
                 </span>
 
+                <strong className="guided-tour-section">
+                  {tour.titulo}
+                </strong>
+
                 <small>
-                  {passoAtual + 1} de{" "}
+                  Passo {passoAtual + 1} de{" "}
                   {total}
                 </small>
               </div>
