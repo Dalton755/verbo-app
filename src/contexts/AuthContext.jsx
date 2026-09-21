@@ -123,6 +123,19 @@ export function AuthProvider({
   const verificandoRef =
     useRef(false);
 
+  async function registrarEntradaApp() {
+    try {
+      await supabase
+        .schema("biblia_slides")
+        .rpc("registrar_entrada_app");
+    } catch (error) {
+      console.debug(
+        "Não foi possível registrar a entrada no painel:",
+        error,
+      );
+    }
+  }
+
   async function garantirProfile(
     usuario,
   ) {
@@ -452,6 +465,8 @@ export function AuthProvider({
           sessaoAtual.user,
         );
 
+        await registrarEntradaApp();
+
         if (
           existeOAuthPendente()
         ) {
@@ -536,6 +551,8 @@ export function AuthProvider({
                   garantirProfile(
                     novaSessao.user,
                   );
+
+                  registrarEntradaApp();
                 },
                 0,
               );
