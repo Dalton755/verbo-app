@@ -11027,3 +11027,445 @@ input:focus-visible {
     flex-direction: column;
   }
 }
+
+
+/* =========================================
+   VERBO ADMIN — LIBERAÇÃO DE ACESSO
+========================================= */
+
+.admin-release-button {
+  min-height: 42px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 0 14px;
+
+  border:
+    1px solid
+    rgba(247, 215, 120, 0.34);
+  border-radius: 12px;
+
+  color: #ffe9a7;
+  background:
+    rgba(247, 215, 120, 0.08);
+
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.admin-release-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100020;
+
+  display: grid;
+  place-items: center;
+
+  padding: 18px;
+
+  background:
+    rgba(9, 19, 13, 0.68);
+
+  backdrop-filter: blur(7px);
+}
+
+.admin-release-modal {
+  width:
+    min(620px, 100%);
+
+  max-height:
+    calc(100vh - 36px);
+
+  overflow-y: auto;
+
+  border:
+    1px solid
+    rgba(53, 85, 67, 0.14);
+  border-radius: 22px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 28px 90px
+    rgba(8, 23, 14, 0.34);
+}
+
+.admin-release-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+
+  padding: 22px;
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #173425,
+      #315b43
+    );
+}
+
+.admin-release-head > div {
+  min-width: 0;
+}
+
+.admin-release-head span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+
+  color: #d6ebdc;
+}
+
+.admin-release-head h2 {
+  margin: 0;
+
+  font-size: 1.35rem;
+}
+
+.admin-release-head p {
+  margin:
+    8px 0 0;
+
+  max-width: 470px;
+
+  line-height: 1.5;
+
+  color:
+    rgba(255, 255, 255, 0.74);
+}
+
+.admin-release-close {
+  width: 38px;
+  height: 38px;
+
+  flex: 0 0 auto;
+
+  display: grid;
+  place-items: center;
+
+  border:
+    1px solid
+    rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+
+  color: #ffffff;
+  background:
+    rgba(255, 255, 255, 0.08);
+
+  cursor: pointer;
+}
+
+.admin-release-form {
+  display: grid;
+  gap: 16px;
+
+  padding: 22px;
+}
+
+.admin-release-form label,
+.admin-release-duration {
+  display: grid;
+  gap: 7px;
+}
+
+.admin-release-form label > span,
+.admin-release-label {
+  font-size: 0.78rem;
+  font-weight: 800;
+
+  color: #4b6254;
+}
+
+.admin-release-form input,
+.admin-release-form select {
+  width: 100%;
+  min-height: 46px;
+
+  padding: 0 13px;
+
+  border:
+    1px solid
+    rgba(53, 85, 67, 0.18);
+  border-radius: 12px;
+
+  outline: none;
+
+  color: #203c2c;
+  background: #fbfcfb;
+
+  font: inherit;
+}
+
+.admin-release-form input:focus,
+.admin-release-form select:focus {
+  border-color:
+    rgba(53, 85, 67, 0.55);
+
+  box-shadow:
+    0 0 0 3px
+    rgba(53, 85, 67, 0.08);
+}
+
+.admin-input-with-suffix {
+  position: relative;
+}
+
+.admin-input-with-suffix input {
+  padding-right: 58px;
+}
+
+.admin-input-with-suffix strong {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+
+  transform:
+    translateY(-50%);
+
+  font-size: 0.78rem;
+
+  color: #738178;
+}
+
+.admin-release-options {
+  display: grid;
+  grid-template-columns:
+    1fr 1fr;
+  gap: 8px;
+}
+
+.admin-release-options button {
+  min-height: 44px;
+
+  border:
+    1px solid
+    rgba(53, 85, 67, 0.14);
+  border-radius: 12px;
+
+  color: #53655a;
+  background: #f7f9f7;
+
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.admin-release-options button.active {
+  color: #ffffff;
+  border-color: #315b43;
+
+  background:
+    linear-gradient(
+      135deg,
+      #315b43,
+      #203f2f
+    );
+}
+
+.admin-release-current {
+  display: grid;
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.admin-release-current > div {
+  min-width: 0;
+
+  padding: 11px;
+
+  border-radius: 12px;
+
+  background: #f4f7f5;
+}
+
+.admin-release-current span,
+.admin-release-current strong {
+  display: block;
+}
+
+.admin-release-current span {
+  margin-bottom: 3px;
+
+  font-size: 0.68rem;
+
+  color: #7c8a82;
+}
+
+.admin-release-current strong {
+  overflow: hidden;
+
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  color: #294737;
+}
+
+.admin-release-note {
+  display: grid;
+  grid-template-columns:
+    28px 1fr;
+  gap: 9px;
+  align-items: start;
+
+  padding: 12px 13px;
+
+  border:
+    1px solid
+    rgba(53, 85, 67, 0.10);
+  border-radius: 13px;
+
+  color: #355543;
+  background: #f5f8f6;
+}
+
+.admin-release-note p {
+  margin: 0;
+
+  font-size: 0.79rem;
+  line-height: 1.5;
+}
+
+.admin-release-message {
+  padding: 12px 13px;
+
+  border-radius: 12px;
+
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.admin-release-message.error {
+  color: #a43b3b;
+  background: #fff1f1;
+}
+
+.admin-release-message.success {
+  color: #15703e;
+  background: #eaf8ef;
+}
+
+.admin-release-actions {
+  position: sticky;
+  bottom: 0;
+
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+
+  padding:
+    14px 22px 18px;
+
+  border-top:
+    1px solid
+    rgba(53, 85, 67, 0.08);
+
+  background:
+    rgba(255, 255, 255, 0.96);
+
+  backdrop-filter: blur(8px);
+}
+
+.admin-release-actions button {
+  min-height: 42px;
+
+  padding:
+    0 15px;
+
+  border-radius: 12px;
+
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.admin-release-actions button:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+
+.admin-release-cancel {
+  border:
+    1px solid
+    rgba(53, 85, 67, 0.16);
+
+  color: #4e6256;
+  background: #ffffff;
+}
+
+.admin-release-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  border: 0;
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #315b43,
+      #173425
+    );
+}
+
+@media (max-width: 640px) {
+  .admin-release-button {
+    width: 42px;
+
+    padding: 0;
+
+    justify-content: center;
+  }
+
+  .admin-release-button span {
+    display: none;
+  }
+
+  .admin-release-overlay {
+    align-items: end;
+
+    padding: 0;
+  }
+
+  .admin-release-modal {
+    width: 100%;
+    max-height: 92vh;
+
+    border-radius:
+      22px 22px 0 0;
+  }
+
+  .admin-release-head,
+  .admin-release-form {
+    padding:
+      18px 16px;
+  }
+
+  .admin-release-current {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-release-actions {
+    padding:
+      12px 16px
+      calc(
+        14px +
+        env(safe-area-inset-bottom)
+      );
+  }
+}
