@@ -1,0 +1,23 @@
+{
+  "version": "2026.09.21.3",
+  "title": "O que mudou no VERBO",
+  "summary": "Esta atualização trouxe melhorias para leitura, estudo e acompanhamento das novidades do aplicativo.",
+  "items": [
+    {
+      "title": "Dicionário por seleção de palavra",
+      "description": "Selecione uma única palavra em Livros, Sermões ou na apresentação da EBD para consultar o significado sem sair do VERBO."
+    },
+    {
+      "title": "Também funciona nos textos bíblicos",
+      "description": "Ao abrir uma referência bíblica, você também pode selecionar uma palavra do texto e consultar seu significado."
+    },
+    {
+      "title": "Seleção inteligente",
+      "description": "O dicionário aparece somente para uma palavra. Frases e trechos continuam livres para os recursos de destaque e notas disponíveis no módulo."
+    },
+    {
+      "title": "Atualizações mais claras",
+      "description": "A partir de agora, depois de atualizar o VERBO você verá um resumo do que foi acrescentado ou alterado na nova versão."
+    }
+  ]
+}

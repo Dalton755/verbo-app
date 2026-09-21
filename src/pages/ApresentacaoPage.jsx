@@ -35,6 +35,12 @@ import {
     buscarPassagemBiblica,
 } from "../lib/bibleApi";
 
+import DictionaryModal
+    from "../components/DictionaryModal";
+
+import DictionarySelectionAction
+    from "../components/DictionarySelectionAction";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 function ApresentacaoPage() {
@@ -76,6 +82,16 @@ function ApresentacaoPage() {
         hotspotsBiblicos,
         setHotspotsBiblicos,
     ] = useState([]);
+
+    const [
+        itensCamadaTexto,
+        setItensCamadaTexto,
+    ] = useState([]);
+
+    const [
+        palavraDicionario,
+        setPalavraDicionario,
+    ] = useState("");
 
     const [
         referenciasAbertas,
@@ -288,6 +304,81 @@ function ApresentacaoPage() {
                 const textoPagina = itensTexto
                     .map((item) => item.str)
                     .join(" ");
+
+                const camadaTexto =
+                    itensTexto.map(
+                        (
+                            item,
+                            indice,
+                        ) => {
+                            const transform =
+                                pdfjsLib.Util.transform(
+                                    viewport.transform,
+                                    item.transform,
+                                );
+
+                            const fontSize =
+                                Math.max(
+                                    Math.hypot(
+                                        transform[2],
+                                        transform[3],
+                                    ),
+                                    6,
+                                );
+
+                            const largura =
+                                Math.max(
+                                    Number(
+                                        item.width,
+                                    ) *
+                                        escala,
+                                    2,
+                                );
+
+                            const angulo =
+                                Math.atan2(
+                                    transform[1],
+                                    transform[0],
+                                ) *
+                                (
+                                    180 /
+                                    Math.PI
+                                );
+
+                            return {
+                                id:
+                                    `${numeroPagina}-texto-${indice}`,
+
+                                texto:
+                                    item.str,
+
+                                left:
+                                    transform[4],
+
+                                top:
+                                    transform[5] -
+                                    fontSize,
+
+                                width:
+                                    largura,
+
+                                height:
+                                    Math.max(
+                                        fontSize *
+                                            1.2,
+                                        8,
+                                    ),
+
+                                fontSize,
+
+                                angulo,
+                            };
+                        },
+                    );
+
+                setItensCamadaTexto(
+                    camadaTexto,
+                );
 
                 const referenciasEncontradas =
                     extrairReferenciasBiblicas(
@@ -944,6 +1035,42 @@ function ApresentacaoPage() {
                             }
                         />
 
+                        <div
+                            className="presentation-text-layer"
+                            aria-hidden="true"
+                        >
+                            {itensCamadaTexto.map(
+                                (item) => (
+                                    <span
+                                        key={
+                                            item.id
+                                        }
+                                        style={{
+                                            left:
+                                                item.left,
+                                            top:
+                                                item.top,
+                                            width:
+                                                item.width,
+                                            height:
+                                                item.height,
+                                            fontSize:
+                                                item.fontSize,
+                                            transform:
+                                                Math.abs(
+                                                    item.angulo,
+                                                ) >
+                                                0.5
+                                                    ? `rotate(${item.angulo}deg)`
+                                                    : undefined,
+                                        }}
+                                    >
+                                        {item.texto}
+                                    </span>
+                                ),
+                            )}
+                        </div>
+
                         <div className="bible-hotspot-layer">
                             {hotspotsBiblicos.map(
                                 (hotspot) => (
@@ -982,6 +1109,32 @@ function ApresentacaoPage() {
                     <ChevronRight size={26} />
                 </button>
             </main>
+
+            <DictionarySelectionAction
+                containerSelector=".presentation-text-layer"
+                disabled={
+                    renderizando
+                }
+                onOpen={
+                    setPalavraDicionario
+                }
+            />
+
+            <DictionaryModal
+                aberto={
+                    Boolean(
+                        palavraDicionario,
+                    )
+                }
+                palavra={
+                    palavraDicionario
+                }
+                onClose={() =>
+                    setPalavraDicionario(
+                        "",
+                    )
+                }
+            />
 
             <footer className="presentation-footer">
                 <button

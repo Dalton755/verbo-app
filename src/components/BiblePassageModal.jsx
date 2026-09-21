@@ -15,6 +15,12 @@ import {
   buscarPassagemBiblica,
 } from "../lib/bibleApi";
 
+import DictionaryModal
+  from "./DictionaryModal";
+
+import DictionarySelectionAction
+  from "./DictionarySelectionAction";
+
 function BiblePassageModal({
   referencia,
   onClose,
@@ -27,6 +33,11 @@ function BiblePassageModal({
 
   const [erro, setErro] =
     useState("");
+
+  const [
+    palavraDicionario,
+    setPalavraDicionario,
+  ] = useState("");
 
   useEffect(() => {
     if (!referencia) return;
@@ -167,6 +178,17 @@ function BiblePassageModal({
             )}
         </div>
 
+        <DictionarySelectionAction
+          containerSelector=".verse-content"
+          disabled={
+            carregando ||
+            Boolean(erro)
+          }
+          onOpen={
+            setPalavraDicionario
+          }
+        />
+
         {passagem && (
           <footer className="verse-footer">
             <span>
@@ -179,6 +201,22 @@ function BiblePassageModal({
           </footer>
         )}
       </article>
+
+      <DictionaryModal
+        aberto={
+          Boolean(
+            palavraDicionario,
+          )
+        }
+        palavra={
+          palavraDicionario
+        }
+        onClose={() =>
+          setPalavraDicionario(
+            "",
+          )
+        }
+      />
     </div>
   );
 

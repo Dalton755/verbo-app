@@ -60,6 +60,12 @@ import BibleLinkedText
 import BiblePassageModal
     from "../components/BiblePassageModal";
 
+import DictionaryModal
+    from "../components/DictionaryModal";
+
+import DictionarySelectionAction
+    from "../components/DictionarySelectionAction";
+
 import {
     buscarSermaoCache,
     salvarSermaoCache,
@@ -1093,6 +1099,11 @@ function SermaoPage() {
         referenciaAtiva,
         setReferenciaAtiva,
     ] = useState(null);
+
+    const [
+        palavraDicionario,
+        setPalavraDicionario,
+    ] = useState("");
 
     const [
         tamanhoFonte,
@@ -4844,6 +4855,18 @@ function SermaoPage() {
                     </div>
                 )}
 
+            <DictionarySelectionAction
+                containerSelector=".sermon-content"
+                disabled={
+                    modoVisualizacao !==
+                        "texto" ||
+                    modoEdicao
+                }
+                onOpen={
+                    setPalavraDicionario
+                }
+            />
+
             <div className="sermon-progress">
                 <div
                     style={{
@@ -6265,6 +6288,22 @@ function SermaoPage() {
                     </div>
                 </div>
             )}
+
+            <DictionaryModal
+                aberto={
+                    Boolean(
+                        palavraDicionario,
+                    )
+                }
+                palavra={
+                    palavraDicionario
+                }
+                onClose={() =>
+                    setPalavraDicionario(
+                        "",
+                    )
+                }
+            />
 
             <BiblePassageModal
                 referencia={

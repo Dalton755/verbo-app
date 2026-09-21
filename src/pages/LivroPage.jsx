@@ -60,6 +60,12 @@ import BookLinkedText
 import BiblePassageModal
     from "../components/BiblePassageModal";
 
+import DictionaryModal
+    from "../components/DictionaryModal";
+
+import DictionarySelectionAction
+    from "../components/DictionarySelectionAction";
+
 function lerProgressoLivro(id) {
     if (!id) {
         return null;
@@ -418,6 +424,11 @@ function LivroPage() {
         salvandoDestaque,
         setSalvandoDestaque,
     ] = useState(false);
+
+    const [
+        palavraDicionario,
+        setPalavraDicionario,
+    ] = useState("");
 
     const [
         destaqueAtivo,
@@ -6837,6 +6848,17 @@ function LivroPage() {
                     </div>
                 )}
 
+            <DictionarySelectionAction
+                containerSelector=".book-content, .book-paged-content"
+                disabled={
+                    modoVisualizacao !==
+                    "texto"
+                }
+                onOpen={
+                    setPalavraDicionario
+                }
+            />
+
             {(
                 selecaoDestaque ||
                 destaqueAtivo
@@ -7002,6 +7024,22 @@ function LivroPage() {
                         </button>
                     </div>
                 )}
+
+            <DictionaryModal
+                aberto={
+                    Boolean(
+                        palavraDicionario,
+                    )
+                }
+                palavra={
+                    palavraDicionario
+                }
+                onClose={() =>
+                    setPalavraDicionario(
+                        "",
+                    )
+                }
+            />
 
             {notaEditor && (
                 <div

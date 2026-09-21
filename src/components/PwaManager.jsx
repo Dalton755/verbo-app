@@ -5,8 +5,10 @@ import {
 } from "react";
 
 import {
+  CheckCircle2,
   Download,
   RefreshCw,
+  Sparkles,
   X,
 } from "lucide-react";
 
@@ -86,11 +88,27 @@ function PwaManager() {
     setAtualizando,
   ] = useState(false);
 
+  const [
+    notasVersao,
+    setNotasVersao,
+  ] = useState(null);
+
+  const [
+    novidadesAbertas,
+    setNovidadesAbertas,
+  ] = useState(false);
+
   const buildAtualRef =
     useRef(null);
 
   const versaoIgnoradaRef =
     useRef(null);
+
+  const CHAVE_VERSAO_VISTA =
+    "verbo:pwa-versao-vista";
+
+  const CHAVE_MOSTRAR_APOS_UPDATE =
+    "verbo:pwa-mostrar-novidades-apos-update";
 
   useEffect(() => {
     function aoPoderInstalar(event) {
@@ -127,6 +145,109 @@ function PwaManager() {
         "appinstalled",
         aoInstalar,
       );
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!import.meta.env.PROD) {
+      return;
+    }
+
+    let ativo = true;
+
+    async function carregarNotasVersao() {
+      try {
+        const resposta =
+          await fetch(
+            `/release-notes.json?__verbo_notes=${Date.now()}`,
+            {
+              cache: "no-store",
+              headers: {
+                "Cache-Control":
+                  "no-cache",
+              },
+            },
+          );
+
+        if (!resposta.ok) {
+          return;
+        }
+
+        const dados =
+          await resposta.json();
+
+        if (
+          !ativo ||
+          !dados?.version
+        ) {
+          return;
+        }
+
+        setNotasVersao(
+          dados,
+        );
+
+        const vista =
+          localStorage.getItem(
+            CHAVE_VERSAO_VISTA,
+          );
+
+        const forcarAbertura =
+          sessionStorage.getItem(
+            CHAVE_MOSTRAR_APOS_UPDATE,
+          ) === "1";
+
+        if (forcarAbertura) {
+          sessionStorage.removeItem(
+            CHAVE_MOSTRAR_APOS_UPDATE,
+          );
+        }
+
+        const jaUsavaApp =
+          Boolean(
+            navigator
+              .serviceWorker
+              ?.controller,
+          );
+
+        const versaoMudou =
+          Boolean(vista) &&
+          vista !==
+            dados.version;
+
+        const primeiroRegistroDeUsuarioExistente =
+          !vista &&
+          jaUsavaApp;
+
+        if (
+          forcarAbertura ||
+          versaoMudou ||
+          primeiroRegistroDeUsuarioExistente
+        ) {
+          setNovidadesAbertas(
+            true,
+          );
+          return;
+        }
+
+        if (!vista) {
+          localStorage.setItem(
+            CHAVE_VERSAO_VISTA,
+            dados.version,
+          );
+        }
+      } catch (error) {
+        console.debug(
+          "Notas da versão indisponíveis:",
+          error,
+        );
+      }
+    }
+
+    carregarNotasVersao();
+
+    return () => {
+      ativo = false;
     };
   }, []);
 
@@ -292,6 +413,15 @@ function PwaManager() {
       );
     }
 
+    try {
+      sessionStorage.setItem(
+        CHAVE_MOSTRAR_APOS_UPDATE,
+        "1",
+      );
+    } catch {
+      // A atualização segue normalmente.
+    }
+
     window.location.reload();
   }
 
@@ -300,6 +430,25 @@ function PwaManager() {
       novaVersao;
 
     setNovaVersao(null);
+  }
+
+  function fecharNovidades() {
+    if (
+      notasVersao?.version
+    ) {
+      try {
+        localStorage.setItem(
+          CHAVE_VERSAO_VISTA,
+          notasVersao.version,
+        );
+      } catch {
+        // Sem bloqueio.
+      }
+    }
+
+    setNovidadesAbertas(
+      false,
+    );
   }
 
   const mostrarInstalacao =
@@ -378,6 +527,34 @@ function PwaManager() {
                 VERBO. Atualize agora para
                 usar a versão mais recente.
               </p>
+
+              {Array.isArray(
+                notasVersao?.items,
+              ) &&
+                notasVersao.items.length >
+                  0 && (
+                  <ul className="pwa-update-preview-list">
+                    {notasVersao.items
+                      .slice(
+                        0,
+                        3,
+                      )
+                      .map(
+                        (
+                          item,
+                          indice,
+                        ) => (
+                          <li
+                            key={
+                              `${item.title}-${indice}`
+                            }
+                          >
+                            {item.title}
+                          </li>
+                        ),
+                      )}
+                  </ul>
+                )}
             </div>
 
             <div className="pwa-update-actions">
@@ -417,6 +594,95 @@ function PwaManager() {
           </article>
         </div>
       )}
+
+      {novidadesAbertas &&
+        notasVersao && (
+          <div
+            className="pwa-whats-new-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pwa-whats-new-title"
+          >
+            <article className="pwa-whats-new-modal">
+              <button
+                type="button"
+                className="pwa-whats-new-close"
+                aria-label="Fechar novidades"
+                onClick={
+                  fecharNovidades
+                }
+              >
+                <X size={19} />
+              </button>
+
+              <div className="pwa-whats-new-symbol">
+                <Sparkles
+                  size={25}
+                />
+              </div>
+
+              <span className="pwa-whats-new-kicker">
+                ATUALIZAÇÃO CONCLUÍDA
+              </span>
+
+              <h2 id="pwa-whats-new-title">
+                {notasVersao.title ||
+                  "O que mudou no VERBO"}
+              </h2>
+
+              {notasVersao.summary && (
+                <p className="pwa-whats-new-summary">
+                  {notasVersao.summary}
+                </p>
+              )}
+
+              <div className="pwa-whats-new-list">
+                {(
+                  notasVersao.items ??
+                  []
+                ).map(
+                  (
+                    item,
+                    indice,
+                  ) => (
+                    <div
+                      key={
+                        `${item.title}-${indice}`
+                      }
+                      className="pwa-whats-new-item"
+                    >
+                      <div>
+                        <CheckCircle2
+                          size={18}
+                        />
+                      </div>
+
+                      <div>
+                        <strong>
+                          {item.title}
+                        </strong>
+
+                        <p>
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  ),
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="pwa-whats-new-ok"
+                onClick={
+                  fecharNovidades
+                }
+              >
+                Entendi
+              </button>
+            </article>
+          </div>
+        )}
     </>
   );
 }
