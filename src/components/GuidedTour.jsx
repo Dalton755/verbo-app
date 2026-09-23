@@ -52,7 +52,7 @@ const TOURS = [
         seletor: ".module-grid",
         titulo: "Seus módulos",
         texto:
-          "EBD organiza trimestres e aulas, Sermões prepara seus esboços para pregação e Livros reúne sua biblioteca de arquivos.",
+          "EBD organiza trimestres e aulas, Sermões prepara PDFs ou DOCX para pregação e Livros reúne sua biblioteca de PDF e EPUB.",
       },
       {
         seletor: ".storage-card",
@@ -77,7 +77,7 @@ const TOURS = [
       {
         titulo: "Como funciona a EBD",
         texto:
-          "A organização segue um fluxo simples: crie um trimestre, entre nele, importe suas aulas em arquivo e abra cada aula para apresentar.",
+          "A organização segue um fluxo simples: crie um trimestre, entre nele, importe suas aulas em PDF ou PPTX e abra cada aula para apresentar.",
       },
       {
         seletor: ".module-header",
@@ -131,7 +131,7 @@ const TOURS = [
       {
         titulo: "Dentro do trimestre",
         texto:
-          "Aqui você organiza as aulas daquele período. Cada aula pode receber um arquivo e depois ser aberta no modo de apresentação.",
+          "Aqui você organiza as aulas daquele período. Cada aula pode receber um PDF e depois ser aberta no modo de apresentação.",
       },
       {
         seletor: ".trimestre-hero",
@@ -151,7 +151,7 @@ const TOURS = [
           ".mobile-action .primary-button, .desktop-import-button, .trimestre-empty-state .primary-button",
         titulo: "Importar aula",
         texto:
-          "Use este botão para adicionar uma aula em arquivo ou PPTX. O VERBO prepara o arquivo para apresentação e recursos bíblicos.",
+          "Use este botão para adicionar uma aula em PDF ou PPTX. O VERBO prepara o arquivo para apresentação e recursos bíblicos.",
       },
       {
         seletor: ".aula-card-main",
@@ -238,7 +238,7 @@ const TOURS = [
       {
         titulo: "Sua central de sermões",
         texto:
-          "Importe seus esboços em arquivo, organize o acervo e abra cada sermão para preparar o conteúdo ou usar o Modo Pregação.",
+          "Importe seus esboços em PDF, organize o acervo e abra cada sermão para preparar o conteúdo ou usar o Modo Pregação.",
       },
       {
         seletor: ".sermons-heading",
@@ -265,7 +265,7 @@ const TOURS = [
           ".desktop-import-button, .sermon-first-button, .mobile-action .primary-button",
         titulo: "Importar sermão",
         texto:
-          "Adicione o arquivo que você já utiliza. O VERBO prepara o conteúdo para leitura e para o modo de pregação.",
+          "Adicione o PDF que você já utiliza. O VERBO prepara o conteúdo para leitura e para o modo de pregação.",
       },
       {
         seletor: ".sermon-card-main",
@@ -313,7 +313,7 @@ const TOURS = [
           ".sermon-context-toolbar",
         titulo: "Ferramentas de preparação",
         texto:
-          "Nesta barra você pode alternar Texto/arquivo, ajustar a leitura, criar e consultar marcadores, abrir notas, histórico, registrar pregações, usar tela cheia e editar o sermão.",
+          "Nesta barra você pode alternar Texto/PDF, ajustar a leitura, criar e consultar marcadores, abrir notas, histórico, registrar pregações, usar tela cheia e editar o sermão.",
       },
       {
         seletor:
@@ -327,7 +327,7 @@ const TOURS = [
           ".sermon-content, .sermon-pdf-original",
         titulo: "Conteúdo do sermão",
         texto:
-          "Leia o texto preparado ou consulte o arquivo original. O VERBO mantém sua posição para facilitar a continuidade.",
+          "Leia o texto preparado ou consulte o PDF original. O VERBO mantém sua posição para facilitar a continuidade.",
       },
       {
         seletor: ".sermon-progress",
@@ -351,7 +351,7 @@ const TOURS = [
       {
         titulo: "Sua biblioteca pessoal",
         texto:
-          "Importe livros em arquivo, organize por temas e abra cada obra no leitor do VERBO.",
+          "Importe livros em PDF, organize por temas e abra cada obra no leitor do VERBO.",
       },
       {
         seletor: ".sermons-heading",
@@ -378,7 +378,7 @@ const TOURS = [
           ".desktop-import-button, .sermon-first-button, .mobile-action .primary-button",
         titulo: "Adicionar livro",
         texto:
-          "O fluxo começa pelo arquivo. O VERBO tenta identificar título e autor automaticamente e depois permite escolher ou criar o tema sem sair do formulário.",
+          "O fluxo começa pelo PDF. O VERBO tenta identificar título e autor automaticamente e depois permite escolher ou criar o tema sem sair do formulário.",
       },
       {
         seletor: ".book-card-main",
@@ -406,7 +406,7 @@ const TOURS = [
       {
         titulo: "Leitor de Livros",
         texto:
-          "O leitor adapta seu arquivo para estudo confortável e mantém o arquivo original disponível quando você precisar conferir a diagramação.",
+          "O leitor adapta seu PDF para estudo confortável e mantém o arquivo original disponível quando você precisar conferir a diagramação.",
       },
       {
         seletor: ".book-toolbar",
@@ -416,9 +416,9 @@ const TOURS = [
       },
       {
         seletor: ".book-view-toggle",
-        titulo: "Texto ou arquivo",
+        titulo: "Texto ou PDF",
         texto:
-          "Texto oferece leitura adaptada e recursos interativos. arquivo mostra o arquivo original preservando a página como foi enviada.",
+          "Texto oferece leitura adaptada e recursos interativos. PDF mostra o arquivo original preservando a página como foi enviada.",
       },
       {
         seletor:
