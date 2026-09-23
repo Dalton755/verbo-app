@@ -13384,16 +13384,44 @@ button.primary {
   container-type: inline-size;
 }
 
+.pptx-image-block,
+.pptx-shape-block,
+.pptx-line-block,
 .pptx-text-block {
   position: absolute;
+  transform-origin: center;
+}
+
+.pptx-image-block {
+  display: block;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pptx-shape-block,
+.pptx-line-block {
+  pointer-events: none;
+}
+
+.pptx-text-block {
   display: flex;
-  align-items: flex-start;
   overflow: hidden;
   color: #111827;
-  line-height: 1.16;
+  line-height: 1.12;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  padding: 0.15em 0.2em;
+  padding: 0.08em 0.14em;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.pptx-text-block > span {
+  position: static;
+  display: inline;
+  color: inherit;
+  font: inherit;
+  white-space: pre-wrap;
 }
 
 .pptx-text-block .sermon-bible-link {
