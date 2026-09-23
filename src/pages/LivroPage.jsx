@@ -51,8 +51,8 @@ import {
 } from "../lib/bookChapterDetector";
 
 import {
-    processarPdfLivro,
-} from "../lib/bookPdfProcessor";
+    processarArquivoLivro,
+} from "../lib/bookFileProcessor";
 
 import BookLinkedText
     from "../components/BookLinkedText";
@@ -1146,6 +1146,7 @@ function LivroPage() {
             titulo,
             autor,
             arquivo_nome,
+            arquivo_tipo,
             storage_path,
             total_paginas,
             ultima_pagina,
@@ -1304,12 +1305,19 @@ function LivroPage() {
                 );
 
                 /*
-                 * PDF original Ã© carregado
-                 * em segundo plano.
+                 * O original em PDF pode ser aberto
+                 * no modo de visualização nativa.
+                 * EPUB permanece na experiência
+                 * de leitura fluida do VERBO.
                  */
-                gerarUrlPdf(
-                    data,
-                );
+                if (
+                    (data.arquivo_tipo ?? "pdf") ===
+                    "pdf"
+                ) {
+                    gerarUrlPdf(
+                        data,
+                    );
+                }
 
                 return;
             }
@@ -1336,7 +1344,7 @@ function LivroPage() {
                 !signed?.signedUrl
             ) {
                 setErro(
-                    "Não conseguimos abrir o PDF deste livro.",
+                    "Não conseguimos abrir o arquivo deste livro.",
                 );
 
                 setCarregando(
@@ -1354,7 +1362,7 @@ function LivroPage() {
 
                 if (!resposta.ok) {
                     throw new Error(
-                        "Falha ao baixar PDF.",
+                        "Falha ao baixar o arquivo.",
                     );
                 }
 
@@ -1362,13 +1370,18 @@ function LivroPage() {
                     await resposta.blob();
 
                 const processamento =
-                    await processarPdfLivro(
+                    await processarArquivoLivro(
                         blob,
                     );
 
                 const conteudoProcessado = {
                     versao:
                         processamento.versao,
+
+                    formato:
+                        processamento.formato ??
+                        data.arquivo_tipo ??
+                        "pdf",
 
                     paginas:
                         processamento.paginas,
@@ -1385,7 +1398,8 @@ function LivroPage() {
                         conteudoProcessado,
 
                     processador_versao:
-                        1,
+                        processamento
+                            .versao ?? 1,
                 };
 
                 if (!ativo) {
@@ -1430,7 +1444,8 @@ function LivroPage() {
                                 .toISOString(),
 
                         processador_versao:
-                            1,
+                            processamento
+                                .versao ?? 1,
                     })
                     .eq(
                         "id",
@@ -6125,28 +6140,32 @@ function LivroPage() {
                             </span>
                         </button>
 
-                        <button
-                            type="button"
-                            className={
-                                modoVisualizacao ===
-                                    "pdf"
-                                    ? "active"
-                                    : ""
-                            }
-                            onClick={() =>
-                                setModoVisualizacao(
-                                    "pdf",
-                                )
-                            }
-                        >
-                            <BookOpen
-                                size={16}
-                            />
+                        {(livro?.arquivo_tipo ??
+                            "pdf") ===
+                            "pdf" && (
+                            <button
+                                type="button"
+                                className={
+                                    modoVisualizacao ===
+                                        "pdf"
+                                        ? "active"
+                                        : ""
+                                }
+                                onClick={() =>
+                                    setModoVisualizacao(
+                                        "pdf",
+                                    )
+                                }
+                            >
+                                <BookOpen
+                                    size={16}
+                                />
 
-                            <span>
-                                PDF
-                            </span>
-                        </button>
+                                <span>
+                                    PDF
+                                </span>
+                            </button>
+                        )}
                     </div>
 
                     {modoVisualizacao ===
