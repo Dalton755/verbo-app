@@ -102,21 +102,6 @@ export default {
       }
 
       if (
-        !caminho
-          .toLowerCase()
-          .endsWith(".pdf")
-      ) {
-        return Response.json(
-          {
-            ok: false,
-            erro:
-              "Somente arquivos PDF são permitidos.",
-          },
-          { status: 400 },
-        );
-      }
-
-      if (
         !Number.isSafeInteger(
           arquivoBytes,
         ) ||
@@ -136,13 +121,13 @@ export default {
  * Identifica o módulo pelo caminho.
  *
  * Sermões:
- * userId/sermoes/arquivo.pdf
+ * userId/sermoes/arquivo.pdf|docx
  *
  * Livros:
- * userId/livros/arquivo.pdf
+ * userId/livros/arquivo.pdf|epub
  *
  * EBD:
- * userId/trimestreId/arquivo.pdf
+ * userId/trimestreId/arquivo.pdf|pptx
  */
       const partesCaminho =
         caminho.split("/");
@@ -158,6 +143,37 @@ export default {
           : segundoSegmento === "livros"
             ? "LIVROS"
             : "EBD";
+
+      const extensao =
+        caminho
+          .split(".")
+          .pop()
+          ?.toLowerCase() ?? "";
+
+      const formatosPermitidos =
+        modulo === "LIVROS"
+          ? ["pdf", "epub"]
+          : modulo === "SERMOES"
+            ? ["pdf", "docx"]
+            : ["pdf", "pptx"];
+
+      if (
+        !formatosPermitidos.includes(
+          extensao,
+        )
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            codigo:
+              "TIPO_INVALIDO",
+            erro:
+              `Formato .${extensao || "desconhecido"} não permitido em ${modulo}.`,
+            formatosPermitidos,
+          },
+          { status: 400 },
+        );
+      }
 
 
       /*

@@ -52,7 +52,7 @@ const TOURS = [
         seletor: ".module-grid",
         titulo: "Seus módulos",
         texto:
-          "EBD organiza trimestres e aulas, Sermões prepara seus esboços para pregação e Livros reúne sua biblioteca de PDFs.",
+          "EBD organiza trimestres e aulas, Sermões prepara PDFs ou DOCX para pregação e Livros reúne sua biblioteca de PDF e EPUB.",
       },
       {
         seletor: ".storage-card",
@@ -77,7 +77,7 @@ const TOURS = [
       {
         titulo: "Como funciona a EBD",
         texto:
-          "A organização segue um fluxo simples: crie um trimestre, entre nele, importe suas aulas em PDF e abra cada aula para apresentar.",
+          "A organização segue um fluxo simples: crie um trimestre, entre nele, importe suas aulas em PDF ou PPTX e abra cada aula para apresentar.",
       },
       {
         seletor: ".module-header",
@@ -151,7 +151,7 @@ const TOURS = [
           ".mobile-action .primary-button, .desktop-import-button, .trimestre-empty-state .primary-button",
         titulo: "Importar aula",
         texto:
-          "Use este botão para adicionar uma aula em PDF. O VERBO prepara o arquivo para apresentação e recursos bíblicos.",
+          "Use este botão para adicionar uma aula em PDF ou PPTX. O VERBO prepara o arquivo para apresentação e recursos bíblicos.",
       },
       {
         seletor: ".aula-card-main",

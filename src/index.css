@@ -13359,3 +13359,100 @@ button.primary {
       24px 24px 0 0;
   }
 }
+
+
+/* ==================================
+   APRESENTAÇÃO — PPTX
+================================== */
+
+.pptx-slide-wrapper {
+  position: relative;
+  width: min(100%, 1180px);
+  max-height: calc(100vh - 190px);
+  margin: 0 auto;
+  overflow: hidden;
+  background:
+    linear-gradient(
+      180deg,
+      #ffffff 0%,
+      #fbfcff 100%
+    );
+  border-radius: 12px;
+  box-shadow:
+    0 18px 54px
+    rgba(0, 0, 0, 0.2);
+  container-type: inline-size;
+}
+
+.pptx-image-block,
+.pptx-shape-block,
+.pptx-line-block,
+.pptx-text-block {
+  position: absolute;
+  transform-origin: center;
+}
+
+.pptx-image-block {
+  display: block;
+  object-fit: fill;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.pptx-shape-block,
+.pptx-line-block {
+  pointer-events: none;
+}
+
+.pptx-text-block {
+  display: flex;
+  overflow: hidden;
+  color: #111827;
+  line-height: 1.12;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 0.08em 0.14em;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.pptx-text-block > span {
+  position: static;
+  display: inline;
+  color: inherit;
+  font: inherit;
+  white-space: pre-wrap;
+}
+
+.pptx-text-block .sermon-bible-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #315fce;
+  font: inherit;
+  font-weight: 800;
+  text-decoration:
+    underline;
+  text-decoration-thickness:
+    0.1em;
+  text-underline-offset:
+    0.12em;
+  cursor: pointer;
+}
+
+.pptx-text-block .sermon-bible-link:hover,
+.pptx-text-block .sermon-bible-link:focus-visible {
+  color: #6d3cf0;
+}
+
+@media (max-width: 720px) {
+  .pptx-slide-wrapper {
+    width: 100%;
+    border-radius: 8px;
+  }
+
+  .pptx-text-block {
+    line-height: 1.1;
+  }
+}

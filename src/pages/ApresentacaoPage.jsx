@@ -41,6 +41,14 @@ import DictionaryModal
 import DictionarySelectionAction
     from "../components/DictionarySelectionAction";
 
+import BibleLinkedText
+    from "../components/BibleLinkedText";
+
+import {
+    carregarMidiasPptx,
+    revogarMidiasPptx,
+} from "../lib/pptxProcessor";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 function ApresentacaoPage() {
@@ -58,6 +66,16 @@ function ApresentacaoPage() {
     const [trimestre, setTrimestre] = useState(null);
 
     const [pdf, setPdf] = useState(null);
+
+    const [
+        pptxPaginas,
+        setPptxPaginas,
+    ] = useState([]);
+
+    const [
+        pptxMidias,
+        setPptxMidias,
+    ] = useState({});
 
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [totalPaginas, setTotalPaginas] = useState(0);
@@ -119,6 +137,14 @@ function ApresentacaoPage() {
     ] = useState("");
 
     useEffect(() => {
+        return () => {
+            revogarMidiasPptx(
+                pptxMidias,
+            );
+        };
+    }, [pptxMidias]);
+
+    useEffect(() => {
         if (!user || !id) return;
 
         let ativo = true;
@@ -137,10 +163,12 @@ function ApresentacaoPage() {
                     numero,
                     titulo,
                     arquivo_nome,
+                    arquivo_tipo,
                     storage_path,
                     total_paginas,
                     ultima_pagina,
-                    trimestre_id
+                    trimestre_id,
+                    conteudo_processado
                     `)
                 .eq("id", id)
                 .eq("usuario_id", user.id)
@@ -175,6 +203,126 @@ function ApresentacaoPage() {
             if (trimestreError) {
                 console.error(trimestreError);
                 setErro("Não conseguimos identificar o trimestre.");
+                setCarregando(false);
+                return;
+            }
+
+            const formatoAula =
+                aulaData.arquivo_tipo ??
+                "pdf";
+
+            if (
+                formatoAula === "pptx"
+            ) {
+                const paginasPptx =
+                    aulaData
+                        .conteudo_processado
+                        ?.paginas;
+
+                if (
+                    !Array.isArray(
+                        paginasPptx,
+                    ) ||
+                    paginasPptx.length === 0
+                ) {
+                    setErro(
+                        "Este PowerPoint ainda não possui conteúdo processado.",
+                    );
+                    setCarregando(false);
+                    return;
+                }
+
+                const {
+                    data:
+                        pptxSignedData,
+                    error:
+                        pptxSignedError,
+                } =
+                    await supabase.storage
+                        .from(
+                            "biblia-slides-pdfs",
+                        )
+                        .createSignedUrl(
+                            aulaData.storage_path,
+                            60 * 60,
+                        );
+
+                if (!ativo) {
+                    return;
+                }
+
+                let midias = {};
+
+                if (
+                    !pptxSignedError &&
+                    pptxSignedData
+                        ?.signedUrl
+                ) {
+                    try {
+                        const resposta =
+                            await fetch(
+                                pptxSignedData
+                                    .signedUrl,
+                            );
+
+                        if (
+                            resposta.ok
+                        ) {
+                            const blob =
+                                await resposta
+                                    .blob();
+
+                            midias =
+                                await carregarMidiasPptx(
+                                    blob,
+                                    paginasPptx,
+                                );
+                        }
+                    } catch (
+                        error
+                    ) {
+                        console.warn(
+                            "Não foi possível carregar todas as imagens do PowerPoint:",
+                            error,
+                        );
+                    }
+                }
+
+                if (!ativo) {
+                    revogarMidiasPptx(
+                        midias,
+                    );
+                    return;
+                }
+
+                const paginaSalva =
+                    Math.min(
+                        Math.max(
+                            aulaData
+                                .ultima_pagina ??
+                            1,
+                            1,
+                        ),
+                        paginasPptx.length,
+                    );
+
+                setAula(aulaData);
+                setTrimestre(
+                    trimestreData,
+                );
+                setPdf(null);
+                setPptxPaginas(
+                    paginasPptx,
+                );
+                setPptxMidias(
+                    midias,
+                );
+                setTotalPaginas(
+                    paginasPptx.length,
+                );
+                setPaginaAtual(
+                    paginaSalva,
+                );
                 setCarregando(false);
                 return;
             }
@@ -624,6 +772,44 @@ function ApresentacaoPage() {
     ]);
 
     useEffect(() => {
+        if (
+            (aula?.arquivo_tipo ??
+                "pdf") !==
+            "pptx"
+        ) {
+            return;
+        }
+
+        const slide =
+            pptxPaginas[
+                paginaAtual - 1
+            ];
+
+        const texto =
+            (slide?.blocos ?? [])
+                .map(
+                    (bloco) =>
+                        bloco.texto ??
+                        "",
+                )
+                .join(" ");
+
+        setReferenciasPagina(
+            extrairReferenciasBiblicas(
+                texto,
+            ),
+        );
+
+        setHotspotsBiblicos([]);
+        setItensCamadaTexto([]);
+        setRenderizando(false);
+    }, [
+        aula?.arquivo_tipo,
+        pptxPaginas,
+        paginaAtual,
+    ]);
+
+    useEffect(() => {
         setReferenciasAbertas(false);
         setReferenciaAtiva(null);
         setPassagemBiblica(null);
@@ -632,7 +818,6 @@ function ApresentacaoPage() {
 
     useEffect(() => {
         if (
-            !pdf ||
             !aula?.id ||
             !user ||
             paginaAtual < 1
@@ -660,8 +845,8 @@ function ApresentacaoPage() {
         salvarProgresso();
     }, [
         paginaAtual,
-        pdf,
         aula?.id,
+        aula?.arquivo_tipo,
         user,
     ]);
 
@@ -888,6 +1073,33 @@ function ApresentacaoPage() {
         touchStartX.current = null;
     }
 
+    const slidePptxAtual =
+        pptxPaginas[
+            paginaAtual - 1
+        ] ?? null;
+
+    const larguraPptx =
+        Number(
+            slidePptxAtual
+                ?.largura ??
+            aula
+                ?.conteudo_processado
+                ?.slide
+                ?.largura ??
+            12192000,
+        );
+
+    const alturaPptx =
+        Number(
+            slidePptxAtual
+                ?.altura ??
+            aula
+                ?.conteudo_processado
+                ?.slide
+                ?.altura ??
+            6858000,
+        );
+
     if (carregando) {
         return (
             <div className="presentation-loading">
@@ -898,7 +1110,11 @@ function ApresentacaoPage() {
         );
     }
 
-    if (erro && !pdf) {
+    if (
+        erro &&
+        !pdf &&
+        pptxPaginas.length === 0
+    ) {
         return (
             <div className="presentation-error">
                 <p>{erro}</p>
@@ -1019,85 +1235,354 @@ function ApresentacaoPage() {
                 </button>
 
                 <div className="pdf-page-container">
-                    <div
-                        className="pdf-slide-wrapper"
-                        style={{
-                            width: slideSize.width,
-                            height: slideSize.height,
-                        }}
-                    >
-                        <canvas
-                            ref={canvasRef}
-                            className={
-                                renderizando
-                                    ? "pdf-canvas pdf-canvas-loading"
-                                    : "pdf-canvas"
-                            }
-                        />
-
+                    {(aula?.arquivo_tipo ??
+                        "pdf") ===
+                    "pptx" ? (
                         <div
-                            className="presentation-text-layer"
-                            aria-hidden="true"
+                            className="pptx-slide-wrapper"
+                            style={{
+                                aspectRatio:
+                                    `${larguraPptx} / ${alturaPptx}`,
+
+                                background:
+                                    slidePptxAtual
+                                        ?.fundo ??
+                                    "#ffffff",
+                            }}
                         >
-                            {itensCamadaTexto.map(
-                                (item) => (
-                                    <span
-                                        key={
-                                            item.id
+                            {(slidePptxAtual
+                                ?.blocos ??
+                                []).map(
+                                (
+                                    bloco,
+                                    indice,
+                                ) => {
+                                    const left =
+                                        (
+                                            Number(
+                                                bloco.x ??
+                                                0,
+                                            ) /
+                                            larguraPptx
+                                        ) *
+                                        100;
+
+                                    const top =
+                                        (
+                                            Number(
+                                                bloco.y ??
+                                                0,
+                                            ) /
+                                            alturaPptx
+                                        ) *
+                                        100;
+
+                                    const width =
+                                        (
+                                            Number(
+                                                bloco.largura ??
+                                                larguraPptx,
+                                            ) /
+                                            larguraPptx
+                                        ) *
+                                        100;
+
+                                    const height =
+                                        (
+                                            Number(
+                                                bloco.altura ??
+                                                0,
+                                            ) /
+                                            alturaPptx
+                                        ) *
+                                        100;
+
+                                    const estiloBase = {
+                                        left:
+                                            `${left}%`,
+                                        top:
+                                            `${top}%`,
+                                        width:
+                                            `${Math.max(
+                                                width,
+                                                0.1,
+                                            )}%`,
+                                        height:
+                                            `${Math.max(
+                                                height,
+                                                0.1,
+                                            )}%`,
+                                        zIndex:
+                                            Number(
+                                                bloco.zIndex ??
+                                                indice,
+                                            ) +
+                                            1,
+                                        transform:
+                                            bloco.rotacao
+                                                ? `rotate(${bloco.rotacao}deg)`
+                                                : undefined,
+                                    };
+
+                                    if (
+                                        bloco.tipo ===
+                                        "imagem"
+                                    ) {
+                                        const src =
+                                            pptxMidias[
+                                                bloco.midiaPath
+                                            ];
+
+                                        if (!src) {
+                                            return null;
                                         }
-                                        style={{
-                                            left:
-                                                item.left,
-                                            top:
-                                                item.top,
-                                            width:
-                                                item.width,
-                                            height:
-                                                item.height,
-                                            fontSize:
-                                                item.fontSize,
-                                            transform:
-                                                Math.abs(
-                                                    item.angulo,
-                                                ) >
-                                                0.5
-                                                    ? `rotate(${item.angulo}deg)`
-                                                    : undefined,
-                                        }}
-                                    >
-                                        {item.texto}
-                                    </span>
-                                ),
+
+                                        return (
+                                            <img
+                                                key={
+                                                    `${paginaAtual}-pptx-${indice}`
+                                                }
+                                                className="pptx-image-block"
+                                                src={src}
+                                                alt=""
+                                                draggable="false"
+                                                style={
+                                                    estiloBase
+                                                }
+                                            />
+                                        );
+                                    }
+
+                                    if (
+                                        bloco.tipo ===
+                                        "linha"
+                                    ) {
+                                        return (
+                                            <div
+                                                key={
+                                                    `${paginaAtual}-pptx-${indice}`
+                                                }
+                                                className="pptx-line-block"
+                                                style={{
+                                                    ...estiloBase,
+
+                                                    background:
+                                                        bloco.cor,
+
+                                                    minHeight:
+                                                        `${Math.max(
+                                                            Number(
+                                                                bloco.espessura ??
+                                                                12700,
+                                                            ) /
+                                                                9525,
+                                                            1,
+                                                        )}px`,
+                                                }}
+                                            />
+                                        );
+                                    }
+
+                                    const tamanho =
+                                        Number(
+                                            bloco.tamanhoFonte ??
+                                            24,
+                                        );
+
+                                    const borda =
+                                        bloco.bordaCor
+                                            ? `${Math.max(
+                                                Number(
+                                                    bloco.bordaLargura ??
+                                                    9525,
+                                                ) /
+                                                    9525,
+                                                1,
+                                            )}px solid ${bloco.bordaCor}`
+                                            : "none";
+
+                                    const arredondamento =
+                                        bloco.geometria ===
+                                        "ellipse"
+                                            ? "50%"
+                                            : "0";
+
+                                    if (
+                                        bloco.tipo ===
+                                        "forma"
+                                    ) {
+                                        return (
+                                            <div
+                                                key={
+                                                    `${paginaAtual}-pptx-${indice}`
+                                                }
+                                                className="pptx-shape-block"
+                                                style={{
+                                                    ...estiloBase,
+
+                                                    background:
+                                                        bloco.preenchimento ??
+                                                        "transparent",
+
+                                                    border:
+                                                        borda,
+
+                                                    borderRadius:
+                                                        arredondamento,
+                                                }}
+                                            />
+                                        );
+                                    }
+
+                                    return (
+                                        <div
+                                            key={
+                                                `${paginaAtual}-pptx-${indice}`
+                                            }
+                                            className="pptx-text-block"
+                                            style={{
+                                                ...estiloBase,
+
+                                                background:
+                                                    bloco.preenchimento ??
+                                                    "transparent",
+
+                                                border:
+                                                    borda,
+
+                                                borderRadius:
+                                                    arredondamento,
+
+                                                color:
+                                                    bloco.corTexto ??
+                                                    "#111827",
+
+                                                fontFamily:
+                                                    bloco.fonte
+                                                        ? `"${bloco.fonte}", Arial, sans-serif`
+                                                        : "Arial, sans-serif",
+
+                                                fontWeight:
+                                                    bloco.negrito
+                                                        ? 700
+                                                        : 400,
+
+                                                fontStyle:
+                                                    bloco.italico
+                                                        ? "italic"
+                                                        : "normal",
+
+                                                textAlign:
+                                                    bloco.alinhamento ??
+                                                    "left",
+
+                                                alignItems:
+                                                    bloco.alinhamentoVertical ??
+                                                    "flex-start",
+
+                                                fontSize:
+                                                    `${Math.max(
+                                                        tamanho *
+                                                            0.104,
+                                                        0.78,
+                                                    )}cqw`,
+                                            }}
+                                        >
+                                            <BibleLinkedText
+                                                texto={
+                                                    bloco.texto ??
+                                                    ""
+                                                }
+                                                onReferencia={
+                                                    abrirReferencia
+                                                }
+                                            />
+                                        </div>
+                                    );
+                                },
                             )}
                         </div>
+                    ) : (
+                        <div
+                            className="pdf-slide-wrapper"
+                            style={{
+                                width: slideSize.width,
+                                height: slideSize.height,
+                            }}
+                        >
+                            <canvas
+                                ref={canvasRef}
+                                className={
+                                    renderizando
+                                        ? "pdf-canvas pdf-canvas-loading"
+                                        : "pdf-canvas"
+                                }
+                            />
 
-                        <div className="bible-hotspot-layer">
-                            {hotspotsBiblicos.map(
-                                (hotspot) => (
-                                    <button
-                                        key={hotspot.id}
-                                        type="button"
-                                        className="bible-reference-hotspot"
-                                        style={{
-                                            left: hotspot.left,
-                                            top: hotspot.top,
-                                            width: hotspot.width,
-                                            height: hotspot.height,
-                                        }}
-                                        title={`Abrir ${hotspot.referencia}`}
-                                        aria-label={`Abrir ${hotspot.referencia}`}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
+                            <div
+                                className="presentation-text-layer"
+                                aria-hidden="true"
+                            >
+                                {itensCamadaTexto.map(
+                                    (item) => (
+                                        <span
+                                            key={
+                                                item.id
+                                            }
+                                            style={{
+                                                left:
+                                                    item.left,
+                                                top:
+                                                    item.top,
+                                                width:
+                                                    item.width,
+                                                height:
+                                                    item.height,
+                                                fontSize:
+                                                    item.fontSize,
+                                                transform:
+                                                    Math.abs(
+                                                        item.angulo,
+                                                    ) >
+                                                    0.5
+                                                        ? `rotate(${item.angulo}deg)`
+                                                        : undefined,
+                                            }}
+                                        >
+                                            {item.texto}
+                                        </span>
+                                    ),
+                                )}
+                            </div>
 
-                                            abrirReferencia(
-                                                hotspot,
-                                            );
-                                        }}
-                                    />
-                                ),
-                            )}
+                            <div className="bible-hotspot-layer">
+                                {hotspotsBiblicos.map(
+                                    (hotspot) => (
+                                        <button
+                                            key={hotspot.id}
+                                            type="button"
+                                            className="bible-reference-hotspot"
+                                            style={{
+                                                left: hotspot.left,
+                                                top: hotspot.top,
+                                                width: hotspot.width,
+                                                height: hotspot.height,
+                                            }}
+                                            title={`Abrir ${hotspot.referencia}`}
+                                            aria-label={`Abrir ${hotspot.referencia}`}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+
+                                                abrirReferencia(
+                                                    hotspot,
+                                                );
+                                            }}
+                                        />
+                                    ),
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <button
@@ -1111,7 +1596,13 @@ function ApresentacaoPage() {
             </main>
 
             <DictionarySelectionAction
-                containerSelector=".presentation-text-layer"
+                containerSelector={
+                    (aula?.arquivo_tipo ??
+                        "pdf") ===
+                    "pptx"
+                        ? ".pptx-slide-wrapper"
+                        : ".presentation-text-layer"
+                }
                 disabled={
                     renderizando
                 }

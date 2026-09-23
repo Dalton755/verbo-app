@@ -23,7 +23,15 @@ import {
 } from "react-router-dom";
 
 import { supabase } from "../lib/supabase";
-import { uploadPdfSeguro } from "../lib/uploadPdfSeguro";
+import { uploadArquivoSeguro } from "../lib/uploadArquivoSeguro";
+import {
+    arquivoPermitido,
+    formatoArquivo,
+    FORMATOS_SUPORTADOS,
+} from "../lib/fileFormats";
+import {
+    processarArquivoAula,
+} from "../lib/lessonFileProcessor";
 import { useAuth } from "../contexts/AuthContext";
 
 
@@ -138,6 +146,7 @@ function TrimestrePage() {
                         numero,
                         titulo,
                         arquivo_nome,
+                        arquivo_tipo,
                         storage_path,
                         total_paginas,
                         created_at
@@ -262,6 +271,7 @@ function TrimestrePage() {
             numero,
             titulo,
             arquivo_nome,
+            arquivo_tipo,
             storage_path,
             total_paginas,
             created_at
@@ -378,6 +388,7 @@ function TrimestrePage() {
             numero,
             titulo,
             arquivo_nome,
+            arquivo_tipo,
             storage_path,
             total_paginas,
             created_at
@@ -459,7 +470,7 @@ function TrimestrePage() {
 
         const confirmou =
             window.confirm(
-                `Excluir a aula ${aula.numero} — "${aula.titulo}"?\n\nA aula e o PDF serão removidos permanentemente. O espaço ocupado será liberado.`,
+                `Excluir a aula ${aula.numero} — "${aula.titulo}"?\n\nA aula e o arquivo serão removidos permanentemente. O espaço ocupado será liberado.`,
             );
 
         if (!confirmou) {
@@ -490,12 +501,12 @@ function TrimestrePage() {
 
             if (storageError) {
                 console.error(
-                    "Erro ao excluir PDF da aula:",
+                    "Erro ao excluir arquivo da aula:",
                     storageError,
                 );
 
                 setErro(
-                    "Não conseguimos remover o PDF. A aula não foi excluída.",
+                    "Não conseguimos remover o arquivo. A aula não foi excluída.",
                 );
 
                 setExcluindoAula(
@@ -531,7 +542,7 @@ function TrimestrePage() {
             );
 
             setErro(
-                "O PDF foi removido, mas ocorreu um erro ao excluir a aula do banco.",
+                "O arquivo foi removido, mas ocorreu um erro ao excluir a aula do banco.",
             );
 
             setExcluindoAula(
@@ -588,27 +599,69 @@ function TrimestrePage() {
             return;
         }
 
-        if (arquivo.type !== "application/pdf") {
-            setErro("Selecione um arquivo PDF.");
+        if (
+            !arquivoPermitido(
+                arquivo,
+                "ebd",
+            )
+        ) {
+            setErro(
+                "Selecione um arquivo PDF ou PPTX.",
+            );
             return;
         }
 
         setSalvando(true);
         setErro("");
 
+        const formato =
+            formatoArquivo(
+                arquivo,
+            );
+
+        let processamento = null;
+
+        if (
+            formato === "pptx"
+        ) {
+            try {
+                processamento =
+                    await processarArquivoAula(
+                        arquivo,
+                    );
+            } catch (error) {
+                console.error(
+                    "Erro ao preparar PPTX:",
+                    error,
+                );
+
+                setErro(
+                    "Não conseguimos preparar este PowerPoint para apresentação.",
+                );
+
+                setSalvando(false);
+                return;
+            }
+        }
+
         const identificador = crypto.randomUUID();
 
         const storagePath =
-            `${user.id}/${trimestre.id}/${identificador}.pdf`;
+            `${user.id}/${trimestre.id}/${identificador}.${formato}`;
 
         /*
  * Reserva o espaço e envia
- * o PDF com quota protegida.
+ * o arquivo com quota protegida.
  */
         try {
-            await uploadPdfSeguro({
+            await uploadArquivoSeguro({
                 arquivo,
                 caminho: storagePath,
+
+                formatosPermitidos:
+                    FORMATOS_SUPORTADOS
+                        .ebd
+                        .extensoes,
             });
         } catch (error) {
             console.error(
@@ -618,7 +671,7 @@ function TrimestrePage() {
 
             setErro(
                 error?.message ||
-                "Não conseguimos enviar o PDF.",
+                "Não conseguimos enviar o arquivo.",
             );
 
             setSalvando(false);
@@ -636,13 +689,41 @@ function TrimestrePage() {
                 numero: Number(numero),
                 titulo: titulo.trim(),
                 arquivo_nome: arquivo.name,
+                arquivo_tipo: formato,
                 storage_path: storagePath,
+                total_paginas:
+                    processamento
+                        ?.totalPaginas ??
+                    null,
+                conteudo_processado:
+                    processamento
+                        ? {
+                            versao:
+                                processamento.versao,
+                            formato:
+                                processamento.formato,
+                            slide:
+                                processamento.slide ??
+                                null,
+                            paginas:
+                                processamento.paginas,
+                        }
+                        : null,
+                processado_em:
+                    processamento
+                        ? new Date()
+                            .toISOString()
+                        : null,
+                processador_versao:
+                    processamento
+                        ?.versao ?? 1,
             })
             .select(`
                 id,
                 numero,
                 titulo,
                 arquivo_nome,
+                arquivo_tipo,
                 storage_path,
                 total_paginas,
                 created_at
@@ -653,7 +734,7 @@ function TrimestrePage() {
             console.error(aulaError);
 
             /*
-             * O PDF já foi enviado e confirmado,
+             * O arquivo já foi enviado e confirmado,
              * mas a aula não foi criada.
              * Portanto removemos o arquivo.
              */
@@ -669,7 +750,7 @@ function TrimestrePage() {
                 );
             } else {
                 setErro(
-                    "O PDF foi enviado, mas não conseguimos criar a aula.",
+                    "O arquivo foi enviado, mas não conseguimos criar a aula.",
                 );
             }
 
@@ -1133,12 +1214,16 @@ function TrimestrePage() {
                             </div>
 
                             <label>
-                                Arquivo PDF
+                                Arquivo PDF ou PPTX
 
                                 <div className="pdf-picker">
                                     <input
                                         type="file"
-                                        accept="application/pdf,.pdf"
+                                        accept={
+                                            FORMATOS_SUPORTADOS
+                                                .ebd
+                                                .accept
+                                        }
                                         onChange={(event) =>
                                             setArquivo(
                                                 event.target.files?.[0] ?? null,
@@ -1152,7 +1237,7 @@ function TrimestrePage() {
                                         <strong>
                                             {arquivo
                                                 ? arquivo.name
-                                                : "Selecionar PDF"}
+                                                : "Selecionar PDF ou PPTX"}
                                         </strong>
 
                                         <span>
