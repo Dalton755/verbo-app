@@ -1188,6 +1188,9 @@ function SermoesPage() {
                                                 .sermoes
                                                 .accept
                                         }
+                                        onClick={(event) => {
+                                            event.currentTarget.value = "";
+                                        }}
                                         onChange={(
                                             event,
                                         ) =>
