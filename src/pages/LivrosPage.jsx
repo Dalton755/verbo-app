@@ -1716,7 +1716,7 @@ function LivrosPage() {
 
         const confirmou =
             window.confirm(
-                `Excluir "${livro.titulo}"?\n\nO livro e o PDF serão removidos permanentemente. O espaço ocupado será liberado.`,
+                `Excluir "${livro.titulo}"?\n\nO livro e o arquivo serão removidos permanentemente. O espaço ocupado será liberado.`,
             );
 
         if (!confirmou) {
@@ -1752,7 +1752,7 @@ function LivrosPage() {
                 );
 
                 setErroGerenciarLivro(
-                    "Não conseguimos remover o PDF. O livro não foi excluído.",
+                    "Não conseguimos remover o arquivo. O livro não foi excluído.",
                 );
 
                 setExcluindoLivro(
@@ -2949,7 +2949,7 @@ function LivrosPage() {
                             </h2>
 
                             <p>
-                                Selecione primeiro o PDF.
+                                Selecione um PDF ou EPUB.
                                 O VERBO identifica título e
                                 autor automaticamente.
                             </p>
@@ -2988,7 +2988,7 @@ function LivrosPage() {
                                         <strong>
                                             {arquivo
                                                 ? arquivo.name
-                                                : "Selecionar PDF"}
+                                                : "Selecionar PDF ou EPUB"}
                                         </strong>
 
                                         <span>
