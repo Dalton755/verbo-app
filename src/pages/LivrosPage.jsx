@@ -2972,6 +2972,9 @@ function LivrosPage() {
                                                 .livros
                                                 .accept
                                         }
+                                        onClick={(event) => {
+                                            event.currentTarget.value = "";
+                                        }}
                                         onChange={
                                             selecionarArquivo
                                         }
