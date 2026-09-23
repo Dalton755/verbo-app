@@ -1224,6 +1224,9 @@ function TrimestrePage() {
                                                 .ebd
                                                 .accept
                                         }
+                                        onClick={(event) => {
+                                            event.currentTarget.value = "";
+                                        }}
                                         onChange={(event) =>
                                             setArquivo(
                                                 event.target.files?.[0] ?? null,
