@@ -39,8 +39,14 @@ import {
 } from "../lib/modulosUsuario";
 
 import {
-    processarPdfLivro,
-} from "../lib/bookPdfProcessor";
+    processarArquivoLivro,
+} from "../lib/bookFileProcessor";
+
+import {
+    arquivoPermitido,
+    formatoArquivo,
+    FORMATOS_SUPORTADOS,
+} from "../lib/fileFormats";
 
 import {
     gerarCapaLivro,
@@ -56,8 +62,8 @@ import {
 } from "../lib/bookCache";
 
 import {
-    uploadPdfSeguro,
-} from "../lib/uploadPdfSeguro";
+    uploadArquivoSeguro,
+} from "../lib/uploadArquivoSeguro";
 
 import verboLogoHorizontal from "../assets/verbo-logo-horizontal.png";
 
@@ -588,8 +594,10 @@ function LivrosPage() {
 
         if (
             !arquivoSelecionado ||
-            arquivoSelecionado.type !==
-            "application/pdf"
+            !arquivoPermitido(
+                arquivoSelecionado,
+                "livros",
+            )
         ) {
             return;
         }
@@ -599,10 +607,21 @@ function LivrosPage() {
         );
 
         try {
-            const dados =
-                await extrairDadosLivro(
+            const formato =
+                formatoArquivo(
                     arquivoSelecionado,
                 );
+
+            const dados =
+                formato === "pdf"
+                    ? await extrairDadosLivro(
+                        arquivoSelecionado,
+                    )
+                    : (
+                        await processarArquivoLivro(
+                            arquivoSelecionado,
+                        )
+                    ).metadados ?? {};
 
             /*
              * Só preenche automaticamente
@@ -637,7 +656,7 @@ function LivrosPage() {
             );
 
             /*
-             * O PDF é o primeiro passo.
+             * O arquivo é o primeiro passo.
              * Depois de preencher título e autor
              * automaticamente, seguimos direto
              * para a escolha do tema.
@@ -822,11 +841,13 @@ function LivrosPage() {
         }
 
         if (
-            arquivo.type !==
-            "application/pdf"
+            !arquivoPermitido(
+                arquivo,
+                "livros",
+            )
         ) {
             setErro(
-                "Selecione um arquivo PDF.",
+                "Selecione um arquivo PDF ou EPUB.",
             );
 
             return;
@@ -842,7 +863,7 @@ function LivrosPage() {
             limite
         ) {
             setErro(
-                "O PDF deve ter no máximo 50 MB.",
+                "O arquivo deve ter no máximo 50 MB.",
             );
 
             return;
@@ -851,31 +872,40 @@ function LivrosPage() {
         setSalvando(true);
         setErro("");
 
-        let capaGerada = null;
-
-        try {
-            capaGerada =
-                await gerarCapaLivro(
-                    arquivo,
-                );
-        } catch (error) {
-            console.warn(
-                "Não foi possível gerar a capa do livro:",
-                error,
+        const formato =
+            formatoArquivo(
+                arquivo,
             );
 
-            /*
-             * A falha da capa não impede
-             * a importação do livro.
-             */
-            capaGerada = null;
+        let capaGerada = null;
+
+        if (
+            formato === "pdf"
+        ) {
+            try {
+                capaGerada =
+                    await gerarCapaLivro(
+                        arquivo,
+                    );
+            } catch (error) {
+                console.warn(
+                    "Não foi possível gerar a capa do livro:",
+                    error,
+                );
+
+                /*
+                 * A falha da capa não impede
+                 * a importação do livro.
+                 */
+                capaGerada = null;
+            }
         }
 
         let processamento;
 
         try {
             processamento =
-                await processarPdfLivro(
+                await processarArquivoLivro(
                     arquivo,
                 );
         } catch (error) {
@@ -885,7 +915,7 @@ function LivrosPage() {
             );
 
             setErro(
-                "Não conseguimos preparar este PDF para leitura.",
+                "Não conseguimos preparar este arquivo para leitura.",
             );
 
             setSalvando(false);
@@ -896,6 +926,10 @@ function LivrosPage() {
             versao:
                 processamento.versao,
 
+            formato:
+                processamento.formato ??
+                formato,
+
             paginas:
                 processamento.paginas,
         };
@@ -904,7 +938,7 @@ function LivrosPage() {
             crypto.randomUUID();
 
         const storagePath =
-            `${user.id}/livros/${identificador}.pdf`;
+            `${user.id}/livros/${identificador}.${formato}`;
 
         const capaPath =
             capaGerada
@@ -916,10 +950,15 @@ function LivrosPage() {
          * o PDF com quota protegida.
          */
         try {
-            await uploadPdfSeguro({
+            await uploadArquivoSeguro({
                 arquivo,
                 caminho:
                     storagePath,
+
+                formatosPermitidos:
+                    FORMATOS_SUPORTADOS
+                        .livros
+                        .extensoes,
             });
         } catch (error) {
             console.error(
@@ -929,7 +968,7 @@ function LivrosPage() {
 
             setErro(
                 error?.message ||
-                "Não conseguimos enviar o PDF.",
+                "Não conseguimos enviar o arquivo.",
             );
 
             setSalvando(false);
@@ -1008,6 +1047,9 @@ function LivrosPage() {
                 arquivo_nome:
                     arquivo.name,
 
+                arquivo_tipo:
+                    formato,
+
                 storage_path:
                     storagePath,
 
@@ -1032,7 +1074,8 @@ function LivrosPage() {
                         .toISOString(),
 
                 processador_versao:
-                    1,
+                    processamento
+                        .versao ?? 1,
             })
             .select(`
                 id,
@@ -1040,6 +1083,7 @@ function LivrosPage() {
                 autor,
                 tema_id,
                 arquivo_nome,
+                arquivo_tipo,
                 storage_path,
                 capa_path,
                 total_paginas,
@@ -1080,7 +1124,7 @@ function LivrosPage() {
             }
 
             setErro(
-                "O PDF foi enviado, mas não conseguimos criar o livro.",
+                "O arquivo foi enviado, mas não conseguimos criar o livro.",
             );
 
             setSalvando(false);
@@ -2918,12 +2962,16 @@ function LivrosPage() {
                             }
                         >
                             <label>
-                                Arquivo PDF
+                                Arquivo PDF ou EPUB
 
                                 <div className="pdf-picker">
                                     <input
                                         type="file"
-                                        accept="application/pdf,.pdf"
+                                        accept={
+                                            FORMATOS_SUPORTADOS
+                                                .livros
+                                                .accept
+                                        }
                                         onChange={
                                             selecionarArquivo
                                         }
