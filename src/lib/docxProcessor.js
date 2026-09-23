@@ -58,8 +58,90 @@ function atributoVal(
   );
 }
 
+function paragrafoTodoEmNegrito(
+  paragrafo,
+) {
+  const runs = [
+    ...paragrafo
+      .getElementsByTagNameNS(
+        "*",
+        "r",
+      ),
+  ].filter((run) =>
+    [
+      ...run
+        .getElementsByTagNameNS(
+          "*",
+          "t",
+        ),
+    ].some(
+      (item) =>
+        String(
+          item.textContent ?? "",
+        ).trim(),
+    ),
+  );
+
+  if (
+    runs.length === 0
+  ) {
+    return false;
+  }
+
+  return runs.every(
+    (run) => {
+      const propriedades =
+        run
+          .getElementsByTagNameNS(
+            "*",
+            "rPr",
+          )?.[0];
+
+      if (!propriedades) {
+        return false;
+      }
+
+      return Boolean(
+        propriedades
+          .getElementsByTagNameNS(
+            "*",
+            "b",
+          )?.[0],
+      );
+    },
+  );
+}
+
+function pareceTituloSermão(
+  texto,
+) {
+  const normalizado =
+    normalizar(texto);
+
+  if (!normalizado) {
+    return false;
+  }
+
+  if (
+    /^(tema|texto|introdução|conclusão)\s*:/i
+      .test(normalizado)
+  ) {
+    return true;
+  }
+
+  if (
+    /^(?:[IVXLCDM]+|\d+)\s*[-–—]\s+/i
+      .test(normalizado)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 function tipoParagrafo(
   paragrafo,
+  texto,
 ) {
   const estilo =
     atributoVal(
@@ -82,6 +164,12 @@ function tipoParagrafo(
     ) ||
     estilo.includes(
       "title",
+    ) ||
+    paragrafoTodoEmNegrito(
+      paragrafo,
+    ) ||
+    pareceTituloSermão(
+      texto,
     )
   ) {
     return "titulo";
@@ -212,6 +300,7 @@ export async function processarDocxSermao(
         tipo:
           tipoParagrafo(
             paragrafo,
+            texto,
           ),
         texto,
       };
