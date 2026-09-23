@@ -41,6 +41,9 @@ import DictionaryModal
 import DictionarySelectionAction
     from "../components/DictionarySelectionAction";
 
+import BibleLinkedText
+    from "../components/BibleLinkedText";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 function ApresentacaoPage() {
@@ -58,6 +61,11 @@ function ApresentacaoPage() {
     const [trimestre, setTrimestre] = useState(null);
 
     const [pdf, setPdf] = useState(null);
+
+    const [
+        pptxPaginas,
+        setPptxPaginas,
+    ] = useState([]);
 
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [totalPaginas, setTotalPaginas] = useState(0);
@@ -137,10 +145,12 @@ function ApresentacaoPage() {
                     numero,
                     titulo,
                     arquivo_nome,
+                    arquivo_tipo,
                     storage_path,
                     total_paginas,
                     ultima_pagina,
-                    trimestre_id
+                    trimestre_id,
+                    conteudo_processado
                     `)
                 .eq("id", id)
                 .eq("usuario_id", user.id)
@@ -175,6 +185,60 @@ function ApresentacaoPage() {
             if (trimestreError) {
                 console.error(trimestreError);
                 setErro("Não conseguimos identificar o trimestre.");
+                setCarregando(false);
+                return;
+            }
+
+            const formatoAula =
+                aulaData.arquivo_tipo ??
+                "pdf";
+
+            if (
+                formatoAula === "pptx"
+            ) {
+                const paginasPptx =
+                    aulaData
+                        .conteudo_processado
+                        ?.paginas;
+
+                if (
+                    !Array.isArray(
+                        paginasPptx,
+                    ) ||
+                    paginasPptx.length === 0
+                ) {
+                    setErro(
+                        "Este PowerPoint ainda não possui conteúdo processado.",
+                    );
+                    setCarregando(false);
+                    return;
+                }
+
+                const paginaSalva =
+                    Math.min(
+                        Math.max(
+                            aulaData
+                                .ultima_pagina ??
+                            1,
+                            1,
+                        ),
+                        paginasPptx.length,
+                    );
+
+                setAula(aulaData);
+                setTrimestre(
+                    trimestreData,
+                );
+                setPdf(null);
+                setPptxPaginas(
+                    paginasPptx,
+                );
+                setTotalPaginas(
+                    paginasPptx.length,
+                );
+                setPaginaAtual(
+                    paginaSalva,
+                );
                 setCarregando(false);
                 return;
             }
@@ -624,6 +688,44 @@ function ApresentacaoPage() {
     ]);
 
     useEffect(() => {
+        if (
+            (aula?.arquivo_tipo ??
+                "pdf") !==
+            "pptx"
+        ) {
+            return;
+        }
+
+        const slide =
+            pptxPaginas[
+                paginaAtual - 1
+            ];
+
+        const texto =
+            (slide?.blocos ?? [])
+                .map(
+                    (bloco) =>
+                        bloco.texto ??
+                        "",
+                )
+                .join(" ");
+
+        setReferenciasPagina(
+            extrairReferenciasBiblicas(
+                texto,
+            ),
+        );
+
+        setHotspotsBiblicos([]);
+        setItensCamadaTexto([]);
+        setRenderizando(false);
+    }, [
+        aula?.arquivo_tipo,
+        pptxPaginas,
+        paginaAtual,
+    ]);
+
+    useEffect(() => {
         setReferenciasAbertas(false);
         setReferenciaAtiva(null);
         setPassagemBiblica(null);
@@ -632,7 +734,6 @@ function ApresentacaoPage() {
 
     useEffect(() => {
         if (
-            !pdf ||
             !aula?.id ||
             !user ||
             paginaAtual < 1
@@ -660,8 +761,8 @@ function ApresentacaoPage() {
         salvarProgresso();
     }, [
         paginaAtual,
-        pdf,
         aula?.id,
+        aula?.arquivo_tipo,
         user,
     ]);
 
@@ -888,6 +989,33 @@ function ApresentacaoPage() {
         touchStartX.current = null;
     }
 
+    const slidePptxAtual =
+        pptxPaginas[
+            paginaAtual - 1
+        ] ?? null;
+
+    const larguraPptx =
+        Number(
+            slidePptxAtual
+                ?.largura ??
+            aula
+                ?.conteudo_processado
+                ?.slide
+                ?.largura ??
+            12192000,
+        );
+
+    const alturaPptx =
+        Number(
+            slidePptxAtual
+                ?.altura ??
+            aula
+                ?.conteudo_processado
+                ?.slide
+                ?.altura ??
+            6858000,
+        );
+
     if (carregando) {
         return (
             <div className="presentation-loading">
@@ -898,7 +1026,11 @@ function ApresentacaoPage() {
         );
     }
 
-    if (erro && !pdf) {
+    if (
+        erro &&
+        !pdf &&
+        pptxPaginas.length === 0
+    ) {
         return (
             <div className="presentation-error">
                 <p>{erro}</p>
@@ -1019,85 +1151,197 @@ function ApresentacaoPage() {
                 </button>
 
                 <div className="pdf-page-container">
-                    <div
-                        className="pdf-slide-wrapper"
-                        style={{
-                            width: slideSize.width,
-                            height: slideSize.height,
-                        }}
-                    >
-                        <canvas
-                            ref={canvasRef}
-                            className={
-                                renderizando
-                                    ? "pdf-canvas pdf-canvas-loading"
-                                    : "pdf-canvas"
-                            }
-                        />
-
+                    {(aula?.arquivo_tipo ??
+                        "pdf") ===
+                    "pptx" ? (
                         <div
-                            className="presentation-text-layer"
-                            aria-hidden="true"
+                            className="pptx-slide-wrapper presentation-text-layer"
+                            style={{
+                                aspectRatio:
+                                    `${larguraPptx} / ${alturaPptx}`,
+                            }}
                         >
-                            {itensCamadaTexto.map(
-                                (item) => (
-                                    <span
-                                        key={
-                                            item.id
-                                        }
-                                        style={{
-                                            left:
-                                                item.left,
-                                            top:
-                                                item.top,
-                                            width:
-                                                item.width,
-                                            height:
-                                                item.height,
-                                            fontSize:
-                                                item.fontSize,
-                                            transform:
-                                                Math.abs(
-                                                    item.angulo,
-                                                ) >
-                                                0.5
-                                                    ? `rotate(${item.angulo}deg)`
-                                                    : undefined,
-                                        }}
-                                    >
-                                        {item.texto}
-                                    </span>
-                                ),
+                            {(slidePptxAtual
+                                ?.blocos ??
+                                []).map(
+                                (
+                                    bloco,
+                                    indice,
+                                ) => {
+                                    const left =
+                                        (
+                                            Number(
+                                                bloco.x ??
+                                                0,
+                                            ) /
+                                            larguraPptx
+                                        ) *
+                                        100;
+
+                                    const top =
+                                        (
+                                            Number(
+                                                bloco.y ??
+                                                0,
+                                            ) /
+                                            alturaPptx
+                                        ) *
+                                        100;
+
+                                    const width =
+                                        (
+                                            Number(
+                                                bloco.largura ??
+                                                larguraPptx,
+                                            ) /
+                                            larguraPptx
+                                        ) *
+                                        100;
+
+                                    const minHeight =
+                                        (
+                                            Number(
+                                                bloco.altura ??
+                                                0,
+                                            ) /
+                                            alturaPptx
+                                        ) *
+                                        100;
+
+                                    const tamanho =
+                                        Number(
+                                            bloco.tamanhoFonte ??
+                                            24,
+                                        );
+
+                                    return (
+                                        <div
+                                            key={
+                                                `${paginaAtual}-pptx-${indice}`
+                                            }
+                                            className="pptx-text-block"
+                                            style={{
+                                                left:
+                                                    `${left}%`,
+                                                top:
+                                                    `${top}%`,
+                                                width:
+                                                    `${Math.max(
+                                                        width,
+                                                        6,
+                                                    )}%`,
+                                                minHeight:
+                                                    `${Math.max(
+                                                        minHeight,
+                                                        3,
+                                                    )}%`,
+                                                fontSize:
+                                                    `clamp(11px, ${Math.max(
+                                                        1.1,
+                                                        tamanho /
+                                                        16,
+                                                    )}vw, ${Math.max(
+                                                        16,
+                                                        tamanho *
+                                                        1.35,
+                                                    )}px)`,
+                                            }}
+                                        >
+                                            <BibleLinkedText
+                                                texto={
+                                                    bloco.texto ??
+                                                    ""
+                                                }
+                                                onReferencia={
+                                                    abrirReferencia
+                                                }
+                                            />
+                                        </div>
+                                    );
+                                },
                             )}
                         </div>
+                    ) : (
+                        <div
+                            className="pdf-slide-wrapper"
+                            style={{
+                                width: slideSize.width,
+                                height: slideSize.height,
+                            }}
+                        >
+                            <canvas
+                                ref={canvasRef}
+                                className={
+                                    renderizando
+                                        ? "pdf-canvas pdf-canvas-loading"
+                                        : "pdf-canvas"
+                                }
+                            />
 
-                        <div className="bible-hotspot-layer">
-                            {hotspotsBiblicos.map(
-                                (hotspot) => (
-                                    <button
-                                        key={hotspot.id}
-                                        type="button"
-                                        className="bible-reference-hotspot"
-                                        style={{
-                                            left: hotspot.left,
-                                            top: hotspot.top,
-                                            width: hotspot.width,
-                                            height: hotspot.height,
-                                        }}
-                                        title={`Abrir ${hotspot.referencia}`}
-                                        aria-label={`Abrir ${hotspot.referencia}`}
-                                        onClick={(event) => {
-                                            event.stopPropagation();
+                            <div
+                                className="presentation-text-layer"
+                                aria-hidden="true"
+                            >
+                                {itensCamadaTexto.map(
+                                    (item) => (
+                                        <span
+                                            key={
+                                                item.id
+                                            }
+                                            style={{
+                                                left:
+                                                    item.left,
+                                                top:
+                                                    item.top,
+                                                width:
+                                                    item.width,
+                                                height:
+                                                    item.height,
+                                                fontSize:
+                                                    item.fontSize,
+                                                transform:
+                                                    Math.abs(
+                                                        item.angulo,
+                                                    ) >
+                                                    0.5
+                                                        ? `rotate(${item.angulo}deg)`
+                                                        : undefined,
+                                            }}
+                                        >
+                                            {item.texto}
+                                        </span>
+                                    ),
+                                )}
+                            </div>
 
-                                            abrirReferencia(
-                                                hotspot,
-                                            );
-                                        }}
-                                    />
-                                ),
-                            )}
+                            <div className="bible-hotspot-layer">
+                                {hotspotsBiblicos.map(
+                                    (hotspot) => (
+                                        <button
+                                            key={hotspot.id}
+                                            type="button"
+                                            className="bible-reference-hotspot"
+                                            style={{
+                                                left: hotspot.left,
+                                                top: hotspot.top,
+                                                width: hotspot.width,
+                                                height: hotspot.height,
+                                            }}
+                                            title={`Abrir ${hotspot.referencia}`}
+                                            aria-label={`Abrir ${hotspot.referencia}`}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+
+                                                abrirReferencia(
+                                                    hotspot,
+                                                );
+                                            }}
+                                        />
+                                    ),
+                                )}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <button
