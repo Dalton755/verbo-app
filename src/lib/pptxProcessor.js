@@ -215,10 +215,188 @@ function xfrmElemento(
   );
 }
 
+function contextoRaiz() {
+  return {
+    escalaX: 1,
+    escalaY: 1,
+    translacaoX: 0,
+    translacaoY: 0,
+  };
+}
+
+function transformarGeometria(
+  valor,
+  contexto,
+) {
+  return {
+    x:
+      contexto.translacaoX +
+      contexto.escalaX *
+        valor.x,
+
+    y:
+      contexto.translacaoY +
+      contexto.escalaY *
+        valor.y,
+
+    largura:
+      contexto.escalaX *
+      valor.largura,
+
+    altura:
+      contexto.escalaY *
+      valor.altura,
+
+    rotacao:
+      valor.rotacao,
+  };
+}
+
+function contextoGrupo(
+  grupo,
+  contextoPai,
+) {
+  const grpSpPr =
+    filhoDireto(
+      grupo,
+      "grpSpPr",
+    );
+
+  const xfrm =
+    primeiro(
+      grpSpPr,
+      "xfrm",
+    );
+
+  const off =
+    primeiro(
+      xfrm,
+      "off",
+    );
+
+  const ext =
+    primeiro(
+      xfrm,
+      "ext",
+    );
+
+  const chOff =
+    primeiro(
+      xfrm,
+      "chOff",
+    );
+
+  const chExt =
+    primeiro(
+      xfrm,
+      "chExt",
+    );
+
+  const grupoX =
+    numeroAtributo(
+      off,
+      "x",
+      0,
+    );
+
+  const grupoY =
+    numeroAtributo(
+      off,
+      "y",
+      0,
+    );
+
+  const grupoLargura =
+    numeroAtributo(
+      ext,
+      "cx",
+      1,
+    );
+
+  const grupoAltura =
+    numeroAtributo(
+      ext,
+      "cy",
+      1,
+    );
+
+  const origemFilhosX =
+    numeroAtributo(
+      chOff,
+      "x",
+      0,
+    );
+
+  const origemFilhosY =
+    numeroAtributo(
+      chOff,
+      "y",
+      0,
+    );
+
+  const larguraFilhos =
+    Math.max(
+      numeroAtributo(
+        chExt,
+        "cx",
+        grupoLargura,
+      ),
+      1,
+    );
+
+  const alturaFilhos =
+    Math.max(
+      numeroAtributo(
+        chExt,
+        "cy",
+        grupoAltura,
+      ),
+      1,
+    );
+
+  const escalaGrupoX =
+    grupoLargura /
+    larguraFilhos;
+
+  const escalaGrupoY =
+    grupoAltura /
+    alturaFilhos;
+
+  return {
+    escalaX:
+      contextoPai.escalaX *
+      escalaGrupoX,
+
+    escalaY:
+      contextoPai.escalaY *
+      escalaGrupoY,
+
+    translacaoX:
+      contextoPai.translacaoX +
+      contextoPai.escalaX *
+        (
+          grupoX -
+          origemFilhosX *
+            escalaGrupoX
+        ),
+
+    translacaoY:
+      contextoPai.translacaoY +
+      contextoPai.escalaY *
+        (
+          grupoY -
+          origemFilhosY *
+            escalaGrupoY
+        ),
+  };
+}
+
 function geometria(
   elemento,
   larguraSlide,
   alturaSlide,
+  contexto =
+    contextoRaiz(),
 ) {
   const xfrm =
     xfrmElemento(
@@ -237,7 +415,7 @@ function geometria(
       "ext",
     );
 
-  return {
+  const bruta = {
     x:
       numeroAtributo(
         off,
@@ -273,6 +451,11 @@ function geometria(
         0,
       ) / 60000,
   };
+
+  return transformarGeometria(
+    bruta,
+    contexto,
+  );
 }
 
 function preenchimentoShape(
@@ -571,6 +754,7 @@ function blocoShape(
   alturaSlide,
   tema,
   zIndex,
+  contexto,
 ) {
   const texto =
     textoShape(
@@ -610,6 +794,7 @@ function blocoShape(
       shape,
       larguraSlide,
       alturaSlide,
+      contexto,
     ),
 
     ...propriedadesTexto(
@@ -697,6 +882,7 @@ function blocoImagem(
   alturaSlide,
   relacoes,
   zIndex,
+  contexto,
 ) {
   const blip =
     primeiro(
@@ -737,6 +923,7 @@ function blocoImagem(
       pic,
       larguraSlide,
       alturaSlide,
+      contexto,
     ),
 
     midiaPath:
@@ -782,6 +969,7 @@ function blocoLinha(
   alturaSlide,
   tema,
   zIndex,
+  contexto,
 ) {
   const linha =
     primeiro(
@@ -810,6 +998,7 @@ function blocoLinha(
       shape,
       larguraSlide,
       alturaSlide,
+      contexto,
     ),
 
     cor,
@@ -1095,59 +1284,112 @@ export async function processarPptxAula(
 
     const blocos = [];
 
+    let proximoZIndex = 0;
+
+    function processarElemento(
+      elemento,
+      contexto,
+    ) {
+      if (!elemento) {
+        return;
+      }
+
+      if (
+        elemento.localName ===
+        "grpSp"
+      ) {
+        const contextoFilhos =
+          contextoGrupo(
+            elemento,
+            contexto,
+          );
+
+        [
+          ...elemento.children,
+        ].forEach(
+          (filho) => {
+            if (
+              filho.localName ===
+                "nvGrpSpPr" ||
+              filho.localName ===
+                "grpSpPr"
+            ) {
+              return;
+            }
+
+            processarElemento(
+              filho,
+              contextoFilhos,
+            );
+          },
+        );
+
+        return;
+      }
+
+      let bloco = null;
+
+      if (
+        elemento.localName ===
+        "sp"
+      ) {
+        bloco =
+          blocoShape(
+            elemento,
+            largura,
+            altura,
+            tema,
+            proximoZIndex,
+            contexto,
+          );
+      } else if (
+        elemento.localName ===
+        "pic"
+      ) {
+        bloco =
+          blocoImagem(
+            elemento,
+            largura,
+            altura,
+            relacoes,
+            proximoZIndex,
+            contexto,
+          );
+      } else if (
+        elemento.localName ===
+        "cxnSp"
+      ) {
+        bloco =
+          blocoLinha(
+            elemento,
+            largura,
+            altura,
+            tema,
+            proximoZIndex,
+            contexto,
+          );
+      }
+
+      proximoZIndex += 1;
+
+      if (bloco) {
+        blocos.push(
+          bloco,
+        );
+      }
+    }
+
+    const contexto =
+      contextoRaiz();
+
     [
       ...(spTree?.children ?? []),
     ].forEach(
-      (
-        elemento,
-        indice,
-      ) => {
-        let bloco = null;
-
-        if (
-          elemento.localName ===
-          "sp"
-        ) {
-          bloco =
-            blocoShape(
-              elemento,
-              largura,
-              altura,
-              tema,
-              indice,
-            );
-        } else if (
-          elemento.localName ===
-          "pic"
-        ) {
-          bloco =
-            blocoImagem(
-              elemento,
-              largura,
-              altura,
-              relacoes,
-              indice,
-            );
-        } else if (
-          elemento.localName ===
-          "cxnSp"
-        ) {
-          bloco =
-            blocoLinha(
-              elemento,
-              largura,
-              altura,
-              tema,
-              indice,
-            );
-        }
-
-        if (bloco) {
-          blocos.push(
-            bloco,
-          );
-        }
-      },
+      (elemento) =>
+        processarElemento(
+          elemento,
+          contexto,
+        ),
     );
 
     paginas.push({
