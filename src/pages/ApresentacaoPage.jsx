@@ -44,6 +44,11 @@ import DictionarySelectionAction
 import BibleLinkedText
     from "../components/BibleLinkedText";
 
+import {
+    carregarMidiasPptx,
+    revogarMidiasPptx,
+} from "../lib/pptxProcessor";
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 function ApresentacaoPage() {
@@ -66,6 +71,11 @@ function ApresentacaoPage() {
         pptxPaginas,
         setPptxPaginas,
     ] = useState([]);
+
+    const [
+        pptxMidias,
+        setPptxMidias,
+    ] = useState({});
 
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [totalPaginas, setTotalPaginas] = useState(0);
@@ -214,6 +224,69 @@ function ApresentacaoPage() {
                     return;
                 }
 
+                const {
+                    data:
+                        pptxSignedData,
+                    error:
+                        pptxSignedError,
+                } =
+                    await supabase.storage
+                        .from(
+                            "biblia-slides-pdfs",
+                        )
+                        .createSignedUrl(
+                            aulaData.storage_path,
+                            60 * 60,
+                        );
+
+                if (!ativo) {
+                    return;
+                }
+
+                let midias = {};
+
+                if (
+                    !pptxSignedError &&
+                    pptxSignedData
+                        ?.signedUrl
+                ) {
+                    try {
+                        const resposta =
+                            await fetch(
+                                pptxSignedData
+                                    .signedUrl,
+                            );
+
+                        if (
+                            resposta.ok
+                        ) {
+                            const blob =
+                                await resposta
+                                    .blob();
+
+                            midias =
+                                await carregarMidiasPptx(
+                                    blob,
+                                    paginasPptx,
+                                );
+                        }
+                    } catch (
+                        error
+                    ) {
+                        console.warn(
+                            "Não foi possível carregar todas as imagens do PowerPoint:",
+                            error,
+                        );
+                    }
+                }
+
+                if (!ativo) {
+                    revogarMidiasPptx(
+                        midias,
+                    );
+                    return;
+                }
+
                 const paginaSalva =
                     Math.min(
                         Math.max(
@@ -232,6 +305,9 @@ function ApresentacaoPage() {
                 setPdf(null);
                 setPptxPaginas(
                     paginasPptx,
+                );
+                setPptxMidias(
+                    midias,
                 );
                 setTotalPaginas(
                     paginasPptx.length,
