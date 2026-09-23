@@ -137,6 +137,14 @@ function ApresentacaoPage() {
     ] = useState("");
 
     useEffect(() => {
+        return () => {
+            revogarMidiasPptx(
+                pptxMidias,
+            );
+        };
+    }, [pptxMidias]);
+
+    useEffect(() => {
         if (!user || !id) return;
 
         let ativo = true;
@@ -1231,10 +1239,15 @@ function ApresentacaoPage() {
                         "pdf") ===
                     "pptx" ? (
                         <div
-                            className="pptx-slide-wrapper presentation-text-layer"
+                            className="pptx-slide-wrapper"
                             style={{
                                 aspectRatio:
                                     `${larguraPptx} / ${alturaPptx}`,
+
+                                background:
+                                    slidePptxAtual
+                                        ?.fundo ??
+                                    "#ffffff",
                             }}
                         >
                             {(slidePptxAtual
@@ -1274,7 +1287,7 @@ function ApresentacaoPage() {
                                         ) *
                                         100;
 
-                                    const minHeight =
+                                    const height =
                                         (
                                             Number(
                                                 bloco.altura ??
@@ -1284,11 +1297,142 @@ function ApresentacaoPage() {
                                         ) *
                                         100;
 
+                                    const estiloBase = {
+                                        left:
+                                            `${left}%`,
+                                        top:
+                                            `${top}%`,
+                                        width:
+                                            `${Math.max(
+                                                width,
+                                                0.1,
+                                            )}%`,
+                                        height:
+                                            `${Math.max(
+                                                height,
+                                                0.1,
+                                            )}%`,
+                                        zIndex:
+                                            Number(
+                                                bloco.zIndex ??
+                                                indice,
+                                            ) +
+                                            1,
+                                        transform:
+                                            bloco.rotacao
+                                                ? `rotate(${bloco.rotacao}deg)`
+                                                : undefined,
+                                    };
+
+                                    if (
+                                        bloco.tipo ===
+                                        "imagem"
+                                    ) {
+                                        const src =
+                                            pptxMidias[
+                                                bloco.midiaPath
+                                            ];
+
+                                        if (!src) {
+                                            return null;
+                                        }
+
+                                        return (
+                                            <img
+                                                key={
+                                                    `${paginaAtual}-pptx-${indice}`
+                                                }
+                                                className="pptx-image-block"
+                                                src={src}
+                                                alt=""
+                                                draggable="false"
+                                                style={
+                                                    estiloBase
+                                                }
+                                            />
+                                        );
+                                    }
+
+                                    if (
+                                        bloco.tipo ===
+                                        "linha"
+                                    ) {
+                                        return (
+                                            <div
+                                                key={
+                                                    `${paginaAtual}-pptx-${indice}`
+                                                }
+                                                className="pptx-line-block"
+                                                style={{
+                                                    ...estiloBase,
+
+                                                    background:
+                                                        bloco.cor,
+
+                                                    minHeight:
+                                                        `${Math.max(
+                                                            Number(
+                                                                bloco.espessura ??
+                                                                12700,
+                                                            ) /
+                                                                9525,
+                                                            1,
+                                                        )}px`,
+                                                }}
+                                            />
+                                        );
+                                    }
+
                                     const tamanho =
                                         Number(
                                             bloco.tamanhoFonte ??
                                             24,
                                         );
+
+                                    const borda =
+                                        bloco.bordaCor
+                                            ? `${Math.max(
+                                                Number(
+                                                    bloco.bordaLargura ??
+                                                    9525,
+                                                ) /
+                                                    9525,
+                                                1,
+                                            )}px solid ${bloco.bordaCor}`
+                                            : "none";
+
+                                    const arredondamento =
+                                        bloco.geometria ===
+                                        "ellipse"
+                                            ? "50%"
+                                            : "0";
+
+                                    if (
+                                        bloco.tipo ===
+                                        "forma"
+                                    ) {
+                                        return (
+                                            <div
+                                                key={
+                                                    `${paginaAtual}-pptx-${indice}`
+                                                }
+                                                className="pptx-shape-block"
+                                                style={{
+                                                    ...estiloBase,
+
+                                                    background:
+                                                        bloco.preenchimento ??
+                                                        "transparent",
+
+                                                    border:
+                                                        borda,
+
+                                                    borderRadius:
+                                                        arredondamento,
+                                                }}
+                                            />
+                                        );
+                                    }
 
                                     return (
                                         <div
@@ -1297,30 +1441,51 @@ function ApresentacaoPage() {
                                             }
                                             className="pptx-text-block"
                                             style={{
-                                                left:
-                                                    `${left}%`,
-                                                top:
-                                                    `${top}%`,
-                                                width:
-                                                    `${Math.max(
-                                                        width,
-                                                        6,
-                                                    )}%`,
-                                                minHeight:
-                                                    `${Math.max(
-                                                        minHeight,
-                                                        3,
-                                                    )}%`,
+                                                ...estiloBase,
+
+                                                background:
+                                                    bloco.preenchimento ??
+                                                    "transparent",
+
+                                                border:
+                                                    borda,
+
+                                                borderRadius:
+                                                    arredondamento,
+
+                                                color:
+                                                    bloco.corTexto ??
+                                                    "#111827",
+
+                                                fontFamily:
+                                                    bloco.fonte
+                                                        ? `"${bloco.fonte}", Arial, sans-serif`
+                                                        : "Arial, sans-serif",
+
+                                                fontWeight:
+                                                    bloco.negrito
+                                                        ? 700
+                                                        : 400,
+
+                                                fontStyle:
+                                                    bloco.italico
+                                                        ? "italic"
+                                                        : "normal",
+
+                                                textAlign:
+                                                    bloco.alinhamento ??
+                                                    "left",
+
+                                                alignItems:
+                                                    bloco.alinhamentoVertical ??
+                                                    "flex-start",
+
                                                 fontSize:
-                                                    `clamp(11px, ${Math.max(
-                                                        1.1,
-                                                        tamanho /
-                                                        16,
-                                                    )}vw, ${Math.max(
-                                                        16,
+                                                    `${Math.max(
                                                         tamanho *
-                                                        1.35,
-                                                    )}px)`,
+                                                            0.104,
+                                                        0.78,
+                                                    )}cqw`,
                                             }}
                                         >
                                             <BibleLinkedText
@@ -1431,7 +1596,13 @@ function ApresentacaoPage() {
             </main>
 
             <DictionarySelectionAction
-                containerSelector=".presentation-text-layer"
+                containerSelector={
+                    (aula?.arquivo_tipo ??
+                        "pdf") ===
+                    "pptx"
+                        ? ".pptx-slide-wrapper"
+                        : ".presentation-text-layer"
+                }
                 disabled={
                     renderizando
                 }
