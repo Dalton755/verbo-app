@@ -28,8 +28,14 @@ import {
 } from "../contexts/AuthContext";
 
 import {
-    processarPdfSermao,
-} from "../lib/sermonPdfProcessor";
+    processarArquivoSermao,
+} from "../lib/sermonFileProcessor";
+
+import {
+    arquivoPermitido,
+    formatoArquivo,
+    FORMATOS_SUPORTADOS,
+} from "../lib/fileFormats";
 
 import {
     limparSermaoCache,
@@ -37,8 +43,8 @@ import {
 } from "../lib/sermonCache";
 
 import {
-    uploadPdfSeguro,
-} from "../lib/uploadPdfSeguro";
+    uploadArquivoSeguro,
+} from "../lib/uploadArquivoSeguro";
 
 import verboLogoHorizontal from "../assets/verbo-logo-horizontal.png";
 
@@ -310,15 +316,22 @@ function SermoesPage() {
         }
 
         if (
-            arquivo.type !==
-            "application/pdf"
+            !arquivoPermitido(
+                arquivo,
+                "sermoes",
+            )
         ) {
             setErro(
-                "Selecione um arquivo PDF.",
+                "Selecione um arquivo PDF ou DOCX.",
             );
 
             return;
         }
+
+        const formato =
+            formatoArquivo(
+                arquivo,
+            );
 
         setSalvando(true);
         setErro("");
@@ -327,17 +340,17 @@ function SermoesPage() {
 
         try {
             processamento =
-                await processarPdfSermao(
+                await processarArquivoSermao(
                     arquivo,
                 );
         } catch (error) {
             console.error(
-                "Erro ao preparar PDF:",
+                "Erro ao preparar arquivo:",
                 error,
             );
 
             setErro(
-                "Não conseguimos preparar este PDF para o Modo Pregação.",
+                "Não conseguimos preparar este arquivo para o Modo Pregação.",
             );
 
             setSalvando(false);
@@ -348,6 +361,10 @@ function SermoesPage() {
             versao:
                 processamento.versao,
 
+            formato:
+                processamento.formato ??
+                formato,
+
             paginas:
                 processamento.paginas,
         };
@@ -356,17 +373,22 @@ function SermoesPage() {
             crypto.randomUUID();
 
         const storagePath =
-            `${user.id}/sermoes/${identificador}.pdf`;
+            `${user.id}/sermoes/${identificador}.${formato}`;
 
         /*
  * Reserva o espaço e envia
- * o PDF com quota protegida.
+ * o arquivo com quota protegida.
  */
         try {
-            await uploadPdfSeguro({
+            await uploadArquivoSeguro({
                 arquivo,
                 caminho:
                     storagePath,
+
+                formatosPermitidos:
+                    FORMATOS_SUPORTADOS
+                        .sermoes
+                        .extensoes,
             });
         } catch (error) {
             console.error(
@@ -376,7 +398,7 @@ function SermoesPage() {
 
             setErro(
                 error?.message ||
-                "Não conseguimos enviar o PDF.",
+                "Não conseguimos enviar o arquivo.",
             );
 
             setSalvando(false);
@@ -410,6 +432,9 @@ function SermoesPage() {
                 arquivo_nome:
                     arquivo.name,
 
+                arquivo_tipo:
+                    formato,
+
                 storage_path:
                     storagePath,
 
@@ -431,7 +456,8 @@ function SermoesPage() {
                         .toISOString(),
 
                 processador_versao:
-                    1,
+                    processamento
+                        .versao ?? 1,
             })
             .select(`
                 id,
@@ -440,6 +466,7 @@ function SermoesPage() {
                 texto_base,
                 serie_id,
                 arquivo_nome,
+                arquivo_tipo,
                 storage_path,
                 total_paginas,
                 ultima_pagina,
@@ -465,7 +492,7 @@ function SermoesPage() {
                 ]);
 
             setErro(
-                "O PDF foi enviado, mas não conseguimos criar o sermão.",
+                "O arquivo foi enviado, mas não conseguimos criar o sermão.",
             );
 
             setSalvando(false);
@@ -519,7 +546,7 @@ function SermoesPage() {
 
         const confirmou =
             window.confirm(
-                `Excluir "${sermao.titulo}"?\n\nO sermão e o PDF serão removidos permanentemente. O espaço ocupado será liberado.`,
+                `Excluir "${sermao.titulo}"?\n\nO sermão e o arquivo serão removidos permanentemente. O espaço ocupado será liberado.`,
             );
 
         if (!confirmou) {
@@ -550,12 +577,12 @@ function SermoesPage() {
 
             if (storageError) {
                 console.error(
-                    "Erro ao remover PDF do sermão:",
+                    "Erro ao remover arquivo do sermão:",
                     storageError,
                 );
 
                 setErro(
-                    "Não conseguimos remover o PDF. O sermão não foi excluído.",
+                    "Não conseguimos remover o arquivo. O sermão não foi excluído.",
                 );
 
                 setExcluindoSermao(
@@ -591,7 +618,7 @@ function SermoesPage() {
             );
 
             setErro(
-                "O PDF foi removido, mas ocorreu um erro ao excluir o sermão do banco.",
+                "O arquivo foi removido, mas ocorreu um erro ao excluir o sermão do banco.",
             );
 
             setExcluindoSermao(
@@ -691,7 +718,7 @@ function SermoesPage() {
                         </h2>
 
                         <p>
-                            Importe seus esboços em PDF e
+                            Importe seus esboços em PDF ou DOCX e
                             use uma experiência preparada
                             especificamente para pregação.
                         </p>
@@ -1151,12 +1178,16 @@ function SermoesPage() {
                             </div>
 
                             <label>
-                                Arquivo PDF
+                                Arquivo PDF ou DOCX
 
                                 <div className="pdf-picker">
                                     <input
                                         type="file"
-                                        accept="application/pdf,.pdf"
+                                        accept={
+                                            FORMATOS_SUPORTADOS
+                                                .sermoes
+                                                .accept
+                                        }
                                         onChange={(
                                             event,
                                         ) =>
@@ -1176,7 +1207,7 @@ function SermoesPage() {
                                         <strong>
                                             {arquivo
                                                 ? arquivo.name
-                                                : "Selecionar PDF"}
+                                                : "Selecionar PDF ou DOCX"}
                                         </strong>
 
                                         <span>
