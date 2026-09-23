@@ -397,6 +397,7 @@ function geometria(
   alturaSlide,
   contexto =
     contextoRaiz(),
+  fallback = null,
 ) {
   const xfrm =
     xfrmElemento(
@@ -420,28 +421,30 @@ function geometria(
       numeroAtributo(
         off,
         "x",
-        0,
+        fallback?.x ?? 0,
       ),
 
     y:
       numeroAtributo(
         off,
         "y",
-        0,
+        fallback?.y ?? 0,
       ),
 
     largura:
       numeroAtributo(
         ext,
         "cx",
-        larguraSlide,
+        fallback?.largura ??
+          larguraSlide,
       ),
 
     altura:
       numeroAtributo(
         ext,
         "cy",
-        alturaSlide,
+        fallback?.altura ??
+          alturaSlide,
       ),
 
     rotacao:
@@ -755,6 +758,7 @@ function blocoShape(
   tema,
   zIndex,
   contexto,
+  geometriaFallback = null,
 ) {
   const texto =
     textoShape(
@@ -795,6 +799,7 @@ function blocoShape(
       larguraSlide,
       alturaSlide,
       contexto,
+      geometriaFallback,
     ),
 
     ...propriedadesTexto(
@@ -818,6 +823,123 @@ function blocoShape(
 
     zIndex,
   };
+}
+
+function chavePlaceholder(
+  shape,
+) {
+  const ph =
+    primeiro(
+      shape,
+      "ph",
+    );
+
+  if (!ph) {
+    return null;
+  }
+
+  return `${
+    ph.getAttribute("type") ??
+    "body"
+  }:${
+    ph.getAttribute("idx") ??
+    "0"
+  }`;
+}
+
+async function dadosLayoutSlide(
+  zip,
+  relacoes,
+  larguraSlide,
+  alturaSlide,
+  tema,
+) {
+  const relacaoLayout = [
+    ...relacoes.values(),
+  ].find(
+    (item) =>
+      item.tipo.includes(
+        "slideLayout",
+      ),
+  );
+
+  if (
+    !relacaoLayout?.caminho ||
+    !zip.existe(
+      relacaoLayout.caminho,
+    )
+  ) {
+    return {
+      geometrias:
+        new Map(),
+      fundo: null,
+    };
+  }
+
+  try {
+    const documento =
+      parserXml(
+        await zip.texto(
+          relacaoLayout.caminho,
+        ),
+      );
+
+    const geometrias =
+      new Map();
+
+    const spTree =
+      primeiro(
+        documento,
+        "spTree",
+      );
+
+    [
+      ...(spTree?.children ?? []),
+    ]
+      .filter(
+        (elemento) =>
+          elemento.localName ===
+          "sp",
+      )
+      .forEach(
+        (shape) => {
+          const chave =
+            chavePlaceholder(
+              shape,
+            );
+
+          if (!chave) {
+            return;
+          }
+
+          geometrias.set(
+            chave,
+            geometria(
+              shape,
+              larguraSlide,
+              alturaSlide,
+            ),
+          );
+        },
+      );
+
+    return {
+      geometrias,
+
+      fundo:
+        fundoSlide(
+          documento,
+          tema,
+          null,
+        ),
+    };
+  } catch {
+    return {
+      geometrias:
+        new Map(),
+      fundo: null,
+    };
+  }
 }
 
 function relacoesSlide(
@@ -1016,6 +1138,7 @@ function blocoLinha(
 function fundoSlide(
   documento,
   tema,
+  fallback = "#FFFFFF",
 ) {
   const cSld =
     primeiro(
@@ -1047,7 +1170,7 @@ function fundoSlide(
       tema,
       null,
     ) ??
-    "#FFFFFF"
+    fallback
   );
 }
 
@@ -1276,6 +1399,15 @@ export async function processarPptxAula(
         caminho,
       );
 
+    const dadosLayout =
+      await dadosLayoutSlide(
+        zip,
+        relacoes,
+        largura,
+        altura,
+        tema,
+      );
+
     const spTree =
       primeiro(
         documento,
@@ -1341,6 +1473,14 @@ export async function processarPptxAula(
             tema,
             proximoZIndex,
             contexto,
+            dadosLayout
+              .geometrias
+              .get(
+                chavePlaceholder(
+                  elemento,
+                ),
+              ) ??
+              null,
           );
       } else if (
         elemento.localName ===
@@ -1403,6 +1543,8 @@ export async function processarPptxAula(
         fundoSlide(
           documento,
           tema,
+          dadosLayout.fundo ??
+            "#FFFFFF",
         ),
 
       blocos,
