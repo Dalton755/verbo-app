@@ -1503,6 +1503,7 @@ function SermaoPage() {
                 tema,
                 texto_base,
                 arquivo_nome,
+                arquivo_tipo,
                 storage_path,
                 total_paginas,
                 ultima_pagina,
@@ -1607,37 +1608,41 @@ function SermaoPage() {
                 );
 
                 /*
-                 * Geramos a URL do PDF em
-                 * segundo plano apenas para
-                 * o botão "PDF original".
-                 *
-                 * Não bloqueia o Modo Pregação.
+                 * PDF mantém o botão de arquivo
+                 * original. DOCX usa diretamente
+                 * o conteúdo estruturado do VERBO.
                  */
-                supabase.storage
-                    .from(
-                        "biblia-slides-pdfs",
-                    )
-                    .createSignedUrl(
-                        data.storage_path,
-                        60 * 60,
-                    )
-                    .then(
-                        ({
-                            data:
-                            signedData,
-                        }) => {
-                            if (
-                                ativo &&
-                                signedData
-                                    ?.signedUrl
-                            ) {
-                                setPdfUrl(
+                if (
+                    (data.arquivo_tipo ??
+                        "pdf") ===
+                    "pdf"
+                ) {
+                    supabase.storage
+                        .from(
+                            "biblia-slides-pdfs",
+                        )
+                        .createSignedUrl(
+                            data.storage_path,
+                            60 * 60,
+                        )
+                        .then(
+                            ({
+                                data:
+                                signedData,
+                            }) => {
+                                if (
+                                    ativo &&
                                     signedData
-                                        .signedUrl,
-                                );
-                            }
-                        },
-                    );
+                                        ?.signedUrl
+                                ) {
+                                    setPdfUrl(
+                                        signedData
+                                            .signedUrl,
+                                    );
+                                }
+                            },
+                        );
+                }
 
                 return;
             }
@@ -4183,28 +4188,32 @@ function SermaoPage() {
                                 </span>
                             </button>
 
-                            <button
-                                type="button"
-                                className={
-                                    modoVisualizacao ===
-                                        "pdf"
-                                        ? "active"
-                                        : ""
-                                }
-                                onClick={() =>
-                                    setModoVisualizacao(
-                                        "pdf",
-                                    )
-                                }
-                            >
-                                <BookOpen
-                                    size={17}
-                                />
+                            {(sermao?.arquivo_tipo ??
+                                "pdf") ===
+                                "pdf" && (
+                                <button
+                                    type="button"
+                                    className={
+                                        modoVisualizacao ===
+                                            "pdf"
+                                            ? "active"
+                                            : ""
+                                    }
+                                    onClick={() =>
+                                        setModoVisualizacao(
+                                            "pdf",
+                                        )
+                                    }
+                                >
+                                    <BookOpen
+                                        size={17}
+                                    />
 
-                                <span>
-                                    PDF
-                                </span>
-                            </button>
+                                    <span>
+                                        PDF
+                                    </span>
+                                </button>
+                            )}
                         </div>
 
                         {modoVisualizacao ===
