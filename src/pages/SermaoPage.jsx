@@ -81,7 +81,7 @@ function normalizarTexto(texto = "") {
 }
 
 function textoChave(texto = "") {
-    return texto
+    return String(texto ?? "")
         .normalize("NFD")
         .replace(/\p{Diacritic}/gu, "")
         .toLowerCase()
