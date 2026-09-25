@@ -5,7 +5,7 @@ const allowedVersions = {
   },
   ONBV: {
     baseUrl: "https://ebible.org/poronbv",
-    label: "Open Nova Bíblia Viva 2007",
+    label: "Biblica® Open Nova Bíblia Viva™ 2007",
   },
 } as const;
 
