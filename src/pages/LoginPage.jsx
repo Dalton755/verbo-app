@@ -1,8 +1,15 @@
-﻿import {
+import {
   useState,
 } from "react";
 
 import {
+  Eye,
+  EyeOff,
+  LogIn,
+} from "lucide-react";
+
+import {
+  useNavigate,
   useSearchParams,
 } from "react-router-dom";
 
@@ -32,22 +39,52 @@ function normalizarModulo(
 }
 
 function LoginPage() {
+  const navigate =
+    useNavigate();
+
   const [
     searchParams,
   ] = useSearchParams();
 
   const {
     entrarComGoogle,
+    entrar,
+    recuperarSenha,
   } = useAuth();
 
   const [
-    enviando,
-    setEnviando,
+    formularioEmailAberto,
+    setFormularioEmailAberto,
   ] = useState(false);
+
+  const [
+    email,
+    setEmail,
+  ] = useState("");
+
+  const [
+    senha,
+    setSenha,
+  ] = useState("");
+
+  const [
+    mostrarSenha,
+    setMostrarSenha,
+  ] = useState(false);
+
+  const [
+    acaoEmAndamento,
+    setAcaoEmAndamento,
+  ] = useState("");
 
   const [
     erro,
     setErro,
+  ] = useState("");
+
+  const [
+    sucesso,
+    setSucesso,
   ] = useState("");
 
   const modulo =
@@ -96,9 +133,17 @@ function LoginPage() {
   const texto =
     textos[modulo];
 
+  const processando =
+    Boolean(
+      acaoEmAndamento,
+    );
+
   async function entrarGoogle() {
     setErro("");
-    setEnviando(true);
+    setSucesso("");
+    setAcaoEmAndamento(
+      "google",
+    );
 
     try {
       const { error } =
@@ -116,8 +161,108 @@ function LoginPage() {
         "Não conseguimos acessar com o Google. Tente novamente.",
       );
 
-      setEnviando(false);
+      setAcaoEmAndamento("");
     }
+  }
+
+  async function entrarEmail(
+    event,
+  ) {
+    event.preventDefault();
+
+    setErro("");
+    setSucesso("");
+    setAcaoEmAndamento(
+      "email",
+    );
+
+    try {
+      const { error } =
+        await entrar(
+          email.trim(),
+          senha,
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      navigate(
+        "/",
+        {
+          replace: true,
+        },
+      );
+    } catch (error) {
+      console.error(error);
+
+      if (
+        error?.message ===
+        "Invalid login credentials"
+      ) {
+        setErro(
+          "E-mail ou senha incorretos.",
+        );
+      } else {
+        setErro(
+          "Não conseguimos entrar agora. Confira os dados e tente novamente.",
+        );
+      }
+    } finally {
+      setAcaoEmAndamento("");
+    }
+  }
+
+  async function enviarRecuperacao() {
+    setErro("");
+    setSucesso("");
+
+    const emailInformado =
+      email.trim();
+
+    if (!emailInformado) {
+      setErro(
+        "Informe seu e-mail para recuperar a senha.",
+      );
+
+      return;
+    }
+
+    setAcaoEmAndamento(
+      "recuperacao",
+    );
+
+    try {
+      const { error } =
+        await recuperarSenha(
+          emailInformado,
+        );
+
+      if (error) {
+        throw error;
+      }
+
+      setSucesso(
+        "Enviamos um link para redefinir sua senha. Confira também a pasta de spam.",
+      );
+    } catch (error) {
+      console.error(error);
+
+      setErro(
+        "Não foi possível enviar o link de recuperação. Tente novamente.",
+      );
+    } finally {
+      setAcaoEmAndamento("");
+    }
+  }
+
+  function alternarFormularioEmail() {
+    setErro("");
+    setSucesso("");
+
+    setFormularioEmailAberto(
+      (atual) => !atual,
+    );
   }
 
   return (
@@ -158,45 +303,165 @@ function LoginPage() {
           </div>
         )}
 
+        {sucesso && (
+          <div className="auth-message auth-success">
+            {sucesso}
+          </div>
+        )}
+
         <button
           type="button"
-          className="primary-button auth-submit"
+          className="primary-button auth-submit auth-google-button"
           onClick={entrarGoogle}
-          disabled={enviando}
-          style={{
-            width: "100%",
-            justifyContent: "center",
-            gap: "12px",
-          }}
+          disabled={processando}
         >
           <span
             aria-hidden="true"
-            style={{
-              width: "24px",
-              height: "24px",
-              borderRadius: "50%",
-              background: "#fff",
-              color: "#4285f4",
-              display: "grid",
-              placeItems: "center",
-              fontWeight: 800,
-            }}
+            className="auth-google-icon"
           >
             G
           </span>
 
-          {enviando
+          {acaoEmAndamento ===
+          "google"
             ? "Abrindo Google..."
             : "Continuar com Google"}
         </button>
 
-        <p
-          className="auth-footer"
-          style={{
-            marginTop: "18px",
-            opacity: 0.7,
-          }}
+        <div className="auth-login-divider">
+          <span>ou</span>
+        </div>
+
+        <button
+          type="button"
+          className="auth-email-toggle"
+          onClick={
+            alternarFormularioEmail
+          }
+          aria-expanded={
+            formularioEmailAberto
+          }
+          disabled={processando}
         >
+          <LogIn size={18} />
+
+          <span>
+            {formularioEmailAberto
+              ? "Ocultar entrada por e-mail"
+              : "Entrar com e-mail e senha"}
+          </span>
+        </button>
+
+        {formularioEmailAberto && (
+          <form
+            className="auth-form auth-email-form"
+            onSubmit={entrarEmail}
+          >
+            <label>
+              E-mail
+
+              <input
+                type="email"
+                value={email}
+                onChange={(event) =>
+                  setEmail(
+                    event.target.value,
+                  )
+                }
+                placeholder="seu@email.com"
+                required
+                autoComplete="email"
+                inputMode="email"
+                disabled={processando}
+              />
+            </label>
+
+            <label>
+              Senha
+
+              <div className="auth-password-field">
+                <input
+                  type={
+                    mostrarSenha
+                      ? "text"
+                      : "password"
+                  }
+                  value={senha}
+                  onChange={(event) =>
+                    setSenha(
+                      event.target.value,
+                    )
+                  }
+                  placeholder="Sua senha"
+                  required
+                  minLength={6}
+                  autoComplete="current-password"
+                  disabled={processando}
+                />
+
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onMouseDown={(event) =>
+                    event.preventDefault()
+                  }
+                  onClick={() =>
+                    setMostrarSenha(
+                      (atual) =>
+                        !atual,
+                    )
+                  }
+                  aria-label={
+                    mostrarSenha
+                      ? "Ocultar senha"
+                      : "Mostrar senha"
+                  }
+                  title={
+                    mostrarSenha
+                      ? "Ocultar senha"
+                      : "Mostrar senha"
+                  }
+                  disabled={processando}
+                >
+                  {mostrarSenha ? (
+                    <EyeOff size={19} />
+                  ) : (
+                    <Eye size={19} />
+                  )}
+                </button>
+              </div>
+            </label>
+
+            <div className="auth-email-actions">
+              <button
+                type="button"
+                className="auth-forgot-password"
+                onClick={
+                  enviarRecuperacao
+                }
+                disabled={processando}
+              >
+                {acaoEmAndamento ===
+                "recuperacao"
+                  ? "Enviando link..."
+                  : "Esqueci minha senha"}
+              </button>
+            </div>
+
+            <button
+              type="submit"
+              className="primary-button auth-submit"
+              disabled={processando}
+            >
+              {acaoEmAndamento ===
+              "email"
+                ? "Entrando..."
+                : "Entrar"}
+            </button>
+          </form>
+        )}
+
+        <p className="auth-footer auth-login-note">
           Acesso rápido. Nenhum dado de pagamento será solicitado agora.
         </p>
       </div>
