@@ -33,7 +33,7 @@ export const VERSOES_BIBLICAS = [
         id: "ONBV",
         abreviacao: "ONBV",
         nome:
-            "Open Nova Bíblia Viva 2007",
+            "Biblica® Open Nova Bíblia Viva™ 2007",
         credito:
             "CC BY-SA 4.0 · © 2007, 2010 Biblica, Inc.",
         fonte:
