@@ -2,6 +2,45 @@ import {
     supabase,
 } from "./supabase";
 
+const CHAVE_PREFERENCIA =
+    "verbo:traducao-biblica";
+
+export const VERSAO_BIBLICA_PADRAO =
+    "ALM1911_ATUAL";
+
+export const VERSOES_BIBLICAS = [
+    {
+        id: "ALM1911_ATUAL",
+        abreviacao: "ALM1911",
+        nome:
+            "Almeida 1911 · ortografia modernizada",
+        credito:
+            "Texto em domínio público",
+        fonte:
+            "Base bíblica do VERBO",
+    },
+    {
+        id: "BLIVRE",
+        abreviacao: "BLIVRE",
+        nome:
+            "Bíblia Livre",
+        credito:
+            "CC BY 4.0 · © 2018 Diego Santos, Mario Sérgio e Marco Teles",
+        fonte:
+            "eBible.org",
+    },
+    {
+        id: "ONBV",
+        abreviacao: "ONBV",
+        nome:
+            "Open Nova Bíblia Viva 2007",
+        credito:
+            "CC BY-SA 4.0 · © 2007, 2010 Biblica, Inc.",
+        fonte:
+            "eBible.org / Biblica",
+    },
+];
+
 const CODIGOS = {
     "Gênesis": "GN",
     "Êxodo": "EX",
@@ -11,26 +50,20 @@ const CODIGOS = {
     "Josué": "JS",
     "Juízes": "JZ",
     "Rute": "RT",
-
     "1 Samuel": "1SM",
     "2 Samuel": "2SM",
-
     "1 Reis": "1RS",
     "2 Reis": "2RS",
-
     "1 Crônicas": "1CR",
     "2 Crônicas": "2CR",
-
     "Esdras": "ED",
     "Neemias": "NE",
     "Ester": "ET",
     "Jó": "JO",
-
     "Salmos": "SL",
     "Provérbios": "PV",
     "Eclesiastes": "EC",
     "Cantares": "CT",
-
     "Isaías": "IS",
     "Jeremias": "JR",
     "Lamentações": "LM",
@@ -48,45 +81,94 @@ const CODIGOS = {
     "Ageu": "AG",
     "Zacarias": "ZC",
     "Malaquias": "ML",
-
     "Mateus": "MT",
     "Marcos": "MC",
     "Lucas": "LC",
     "João": "JOA",
     "Atos": "AT",
     "Romanos": "RM",
-
     "1 Coríntios": "1CO",
     "2 Coríntios": "2CO",
-
     "Gálatas": "GL",
     "Efésios": "EF",
     "Filipenses": "FP",
     "Colossenses": "CL",
-
     "1 Tessalonicenses": "1TS",
     "2 Tessalonicenses": "2TS",
-
     "1 Timóteo": "1TM",
     "2 Timóteo": "2TM",
-
     "Tito": "TT",
     "Filemom": "FM",
     "Hebreus": "HB",
     "Tiago": "TG",
-
     "1 Pedro": "1PE",
     "2 Pedro": "2PE",
-
     "1 João": "1JO",
     "2 João": "2JO",
     "3 João": "3JO",
-
     "Judas": "JD",
     "Apocalipse": "AP",
 };
 
-export async function buscarPassagemBiblica(
+function obterVersao(
+    versaoId,
+) {
+    return (
+        VERSOES_BIBLICAS.find(
+            (item) =>
+                item.id === versaoId,
+        ) ??
+        VERSOES_BIBLICAS[0]
+    );
+}
+
+export function obterVersaoBiblicaPreferida() {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return VERSAO_BIBLICA_PADRAO;
+    }
+
+    const salva =
+        window.localStorage.getItem(
+            CHAVE_PREFERENCIA,
+        );
+
+    return VERSOES_BIBLICAS.some(
+        (item) =>
+            item.id === salva,
+    )
+        ? salva
+        : VERSAO_BIBLICA_PADRAO;
+}
+
+export function salvarVersaoBiblicaPreferida(
+    versaoId,
+) {
+    if (
+        typeof window ===
+        "undefined"
+    ) {
+        return;
+    }
+
+    if (
+        !VERSOES_BIBLICAS.some(
+            (item) =>
+                item.id === versaoId,
+        )
+    ) {
+        return;
+    }
+
+    window.localStorage.setItem(
+        CHAVE_PREFERENCIA,
+        versaoId,
+    );
+}
+
+function validarReferencia(
     referencia,
 ) {
     const codigo =
@@ -104,6 +186,32 @@ export async function buscarPassagemBiblica(
         );
     }
 
+    return codigo;
+}
+
+function formatarVersos(
+    versos,
+    referencia,
+) {
+    return versos.map(
+        (item) => ({
+            numero:
+                item.numero ??
+                item.versiculo,
+
+            texto:
+                item.texto,
+
+            nome:
+                `${referencia.livro} ${referencia.capitulo}:${item.numero ?? item.versiculo}`,
+        }),
+    );
+}
+
+async function buscarNoBanco(
+    referencia,
+    codigo,
+) {
     let query =
         supabase
             .from("versiculos")
@@ -126,11 +234,6 @@ export async function buscarPassagemBiblica(
                 referencia.capitulo,
             );
 
-    /*
-     * Exemplo:
-     *
-     * João 3:16-18
-     */
     if (
         referencia.versiculoFim
     ) {
@@ -144,14 +247,7 @@ export async function buscarPassagemBiblica(
                     "versiculo",
                     referencia.versiculoFim,
                 );
-    }
-
-    /*
-     * Exemplo:
-     *
-     * Mateus 1:21,23
-     */
-    else if (
+    } else if (
         referencia
             .versiculosExtras
             ?.length
@@ -162,19 +258,11 @@ export async function buscarPassagemBiblica(
                 [
                     referencia
                         .versiculoInicio,
-
                     ...referencia
                         .versiculosExtras,
                 ],
             );
-    }
-
-    /*
-     * Exemplo:
-     *
-     * João 3:16
-     */
-    else {
+    } else {
         query =
             query.eq(
                 "versiculo",
@@ -206,25 +294,122 @@ export async function buscarPassagemBiblica(
         );
     }
 
+    return data;
+}
+
+async function buscarNaFonteLivre(
+    referencia,
+    codigo,
+    versao,
+) {
+    const {
+        data,
+        error,
+    } =
+        await supabase.functions.invoke(
+            "bible-passage",
+            {
+                body: {
+                    versao:
+                        versao.id,
+                    livroCodigo:
+                        codigo,
+                    capitulo:
+                        referencia
+                            .capitulo,
+                    versiculoInicio:
+                        referencia
+                            .versiculoInicio,
+                    versiculoFim:
+                        referencia
+                            .versiculoFim ??
+                        null,
+                    versiculosExtras:
+                        referencia
+                            .versiculosExtras ??
+                        [],
+                },
+            },
+        );
+
+    if (error) {
+        throw error;
+    }
+
+    if (
+        !data?.versos?.length
+    ) {
+        throw new Error(
+            data?.error ??
+            "Passagem não encontrada.",
+        );
+    }
+
     return {
-        traducao:
-            "Almeida 1911 · ortografia modernizada",
-
-        abreviacao:
-            "ALM1911",
-
         versos:
-            data.map(
-                (item) => ({
-                    numero:
-                        item.versiculo,
+            data.versos,
+        fonteUrl:
+            data.fonteUrl ??
+            null,
+    };
+}
 
-                    texto:
-                        item.texto,
+export async function buscarPassagemBiblica(
+    referencia,
+    versaoId =
+        obterVersaoBiblicaPreferida(),
+) {
+    const codigo =
+        validarReferencia(
+            referencia,
+        );
 
-                    nome:
-                        `${item.livro_nome} ${item.capitulo}:${item.versiculo}`,
-                }),
+    const versao =
+        obterVersao(
+            versaoId,
+        );
+
+    if (
+        versao.id ===
+        "ALM1911_ATUAL"
+    ) {
+        const data =
+            await buscarNoBanco(
+                referencia,
+                codigo,
+            );
+
+        return {
+            ...versao,
+            traducao:
+                versao.nome,
+            versos:
+                formatarVersos(
+                    data,
+                    referencia,
+                ),
+            fonteUrl:
+                null,
+        };
+    }
+
+    const resultado =
+        await buscarNaFonteLivre(
+            referencia,
+            codigo,
+            versao,
+        );
+
+    return {
+        ...versao,
+        traducao:
+            versao.nome,
+        versos:
+            formatarVersos(
+                resultado.versos,
+                referencia,
             ),
+        fonteUrl:
+            resultado.fonteUrl,
     };
 }
