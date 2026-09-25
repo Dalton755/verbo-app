@@ -478,6 +478,131 @@ input:focus-visible {
   margin-top: 5px;
 }
 
+.auth-google-button {
+  margin-top: 32px;
+
+  justify-content: center;
+  gap: 12px;
+}
+
+.auth-google-icon {
+  width: 24px;
+  height: 24px;
+
+  border-radius: 50%;
+
+  display: grid;
+  place-items: center;
+
+  background: #ffffff;
+  color: #4285f4;
+
+  font-weight: 800;
+}
+
+.auth-login-divider {
+  margin: 20px 0 14px;
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: #9a9d99;
+
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.auth-login-divider::before,
+.auth-login-divider::after {
+  content: "";
+
+  height: 1px;
+  flex: 1;
+
+  background: #e8e9e5;
+}
+
+.auth-email-toggle {
+  width: 100%;
+  min-height: 46px;
+
+  padding: 0 14px;
+
+  border: 1px solid #dfe1dc;
+  border-radius: 11px;
+
+  background: #ffffff;
+  color: #3d493f;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.auth-email-toggle:hover:not(:disabled) {
+  background: #f7f8f5;
+  border-color: #cfd4cc;
+}
+
+.auth-email-toggle:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-email-form {
+  margin-top: 18px;
+  padding: 18px;
+
+  gap: 15px;
+
+  border: 1px solid #e5e7e2;
+  border-radius: 15px;
+
+  background: #fafbf8;
+}
+
+.auth-email-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.auth-forgot-password {
+  padding: 2px 0;
+
+  border: 0;
+  background: transparent;
+
+  color: #405847;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.auth-forgot-password:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.auth-forgot-password:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-login-note {
+  margin-top: 18px;
+  opacity: 0.72;
+}
+
 .auth-footer {
   margin: 25px 0 0;
 
@@ -3496,6 +3621,14 @@ input:focus-visible {
 
   .auth-heading h1 {
     font-size: 29px;
+  }
+
+  .auth-google-button {
+    margin-top: 28px;
+  }
+
+  .auth-email-form {
+    padding: 16px;
   }
 
   .section-heading-row .secondary-button {
