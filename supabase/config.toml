@@ -455,3 +455,9 @@ entrypoint = "./functions/trocar-plano-armazenamento/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/criar-checkout-upgrade-armazenamento/index.ts"
+
+
+[functions.bible-passage]
+enabled = true
+verify_jwt = true
+entrypoint = "./functions/bible-passage/index.ts"

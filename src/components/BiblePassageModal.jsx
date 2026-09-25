@@ -13,6 +13,9 @@ import {
 
 import {
   buscarPassagemBiblica,
+  obterVersaoBiblicaPreferida,
+  salvarVersaoBiblicaPreferida,
+  VERSOES_BIBLICAS,
 } from "../lib/bibleApi";
 
 import DictionaryModal
@@ -35,6 +38,13 @@ function BiblePassageModal({
     useState("");
 
   const [
+    versaoSelecionada,
+    setVersaoSelecionada,
+  ] = useState(
+    obterVersaoBiblicaPreferida,
+  );
+
+  const [
     palavraDicionario,
     setPalavraDicionario,
   ] = useState("");
@@ -53,6 +63,7 @@ function BiblePassageModal({
         const resultado =
           await buscarPassagemBiblica(
             referencia,
+            versaoSelecionada,
           );
 
         if (ativo) {
@@ -63,7 +74,7 @@ function BiblePassageModal({
 
         if (ativo) {
           setErro(
-            "Não conseguimos carregar o texto bíblico.",
+            "Não conseguimos carregar esta tradução agora.",
           );
         }
       } finally {
@@ -78,7 +89,10 @@ function BiblePassageModal({
     return () => {
       ativo = false;
     };
-  }, [referencia]);
+  }, [
+    referencia,
+    versaoSelecionada,
+  ]);
 
   useEffect(() => {
     if (!referencia) return;
@@ -107,6 +121,19 @@ function BiblePassageModal({
 
   if (!referencia) {
     return null;
+  }
+
+  function trocarVersao(event) {
+    const novaVersao =
+      event.target.value;
+
+    salvarVersaoBiblicaPreferida(
+      novaVersao,
+    );
+
+    setVersaoSelecionada(
+      novaVersao,
+    );
   }
 
   const modal = (
@@ -141,6 +168,35 @@ function BiblePassageModal({
             <X size={20} />
           </button>
         </header>
+
+        <div className="verse-version-bar">
+          <label
+            htmlFor="verse-version-select"
+          >
+            Tradução
+          </label>
+
+          <select
+            id="verse-version-select"
+            className="verse-version-select"
+            value={versaoSelecionada}
+            onChange={trocarVersao}
+            disabled={carregando}
+          >
+            {VERSOES_BIBLICAS.map(
+              (versao) => (
+                <option
+                  key={versao.id}
+                  value={versao.id}
+                >
+                  {versao.abreviacao}
+                  {" · "}
+                  {versao.nome}
+                </option>
+              ),
+            )}
+          </select>
+        </div>
 
         <div className="verse-content">
           {carregando && (
@@ -192,12 +248,26 @@ function BiblePassageModal({
         {passagem && (
           <footer className="verse-footer">
             <span>
-              {passagem.traducao}
+              <strong>
+                {passagem.abreviacao}
+              </strong>
+              {" · "}
+              {passagem.credito}
             </span>
 
-            <span>
-              Texto em domínio público
-            </span>
+            {passagem.fonteUrl ? (
+              <a
+                href={passagem.fonteUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Fonte oficial
+              </a>
+            ) : (
+              <span>
+                {passagem.fonte}
+              </span>
+            )}
           </footer>
         )}
       </article>

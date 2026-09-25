@@ -1571,6 +1571,69 @@ input:focus-visible {
   color: #525752;
 }
 
+.verse-version-bar {
+  padding: 12px 22px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+
+  border-bottom: 1px solid #ecece8;
+
+  background: #fafbf9;
+}
+
+.verse-version-bar label {
+  color: #6f756f;
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.verse-version-select {
+  min-width: min(320px, 68%);
+
+  padding: 9px 34px 9px 11px;
+
+  border: 1px solid #dfe3dc;
+  border-radius: 10px;
+
+  background: #ffffff;
+  color: #313631;
+
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+
+  outline: none;
+}
+
+.verse-version-select:focus {
+  border-color: #829789;
+
+  box-shadow:
+    0 0 0 3px rgba(72, 102, 80, 0.1);
+}
+
+.verse-version-select:disabled {
+  opacity: 0.68;
+}
+
+.verse-footer strong {
+  color: #697069;
+}
+
+.verse-footer a {
+  color: #5e7364;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.verse-footer a:hover {
+  text-decoration: underline;
+}
+
 .verse-content {
   padding: 22px;
 
@@ -3570,6 +3633,19 @@ input:focus-visible {
 
     overflow-wrap: anywhere;
     word-break: break-word;
+  }
+
+  .verse-version-bar {
+    padding: 10px 16px;
+
+    align-items: stretch;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .verse-version-select {
+    width: 100%;
+    min-width: 0;
   }
 
   .verse-content {
