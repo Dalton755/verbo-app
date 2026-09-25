@@ -12,7 +12,6 @@ import {
     ChevronRight,
     Expand,
     Minimize,
-    X,
 } from "lucide-react";
 
 import {
@@ -31,9 +30,8 @@ import {
     extrairContinuacoesBiblicas,
 } from "../lib/bibleReferences";
 
-import {
-    buscarPassagemBiblica,
-} from "../lib/bibleApi";
+import BiblePassageModal
+    from "../components/BiblePassageModal";
 
 import DictionaryModal
     from "../components/DictionaryModal";
@@ -120,21 +118,6 @@ function ApresentacaoPage() {
         referenciaAtiva,
         setReferenciaAtiva,
     ] = useState(null);
-
-    const [
-        passagemBiblica,
-        setPassagemBiblica,
-    ] = useState(null);
-
-    const [
-        carregandoPassagem,
-        setCarregandoPassagem,
-    ] = useState(false);
-
-    const [
-        erroPassagem,
-        setErroPassagem,
-    ] = useState("");
 
     useEffect(() => {
         return () => {
@@ -812,8 +795,6 @@ function ApresentacaoPage() {
     useEffect(() => {
         setReferenciasAbertas(false);
         setReferenciaAtiva(null);
-        setPassagemBiblica(null);
-        setErroPassagem("");
     }, [paginaAtual]);
 
     useEffect(() => {
@@ -984,42 +965,15 @@ function ApresentacaoPage() {
         renderizarPagina,
     ]);
 
-    async function abrirReferencia(
+    function abrirReferencia(
         referencia,
     ) {
         setReferenciaAtiva(referencia);
-
         setReferenciasAbertas(false);
-
-        setPassagemBiblica(null);
-        setErroPassagem("");
-        setCarregandoPassagem(true);
-
-        try {
-            const passagem =
-                await buscarPassagemBiblica(
-                    referencia,
-                );
-
-            setPassagemBiblica(passagem);
-        } catch (error) {
-            console.error(
-                "Erro ao carregar referência:",
-                error,
-            );
-
-            setErroPassagem(
-                "Não conseguimos carregar o texto bíblico agora.",
-            );
-        } finally {
-            setCarregandoPassagem(false);
-        }
     }
 
     function fecharReferencia() {
         setReferenciaAtiva(null);
-        setPassagemBiblica(null);
-        setErroPassagem("");
     }
 
     async function alternarTelaCheia() {
@@ -1649,93 +1603,14 @@ function ApresentacaoPage() {
                 </button>
             </footer>
 
-            {referenciaAtiva && (
-                <div
-                    className="verse-overlay"
-                    onMouseDown={(event) => {
-                        if (
-                            event.target ===
-                            event.currentTarget
-                        ) {
-                            fecharReferencia();
-                        }
-                    }}
-                >
-                    <article className="verse-card">
-                        <header className="verse-header">
-                            <div>
-                                <span>
-                                    Referência bíblica
-                                </span>
-
-                                <h2>
-                                    {
-                                        referenciaAtiva.referencia
-                                    }
-                                </h2>
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={
-                                    fecharReferencia
-                                }
-                                aria-label="Fechar"
-                            >
-                                <X size={20} />
-                            </button>
-                        </header>
-
-                        <div className="verse-content">
-                            {carregandoPassagem && (
-                                <div className="verse-loading">
-                                    <div className="loading-dot" />
-
-                                    <p>
-                                        Abrindo a Bíblia...
-                                    </p>
-                                </div>
-                            )}
-
-                            {erroPassagem && (
-                                <div className="verse-error">
-                                    {erroPassagem}
-                                </div>
-                            )}
-
-                            {!carregandoPassagem &&
-                                passagemBiblica?.versos?.map(
-                                    (verso) => (
-                                        <p
-                                            key={`${verso.numero}-${verso.nome}`}
-                                            className="verse-text"
-                                        >
-                                            <sup>
-                                                {verso.numero}
-                                            </sup>
-
-                                            {verso.texto}
-                                        </p>
-                                    ),
-                                )}
-                        </div>
-
-                        {passagemBiblica && (
-                            <footer className="verse-footer">
-                                <span>
-                                    {
-                                        passagemBiblica.traducao
-                                    }
-                                </span>
-
-                                <span>
-                                    Texto em domínio público
-                                </span>
-                            </footer>
-                        )}
-                    </article>
-                </div>
-            )}
+            <BiblePassageModal
+                referencia={
+                    referenciaAtiva
+                }
+                onClose={
+                    fecharReferencia
+                }
+            />
 
             {erro && (
                 <div className="presentation-toast">
