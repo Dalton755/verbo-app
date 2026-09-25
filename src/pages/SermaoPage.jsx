@@ -20,8 +20,9 @@ import {
     FileText,
     History,
     MapPin,
-    Maximize2,
+    Mic2,
     Minus,
+    Moon,
     NotebookPen,
     Palette,
     Pause,
@@ -29,8 +30,8 @@ import {
     Play,
     Plus,
     RotateCcw,
-    Shrink,
     Square,
+    Sun,
     Trash2,
     X,
 } from "lucide-react";
@@ -4081,17 +4082,29 @@ function SermaoPage() {
 
     return (
         <div
-            className={
+            className={[
+                "sermon-reader",
+                modoSermao === "pregar"
+                    ? "sermon-reader-preaching"
+                    : "",
                 modoPulpito
-                    ? "sermon-reader sermon-reader-pulpit"
-                    : "sermon-reader"
-            }
+                    ? "sermon-reader-pulpit"
+                    : "",
+            ]
+                .filter(Boolean)
+                .join(" ")}
             style={{
                 "--sermon-font-size":
                     `${tamanhoFonte}px`,
             }}
         >
-            <header className="sermon-toolbar">
+            <header
+                className={
+                    modoSermao === "pregar"
+                        ? "sermon-toolbar sermon-toolbar-preaching"
+                        : "sermon-toolbar"
+                }
+            >
                 <button
                     type="button"
                     onClick={() =>
@@ -4099,7 +4112,8 @@ function SermaoPage() {
                             "/sermoes",
                         )
                     }
-                    aria-label="Voltar"
+                    aria-label="Voltar para sermões"
+                    title="Voltar para sermões"
                 >
                     <ArrowLeft
                         size={20}
@@ -4108,7 +4122,9 @@ function SermaoPage() {
 
                 <div className="sermon-toolbar-title">
                     <span>
-                        {sermao?.tema ||
+                        {modoSermao === "pregar"
+                            ? "Modo pregação"
+                            : sermao?.tema ||
                             "Sermão"}
                     </span>
 
@@ -4117,49 +4133,106 @@ function SermaoPage() {
                     </strong>
                 </div>
 
-                <div className="sermon-toolbar-actions">
-
+                {modoSermao ===
+                    "pregar" && (
                     <button
                         type="button"
-                        className={
-                            modoSermao === "preparar"
-                                ? "sermon-mode-button active"
-                                : "sermon-mode-button"
-                        }
-                        onClick={() =>
-                            setModoSermao(
-                                "preparar",
-                            )
-                        }
-                    >
-                        Preparar
-                    </button>
-
-                    <button
-                        type="button"
-                        className={
-                            modoSermao === "pregar"
-                                ? "sermon-mode-button active"
-                                : "sermon-mode-button"
-                        }
-                        disabled={
-                            modoEdicao
-                        }
+                        className="sermon-return-prepare"
                         onClick={() => {
                             setModoSermao(
-                                "pregar",
+                                "preparar",
                             );
 
-                            setModoVisualizacao(
-                                "texto",
+                            setModoPulpito(
+                                false,
                             );
                         }}
                     >
-                        Pregar
-                    </button>
+                        <Pencil
+                            size={16}
+                        />
 
-                </div>
+                        <span>
+                            Preparar
+                        </span>
+                    </button>
+                )}
             </header>
+
+            {modoSermao ===
+                "preparar" &&
+                !modoEdicao && (
+                    <section
+                        className="sermon-mode-launcher"
+                        aria-label="Escolha como usar este sermão"
+                    >
+                        <button
+                            type="button"
+                            className="sermon-mode-card sermon-mode-card-active"
+                        >
+                            <span className="sermon-mode-card-icon">
+                                <Pencil
+                                    size={19}
+                                />
+                            </span>
+
+                            <span className="sermon-mode-card-copy">
+                                <strong>
+                                    Preparar
+                                </strong>
+
+                                <small>
+                                    Edite, marque e organize.
+                                </small>
+                            </span>
+
+                            <span className="sermon-mode-card-state">
+                                Modo atual
+                            </span>
+                        </button>
+
+                        <button
+                            type="button"
+                            className="sermon-mode-card sermon-mode-card-preach"
+                            disabled={
+                                modoEdicao
+                            }
+                            onClick={() => {
+                                setModoSermao(
+                                    "pregar",
+                                );
+
+                                setModoVisualizacao(
+                                    "texto",
+                                );
+
+                                setModoPulpito(
+                                    false,
+                                );
+                            }}
+                        >
+                            <span className="sermon-mode-card-icon">
+                                <Mic2
+                                    size={19}
+                                />
+                            </span>
+
+                            <span className="sermon-mode-card-copy">
+                                <strong>
+                                    Pregar
+                                </strong>
+
+                                <small>
+                                    Leitura limpa para o púlpito.
+                                </small>
+                            </span>
+
+                            <span className="sermon-mode-card-state">
+                                Entrar
+                            </span>
+                        </button>
+                    </section>
+                )}
 
             {modoSermao ===
                 "preparar" && (
@@ -4565,137 +4638,181 @@ function SermaoPage() {
 
             {modoSermao ===
                 "pregar" && (
-                    <div className="sermon-context-toolbar sermon-preach-toolbar">
-                        <div className="sermon-preach-time">
-                            <Clock3
-                                size={18}
-                            />
+                    <div className="sermon-preach-panel">
+                        <div className="sermon-preach-session">
+                            <div className="sermon-preach-time-card">
+                                <span>
+                                    <Clock3
+                                        size={15}
+                                    />
 
-                            <strong>
-                                {formatarCronometro(
-                                    cronometroSegundos,
+                                    Tempo
+                                </span>
+
+                                <strong>
+                                    {formatarCronometro(
+                                        cronometroSegundos,
+                                    )}
+                                </strong>
+                            </div>
+
+                            <div className="sermon-preach-session-actions">
+                                {!cronometroRodando ? (
+                                    <button
+                                        type="button"
+                                        className="sermon-preach-primary-action"
+                                        onClick={
+                                            iniciarCronometro
+                                        }
+                                    >
+                                        <Play
+                                            size={17}
+                                        />
+
+                                        <span>
+                                            Iniciar
+                                        </span>
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="sermon-preach-primary-action"
+                                        onClick={
+                                            pausarCronometro
+                                        }
+                                    >
+                                        <Pause
+                                            size={17}
+                                        />
+
+                                        <span>
+                                            Pausar
+                                        </span>
+                                    </button>
                                 )}
-                            </strong>
+
+                                <button
+                                    type="button"
+                                    className="sermon-preach-icon-action"
+                                    title="Zerar cronômetro"
+                                    aria-label="Zerar cronômetro"
+                                    onClick={
+                                        zerarCronometro
+                                    }
+                                >
+                                    <RotateCcw
+                                        size={17}
+                                    />
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className="sermon-preach-finish-action"
+                                    onClick={
+                                        finalizarPregacao
+                                    }
+                                >
+                                    <Square
+                                        size={14}
+                                    />
+
+                                    <span>
+                                        Finalizar
+                                    </span>
+                                </button>
+                            </div>
                         </div>
 
-                        {!cronometroRodando ? (
+                        <div className="sermon-preach-tools">
                             <button
                                 type="button"
-                                title="Iniciar"
-                                onClick={
-                                    iniciarCronometro
+                                className={
+                                    modoPulpito
+                                        ? "sermon-preach-tool active"
+                                        : "sermon-preach-tool"
+                                }
+                                onClick={() =>
+                                    setModoPulpito(
+                                        (
+                                            atual,
+                                        ) =>
+                                            !atual,
+                                    )
                                 }
                             >
-                                <Play
-                                    size={18}
-                                />
+                                {modoPulpito ? (
+                                    <Sun
+                                        size={17}
+                                    />
+                                ) : (
+                                    <Moon
+                                        size={17}
+                                    />
+                                )}
+
+                                <span>
+                                    {modoPulpito
+                                        ? "Claro"
+                                        : "Púlpito"}
+                                </span>
                             </button>
-                        ) : (
+
                             <button
                                 type="button"
-                                title="Pausar"
+                                className="sermon-preach-tool"
                                 onClick={
-                                    pausarCronometro
+                                    alternarTelaCheia
                                 }
                             >
-                                <Pause
-                                    size={18}
+                                <Expand
+                                    size={17}
                                 />
+
+                                <span>
+                                    Tela cheia
+                                </span>
                             </button>
-                        )}
 
-                        <button
-                            type="button"
-                            title="Zerar"
-                            onClick={
-                                zerarCronometro
-                            }
-                        >
-                            <RotateCcw
-                                size={17}
-                            />
-                        </button>
-
-                        <button
-                            type="button"
-                            title="Finalizar pregação"
-                            onClick={
-                                finalizarPregacao
-                            }
-                        >
-                            <Square
-                                size={16}
-                            />
-                        </button>
-
-                        <span className="sermon-toolbar-divider" />
-
-                        <button
-                            type="button"
-                            title="Modo púlpito"
-                            onClick={() =>
-                                setModoPulpito(
-                                    (
-                                        atual,
-                                    ) =>
-                                        !atual,
-                                )
-                            }
-                        >
-                            {modoPulpito ? (
-                                <Shrink
-                                    size={18}
-                                />
-                            ) : (
-                                <Maximize2
-                                    size={18}
-                                />
-                            )}
-                        </button>
-
-                        <button
-                            type="button"
-                            title="Tela cheia"
-                            onClick={
-                                alternarTelaCheia
-                            }
-                        >
-                            <Expand
-                                size={18}
-                            />
-                        </button>
-
-                        <button
-                            type="button"
-                            title="Marcar ponto"
-                            onClick={
-                                abrirNovoMarcador
-                            }
-                        >
-                            <Bookmark
-                                size={18}
-                            />
-                        </button>
-
-                        <button
-                            type="button"
-                            title="Marcadores"
-                            onClick={() =>
-                                setPainelMarcadoresAberto(
-                                    true,
-                                )
-                            }
-                        >
-                            <Bookmark
-                                size={18}
-                                fill={
-                                    marcadores.length >
-                                        0
-                                        ? "currentColor"
-                                        : "none"
+                            <button
+                                type="button"
+                                className="sermon-preach-tool"
+                                onClick={
+                                    abrirNovoMarcador
                                 }
-                            />
-                        </button>
+                            >
+                                <Bookmark
+                                    size={17}
+                                />
+
+                                <span>
+                                    Marcar
+                                </span>
+                            </button>
+
+                            <button
+                                type="button"
+                                className="sermon-preach-tool"
+                                onClick={() =>
+                                    setPainelMarcadoresAberto(
+                                        true,
+                                    )
+                                }
+                            >
+                                <Bookmark
+                                    size={17}
+                                    fill={
+                                        marcadores.length >
+                                            0
+                                            ? "currentColor"
+                                            : "none"
+                                    }
+                                />
+
+                                <span>
+                                    Marcadores
+                                </span>
+                            </button>
+                        </div>
                     </div>
                 )}
 

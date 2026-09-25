@@ -9,6 +9,7 @@ import {
     FileText,
     Mic2,
     MoreVertical,
+    Pencil,
     Plus,
     Trash2,
     Upload,
@@ -938,6 +939,18 @@ function SermoesPage() {
                                                             ? `Texto base: ${sermao.texto_base}`
                                                             : sermao.arquivo_nome}
                                                     </p>
+
+                                                    <div className="sermon-card-modes">
+                                                        <span>
+                                                            <Pencil size={12} />
+                                                            Preparar
+                                                        </span>
+
+                                                        <span>
+                                                            <Mic2 size={12} />
+                                                            Pregar
+                                                        </span>
+                                                    </div>
                                                 </div>
 
                                                 <ChevronRight
