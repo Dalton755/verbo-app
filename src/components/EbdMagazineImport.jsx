@@ -57,8 +57,8 @@ function EbdMagazineImport({
     );
   }, [
     aberto,
-    revistaAtual,
-    trimestre,
+    revistaAtual?.id,
+    trimestre?.id,
   ]);
 
   if (!aberto) {
