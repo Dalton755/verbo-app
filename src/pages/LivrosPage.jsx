@@ -338,6 +338,7 @@ function LivrosPage() {
                     titulo,
                     autor,
                     tema_id,
+                    trimestre_id,
                     arquivo_nome,
                     storage_path,
                     capa_path,
@@ -349,6 +350,10 @@ function LivrosPage() {
                 .eq(
                     "usuario_id",
                     user.id,
+                )
+                .is(
+                    "trimestre_id",
+                    null,
                 )
                 .order(
                     "created_at",
