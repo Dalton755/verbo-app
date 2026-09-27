@@ -937,6 +937,46 @@ function RevistaEbdPage() {
             .numPages,
       });
 
+      /*
+       * O importador não precisa abrir o PDF inteiro
+       * no celular só para contar páginas. Assim que
+       * o leitor conhece o total real, persistimos a
+       * informação no banco.
+       */
+      if (
+        Number(
+          data.total_paginas,
+        ) !==
+        documento.numPages
+      ) {
+        supabase
+          .from(
+            "revistas_ebd",
+          )
+          .update({
+            total_paginas:
+              documento.numPages,
+          })
+          .eq(
+            "id",
+            data.id,
+          )
+          .eq(
+            "usuario_id",
+            user.id,
+          )
+          .then(
+            ({ error: totalError }) => {
+              if (totalError) {
+                console.warn(
+                  "Não foi possível atualizar o total de páginas da revista:",
+                  totalError,
+                );
+              }
+            },
+          );
+      }
+
       setPdf(
         documento,
       );
