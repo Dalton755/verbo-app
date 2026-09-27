@@ -201,7 +201,7 @@ function TrimestrePage() {
         }
 
         carregar();
-    }, [id, user]);
+    }, [id, user?.id]);
 
     useEffect(() => {
         if (!user || !id) return;
@@ -281,7 +281,7 @@ function TrimestrePage() {
         return () => {
             ativo = false;
         };
-    }, [id, user]);
+    }, [id, user?.id]);
 
     function abrirEdicaoAula(
         aula,
