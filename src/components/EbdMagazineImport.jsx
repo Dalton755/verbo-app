@@ -10,18 +10,6 @@ import {
   X,
 } from "lucide-react";
 
-import * as pdfjsLib
-  from "pdfjs-dist";
-
-import pdfWorker
-  from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-
-import { supabase } from "../lib/supabase";
-import { uploadArquivoSeguro } from "../lib/uploadArquivoSeguro";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc =
-  pdfWorker;
-
 function limparTitulo(
   valor,
 ) {
@@ -50,8 +38,6 @@ function EbdMagazineImport({
   const [totalPaginas, setTotalPaginas] =
     useState(null);
 
-  const [analisando, setAnalisando] =
-    useState(false);
 
   const [salvando, setSalvando] =
     useState(false);
@@ -66,7 +52,6 @@ function EbdMagazineImport({
 
     setArquivo(null);
     setTotalPaginas(null);
-    setAnalisando(false);
     setSalvando(false);
     setErro("");
 
@@ -85,18 +70,17 @@ function EbdMagazineImport({
     return null;
   }
 
-  async function selecionarArquivo(
+  function selecionarArquivo(
     event,
   ) {
     const selecionado =
       event.target.files?.[0] ??
       null;
 
-    setArquivo(selecionado);
-    setTotalPaginas(null);
     setErro("");
 
     if (!selecionado) {
+      setArquivo(null);
       return;
     }
 
@@ -110,10 +94,10 @@ function EbdMagazineImport({
         .endsWith(".pdf");
 
     if (!ehPdf) {
+      setArquivo(null);
       setErro(
         "A revista precisa estar em PDF.",
       );
-
       return;
     }
 
@@ -121,85 +105,43 @@ function EbdMagazineImport({
       selecionado.size >
       50 * 1024 * 1024
     ) {
+      setArquivo(null);
       setErro(
         "O PDF deve ter no máximo 50 MB.",
       );
-
       return;
     }
 
-    setAnalisando(true);
+    /*
+     * Não abrimos o PDF localmente aqui.
+     *
+     * Em celulares, revistas grandes podem ocupar
+     * muita memória quando lidas por completo logo
+     * após voltar do seletor de arquivos. Isso fazia
+     * a interface parecer que não recebeu o arquivo
+     * e, em alguns aparelhos, podia até recarregar a
+     * página.
+     *
+     * Primeiro confirmamos visualmente a seleção.
+     * O leitor detecta o número real de páginas ao
+     * abrir o PDF já armazenado.
+     */
+    setArquivo(selecionado);
+    setTotalPaginas(null);
 
-    let pdf = null;
+    if (!revistaAtual?.id) {
+      const tituloArquivo =
+        selecionado.name
+          .replace(/\.pdf$/i, "")
+          .replace(/[_]+/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
 
-    try {
-      const buffer =
-        await selecionado.arrayBuffer();
-
-      pdf =
-        await pdfjsLib
-          .getDocument({
-            data:
-              new Uint8Array(
-                buffer,
-              ),
-          })
-          .promise;
-
-      setTotalPaginas(
-        pdf.numPages,
-      );
-
-      try {
-        const metadados =
-          await pdf.getMetadata();
-
-        const tituloPdf =
-          limparTitulo(
-            metadados?.info
-              ?.Title,
-          );
-
-        if (
-          tituloPdf &&
-          ![
-            "untitled",
-            "document",
-          ].includes(
-            tituloPdf
-              .toLocaleLowerCase(
-                "pt-BR",
-              ),
-          )
-        ) {
-          setTitulo(
-            tituloPdf,
-          );
-        }
-      } catch {
-        // O título do trimestre continua como fallback.
+      if (tituloArquivo) {
+        setTitulo(
+          tituloArquivo,
+        );
       }
-    } catch (error) {
-      console.error(
-        "Erro ao analisar revista:",
-        error,
-      );
-
-      setErro(
-        "Não conseguimos abrir este PDF.",
-      );
-
-      setArquivo(null);
-    } finally {
-      if (
-        pdf &&
-        typeof pdf.destroy ===
-          "function"
-      ) {
-        await pdf.destroy();
-      }
-
-      setAnalisando(false);
     }
   }
 
@@ -212,8 +154,7 @@ function EbdMagazineImport({
       !user?.id ||
       !trimestre?.id ||
       !arquivo ||
-      !titulo.trim() ||
-      !totalPaginas
+      !titulo.trim()  
     ) {
       return;
     }
@@ -268,7 +209,8 @@ function EbdMagazineImport({
         storagePath,
 
       total_paginas:
-        totalPaginas,
+        revistaAtual?.total_paginas ??
+        1,
 
       ultima_pagina:
         revistaAtual
@@ -442,10 +384,6 @@ function EbdMagazineImport({
               <input
                 type="file"
                 accept="application/pdf,.pdf"
-                onClick={(event) => {
-                  event.currentTarget.value =
-                    "";
-                }}
                 onChange={
                   selecionarArquivo
                 }
@@ -467,19 +405,12 @@ function EbdMagazineImport({
                         1024 /
                         1024
                       ).toFixed(1)} MB${totalPaginas
-                        ? ` · ${totalPaginas} páginas`
-                        : ""}`
+                        `
                     : "Arquivo de até 50 MB"}
                 </span>
               </div>
             </div>
           </label>
-
-          {analisando && (
-            <div className="ebd-material-status">
-              Lendo a estrutura do PDF…
-            </div>
-          )}
 
           <label>
             Nome da revista
@@ -517,10 +448,8 @@ function EbdMagazineImport({
               className="primary-button"
               disabled={
                 salvando ||
-                analisando ||
                 !arquivo ||
-                !titulo.trim() ||
-                !totalPaginas
+                !titulo.trim()
               }
             >
               {salvando
