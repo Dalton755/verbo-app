@@ -20,6 +20,7 @@ import EbdPage from "./pages/EbdPage";
 import LoginPage from "./pages/LoginPage";
 import RedefinirSenhaPage from "./pages/RedefinirSenhaPage";
 import TrimestrePage from "./pages/TrimestrePage";
+import RevistaEbdPage from "./pages/RevistaEbdPage";
 import ApresentacaoPage from "./pages/ApresentacaoPage";
 import SermoesPage from "./pages/SermoesPage";
 import LivrosPage from "./pages/LivrosPage";
@@ -116,6 +117,17 @@ function App() {
                 <ProtectedRoute>
                   <LicensedRoute>
                     <TrimestrePage />
+                  </LicensedRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/revistas/:id"
+              element={
+                <ProtectedRoute>
+                  <LicensedRoute>
+                    <RevistaEbdPage />
                   </LicensedRoute>
                 </ProtectedRoute>
               }
