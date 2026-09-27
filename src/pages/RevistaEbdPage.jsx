@@ -891,27 +891,88 @@ function RevistaEbdPage() {
       }
 
       try {
+        /*
+         * Use a mesma forma já validada no leitor
+         * de apresentações. No pdfjs 6, passar a URL
+         * explicitamente no objeto evita falhas no
+         * Android antes mesmo da requisição ao Storage.
+         */
         documento =
           await pdfjsLib
-            .getDocument(
-              urlData
-                .signedUrl,
-            )
+            .getDocument({
+              url:
+                urlData
+                  .signedUrl,
+            })
             .promise;
       } catch (pdfError) {
         console.error(
-          "Erro ao ler PDF da revista:",
+          "Erro ao ler PDF da revista por URL:",
           pdfError,
         );
 
-        if (ativo) {
-          setErro(
-            "O PDF da revista não pôde ser lido.",
-          );
-          setCarregando(false);
-        }
+        /*
+         * Fallback para navegadores móveis que não
+         * conseguem iniciar o carregamento remoto do
+         * PDF no worker. Baixamos pelo cliente Supabase
+         * autenticado e entregamos os bytes ao pdfjs.
+         */
+        try {
+          const {
+            data: arquivoPdf,
+            error:
+              downloadError,
+          } =
+            await supabase.storage
+              .from(
+                "biblia-slides-pdfs",
+              )
+              .download(
+                data.storage_path,
+              );
 
-        return;
+          if (
+            downloadError ||
+            !arquivoPdf
+          ) {
+            throw (
+              downloadError ||
+              new Error(
+                "Arquivo PDF não retornado pelo Storage.",
+              )
+            );
+          }
+
+          const buffer =
+            await arquivoPdf
+              .arrayBuffer();
+
+          documento =
+            await pdfjsLib
+              .getDocument({
+                data:
+                  new Uint8Array(
+                    buffer,
+                  ),
+              })
+              .promise;
+        } catch (
+          fallbackError
+        ) {
+          console.error(
+            "Erro ao ler PDF da revista pelo fallback:",
+            fallbackError,
+          );
+
+          if (ativo) {
+            setErro(
+              "O PDF da revista não pôde ser lido.",
+            );
+            setCarregando(false);
+          }
+
+          return;
+        }
       }
 
       if (!ativo) {
