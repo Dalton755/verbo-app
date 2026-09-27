@@ -1145,6 +1145,7 @@ function LivroPage() {
             id,
             titulo,
             autor,
+            trimestre_id,
             arquivo_nome,
             arquivo_tipo,
             storage_path,
@@ -6041,7 +6042,9 @@ function LivroPage() {
                     className="secondary-button"
                     onClick={() =>
                         navigate(
-                            "/livros",
+                            livro?.trimestre_id
+                                ? `/trimestres/${livro.trimestre_id}`
+                                : "/livros",
                         )
                     }
                 >
@@ -6094,10 +6097,16 @@ function LivroPage() {
                     className="book-icon-button"
                     onClick={() =>
                         navigate(
-                            "/livros",
+                            livro?.trimestre_id
+                                ? `/trimestres/${livro.trimestre_id}`
+                                : "/livros",
                         )
                     }
-                    aria-label="Voltar para estante"
+                    aria-label={
+                        livro?.trimestre_id
+                            ? "Voltar ao trimestre"
+                            : "Voltar para estante"
+                    }
                 >
                     <ArrowLeft
                         size={20}
