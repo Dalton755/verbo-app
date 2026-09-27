@@ -12,10 +12,76 @@ import {
 
 import { supabase } from "../lib/supabase";
 import { extrairDadosLivro } from "../lib/bookMetadata";
-import { processarArquivoLivro } from "../lib/bookFileProcessor";
-import { gerarCapaLivro } from "../lib/bookCover";
-import { salvarLivroCache } from "../lib/bookCache";
 import { uploadArquivoSeguro } from "../lib/uploadArquivoSeguro";
+
+const LIMITE_ANALISE_LOCAL =
+  8 * 1024 * 1024;
+
+function dadosPeloNomeArquivo(
+  nomeArquivo,
+) {
+  const nomeLimpo =
+    String(
+      nomeArquivo ?? "",
+    )
+      .replace(/\.pdf$/i, "")
+      .replace(/[_]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const autorEntreParenteses =
+    nomeLimpo.match(
+      /^\(([^)]+)\)\s*[-–—]\s*(.+)$/u,
+    );
+
+  if (autorEntreParenteses) {
+    return {
+      autor:
+        autorEntreParenteses[1]
+          .trim(),
+
+      titulo:
+        autorEntreParenteses[2]
+          .trim(),
+    };
+  }
+
+  const autorAntesTitulo =
+    nomeLimpo.match(
+      /^([^-–—]{3,60})\s+[-–—]\s+(.{3,})$/u,
+    );
+
+  if (autorAntesTitulo) {
+    const possivelAutor =
+      autorAntesTitulo[1]
+        .trim();
+
+    const palavrasAutor =
+      possivelAutor
+        .split(/\s+/)
+        .filter(Boolean);
+
+    if (
+      palavrasAutor.length >= 2 &&
+      palavrasAutor.length <= 5
+    ) {
+      return {
+        autor:
+          possivelAutor,
+
+        titulo:
+          autorAntesTitulo[2]
+            .trim(),
+      };
+    }
+  }
+
+  return {
+    autor: "",
+    titulo:
+      nomeLimpo,
+  };
+}
 
 function EbdSupportBookImport({
   aberto,
@@ -66,10 +132,10 @@ function EbdSupportBookImport({
       event.target.files?.[0] ??
       null;
 
-    setArquivo(selecionado);
     setErro("");
 
     if (!selecionado) {
+      setArquivo(null);
       return;
     }
 
@@ -83,10 +149,10 @@ function EbdSupportBookImport({
         .endsWith(".pdf");
 
     if (!ehPdf) {
+      setArquivo(null);
       setErro(
         "Selecione um arquivo PDF.",
       );
-
       return;
     }
 
@@ -94,10 +160,49 @@ function EbdSupportBookImport({
       selecionado.size >
       50 * 1024 * 1024
     ) {
+      setArquivo(null);
       setErro(
         "O PDF deve ter no máximo 50 MB.",
       );
+      return;
+    }
 
+    /*
+     * Primeiro confirmamos a seleção imediatamente.
+     * Isso é importante no Android, especialmente
+     * com PDFs grandes.
+     */
+    setArquivo(
+      selecionado,
+    );
+
+    const dadosNome =
+      dadosPeloNomeArquivo(
+        selecionado.name,
+      );
+
+    setTitulo(
+      dadosNome.titulo,
+    );
+
+    setAutor(
+      dadosNome.autor,
+    );
+
+    /*
+     * PDFs pequenos ainda recebem a identificação
+     * completa por metadados/primeira página.
+     *
+     * PDFs grandes não são lidos inteiros neste
+     * momento para evitar travamento ou recarga da
+     * página no celular. Nesse caso usamos o nome
+     * do arquivo e o usuário pode ajustar os campos.
+     */
+    if (
+      selecionado.size >
+      LIMITE_ANALISE_LOCAL
+    ) {
+      setIdentificando(false);
       return;
     }
 
@@ -109,24 +214,21 @@ function EbdSupportBookImport({
           selecionado,
         );
 
-      setTitulo(
-        dados?.titulo ?? "",
-      );
+      if (dados?.titulo) {
+        setTitulo(
+          dados.titulo,
+        );
+      }
 
-      setAutor(
-        dados?.autor ?? "",
-      );
+      if (dados?.autor) {
+        setAutor(
+          dados.autor,
+        );
+      }
     } catch (error) {
       console.warn(
-        "Não foi possível identificar título e autor:",
+        "Não foi possível identificar título e autor pelos metadados:",
         error,
-      );
-
-      setTitulo(
-        selecionado.name
-          .replace(/\.pdf$/i, "")
-          .replace(/[_]+/g, " ")
-          .trim(),
       );
     } finally {
       setIdentificando(false);
@@ -150,51 +252,11 @@ function EbdSupportBookImport({
     setSalvando(true);
     setErro("");
 
-    let processamento;
-
-    try {
-      processamento =
-        await processarArquivoLivro(
-          arquivo,
-        );
-    } catch (error) {
-      console.error(
-        "Erro ao preparar livro de apoio:",
-        error,
-      );
-
-      setErro(
-        "Não conseguimos preparar este PDF para o leitor.",
-      );
-
-      setSalvando(false);
-      return;
-    }
-
-    let capaGerada = null;
-
-    try {
-      capaGerada =
-        await gerarCapaLivro(
-          arquivo,
-        );
-    } catch (error) {
-      console.warn(
-        "Não foi possível gerar a capa do livro de apoio:",
-        error,
-      );
-    }
-
     const identificador =
       crypto.randomUUID();
 
     const storagePath =
       `${user.id}/${trimestre.id}/apoio/${identificador}.pdf`;
-
-    const capaPath =
-      capaGerada
-        ? `${user.id}/ebd/${trimestre.id}/apoio-${identificador}.webp`
-        : null;
 
     try {
       await uploadArquivoSeguro({
@@ -220,54 +282,14 @@ function EbdSupportBookImport({
       return;
     }
 
-    let capaSalvaPath = null;
-
-    if (
-      capaGerada &&
-      capaPath
-    ) {
-      const {
-        error: capaError,
-      } =
-        await supabase.storage
-          .from(
-            "verbo-capas",
-          )
-          .upload(
-            capaPath,
-            capaGerada.blob,
-            {
-              contentType:
-                "image/webp",
-              cacheControl:
-                "3600",
-              upsert: false,
-            },
-          );
-
-      if (!capaError) {
-        capaSalvaPath =
-          capaPath;
-      } else {
-        console.warn(
-          "Não foi possível salvar a capa do livro de apoio:",
-          capaError,
-        );
-      }
-    }
-
-    const conteudoProcessado = {
-      versao:
-        processamento.versao,
-
-      formato:
-        processamento.formato ??
-        "pdf",
-
-      paginas:
-        processamento.paginas,
-    };
-
+    /*
+     * O livro é registrado imediatamente após o
+     * upload. O leitor do VERBO já possui fallback
+     * para processar livros ainda não preparados.
+     *
+     * Assim evitamos processar um PDF grande duas
+     * vezes antes mesmo de ele ser salvo.
+     */
     const {
       data,
       error: livroError,
@@ -300,11 +322,10 @@ function EbdSupportBookImport({
           storagePath,
 
         capa_path:
-          capaSalvaPath,
+          null,
 
         total_paginas:
-          processamento
-            .totalPaginas,
+          null,
 
         ultima_pagina:
           1,
@@ -313,15 +334,13 @@ function EbdSupportBookImport({
           0,
 
         conteudo_processado:
-          conteudoProcessado,
+          null,
 
         processado_em:
-          new Date()
-            .toISOString(),
+          null,
 
         processador_versao:
-          processamento
-            .versao ?? 1,
+          1,
       })
       .select(`
         id,
@@ -356,33 +375,14 @@ function EbdSupportBookImport({
           storagePath,
         ]);
 
-      if (capaSalvaPath) {
-        await supabase.storage
-          .from(
-            "verbo-capas",
-          )
-          .remove([
-            capaSalvaPath,
-          ]);
-      }
-
       setErro(
-        "O PDF foi enviado, mas não conseguimos criar o livro de apoio.",
+        livroError.message ||
+          "O PDF foi enviado, mas não conseguimos criar o livro de apoio.",
       );
 
       setSalvando(false);
       return;
     }
-
-    salvarLivroCache(
-      data.id,
-      {
-        livro: data,
-        paginas:
-          conteudoProcessado
-            .paginas,
-      },
-    );
 
     onImported?.(
       data,
@@ -432,7 +432,7 @@ function EbdSupportBookImport({
           </h2>
 
           <p>
-            O VERBO identifica nome e autor automaticamente e abre o material no mesmo leitor de livros.
+            O arquivo é reconhecido imediatamente. O VERBO identifica nome e autor quando possível e abre o material no leitor de livros.
           </p>
         </div>
 
@@ -447,10 +447,6 @@ function EbdSupportBookImport({
               <input
                 type="file"
                 accept="application/pdf,.pdf"
-                onClick={(event) => {
-                  event.currentTarget.value =
-                    "";
-                }}
                 onChange={
                   selecionarArquivo
                 }
@@ -471,7 +467,7 @@ function EbdSupportBookImport({
                         arquivo.size /
                         1024 /
                         1024
-                      ).toFixed(1)} MB`
+                      ).toFixed(1)} MB · arquivo pronto para enviar`
                     : "Arquivo de até 50 MB"}
                 </span>
               </div>
@@ -501,6 +497,10 @@ function EbdSupportBookImport({
 
           <label>
             Autor
+
+            <span className="optional-field">
+              Opcional
+            </span>
 
             <input
               type="text"
@@ -541,7 +541,7 @@ function EbdSupportBookImport({
               }
             >
               {salvando
-                ? "Preparando leitor..."
+                ? "Enviando livro..."
                 : "Adicionar livro"}
 
               {!salvando && (
