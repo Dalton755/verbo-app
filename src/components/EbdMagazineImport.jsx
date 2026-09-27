@@ -10,13 +10,13 @@ import {
   X,
 } from "lucide-react";
 
-function limparTitulo(
-  valor,
-) {
-  return String(
-    valor ?? "",
-  )
-    .replace(/\0/g, "")
+import { supabase } from "../lib/supabase";
+import { uploadArquivoSeguro } from "../lib/uploadArquivoSeguro";
+
+function tituloPeloArquivo(nome) {
+  return String(nome ?? "")
+    .replace(/\.pdf$/i, "")
+    .replace(/[_]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -35,10 +35,6 @@ function EbdMagazineImport({
   const [titulo, setTitulo] =
     useState("");
 
-  const [totalPaginas, setTotalPaginas] =
-    useState(null);
-
-
   const [salvando, setSalvando] =
     useState(false);
 
@@ -51,14 +47,13 @@ function EbdMagazineImport({
     }
 
     setArquivo(null);
-    setTotalPaginas(null);
     setSalvando(false);
     setErro("");
 
     setTitulo(
       revistaAtual?.titulo ||
-      trimestre?.tema ||
-      "Revista EBD",
+        trimestre?.tema ||
+        "Revista EBD",
     );
   }, [
     aberto,
@@ -70,9 +65,7 @@ function EbdMagazineImport({
     return null;
   }
 
-  function selecionarArquivo(
-    event,
-  ) {
+  function selecionarArquivo(event) {
     const selecionado =
       event.target.files?.[0] ??
       null;
@@ -113,29 +106,21 @@ function EbdMagazineImport({
     }
 
     /*
-     * Não abrimos o PDF localmente aqui.
+     * A seleção precisa responder imediatamente no celular.
+     * Não lemos o PDF inteiro neste momento.
      *
-     * Em celulares, revistas grandes podem ocupar
-     * muita memória quando lidas por completo logo
-     * após voltar do seletor de arquivos. Isso fazia
-     * a interface parecer que não recebeu o arquivo
-     * e, em alguns aparelhos, podia até recarregar a
-     * página.
-     *
-     * Primeiro confirmamos visualmente a seleção.
-     * O leitor detecta o número real de páginas ao
-     * abrir o PDF já armazenado.
+     * Revistas grandes podem consumir muita memória quando
+     * são abertas localmente logo após voltar do seletor de
+     * arquivos. O número real de páginas será detectado pelo
+     * leitor após o upload, usando a URL armazenada.
      */
     setArquivo(selecionado);
-    setTotalPaginas(null);
 
     if (!revistaAtual?.id) {
       const tituloArquivo =
-        selecionado.name
-          .replace(/\.pdf$/i, "")
-          .replace(/[_]+/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
+        tituloPeloArquivo(
+          selecionado.name,
+        );
 
       if (tituloArquivo) {
         setTitulo(
@@ -145,16 +130,14 @@ function EbdMagazineImport({
     }
   }
 
-  async function importar(
-    event,
-  ) {
+  async function importar(event) {
     event.preventDefault();
 
     if (
       !user?.id ||
       !trimestre?.id ||
       !arquivo ||
-      !titulo.trim()  
+      !titulo.trim()
     ) {
       return;
     }
@@ -208,6 +191,10 @@ function EbdMagazineImport({
       storage_path:
         storagePath,
 
+      /*
+       * O leitor corrige este valor assim que abrir
+       * o PDF e conhecer o número real de páginas.
+       */
       total_paginas:
         revistaAtual?.total_paginas ??
         1,
@@ -369,7 +356,7 @@ function EbdMagazineImport({
           </h2>
 
           <p>
-            O PDF será mostrado página por página sem remontar o layout: imagens, cores, tipografia e posições permanecem como no original.
+            Selecione o PDF e confirme. O VERBO preserva o layout original da revista e detecta as páginas ao abrir o leitor.
           </p>
         </div>
 
@@ -404,8 +391,7 @@ function EbdMagazineImport({
                         arquivo.size /
                         1024 /
                         1024
-                      ).toFixed(1)} MB${totalPaginas
-                        `
+                      ).toFixed(1)} MB · arquivo pronto para enviar`
                     : "Arquivo de até 50 MB"}
                 </span>
               </div>
@@ -423,7 +409,7 @@ function EbdMagazineImport({
                   event.target.value,
                 )
               }
-              placeholder="Ex.: Até que Ele venha"
+              placeholder="Ex.: Lições Bíblicas"
             />
           </label>
 
@@ -453,7 +439,7 @@ function EbdMagazineImport({
               }
             >
               {salvando
-                ? "Salvando revista..."
+                ? "Enviando revista..."
                 : revistaAtual
                   ? "Trocar revista"
                   : "Adicionar revista"}
