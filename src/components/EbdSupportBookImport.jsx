@@ -128,9 +128,19 @@ function EbdSupportBookImport({
   async function selecionarArquivo(
     event,
   ) {
+    const input =
+      event.currentTarget;
+
     const selecionado =
-      event.target.files?.[0] ??
+      input.files?.[0] ??
       null;
+
+    /*
+     * Limpa o valor nativo sem perder o objeto File.
+     * Assim o mesmo PDF pode ser escolhido novamente
+     * no Android e o evento "change" dispara de novo.
+     */
+    input.value = "";
 
     setErro("");
 
@@ -440,18 +450,25 @@ function EbdSupportBookImport({
           className="trimestre-form"
           onSubmit={importar}
         >
-          <label>
-            Arquivo PDF
+          <div className="ebd-file-field">
+            <span className="ebd-file-label">
+              Arquivo PDF
+            </span>
 
-            <div className="pdf-picker">
-              <input
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={
-                  selecionarArquivo
-                }
-              />
+            <input
+              id={`ebd-apoio-pdf-${trimestre?.id ?? "novo"}`}
+              className="ebd-native-file-input"
+              type="file"
+              accept="application/pdf,.pdf"
+              onChange={
+                selecionarArquivo
+              }
+            />
 
+            <label
+              htmlFor={`ebd-apoio-pdf-${trimestre?.id ?? "novo"}`}
+              className="pdf-picker ebd-native-file-picker"
+            >
               <Upload size={21} />
 
               <div>
@@ -467,12 +484,18 @@ function EbdSupportBookImport({
                         arquivo.size /
                         1024 /
                         1024
-                      ).toFixed(1)} MB · arquivo pronto para enviar`
-                    : "Arquivo de até 50 MB"}
+                      ).toFixed(1)} MB · selecionado`
+                    : "Toque aqui para escolher o PDF · até 50 MB"}
                 </span>
               </div>
-            </div>
-          </label>
+            </label>
+
+            {arquivo && (
+              <div className="ebd-file-selected">
+                PDF selecionado. Confira os dados e toque em <strong>Adicionar livro</strong>.
+              </div>
+            )}
+          </div>
 
           {identificando && (
             <div className="ebd-material-status">

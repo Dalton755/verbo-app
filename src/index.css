@@ -14909,3 +14909,90 @@ button.primary {
     transition: none;
   }
 }
+
+
+/* EBD — seletor nativo de PDF em Android/mobile */
+
+.ebd-file-field {
+  display: grid;
+  gap: 8px;
+}
+
+.ebd-file-label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.trimestre-form input.ebd-native-file-input {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+
+  width: 1px;
+  height: 1px;
+
+  padding: 0;
+  border: 0;
+
+  opacity: 0;
+  pointer-events: none;
+}
+
+.trimestre-form label.ebd-native-file-picker {
+  width: 100%;
+  min-height: 84px;
+
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 13px;
+
+  margin: 0;
+  padding: 15px;
+
+  font-weight: 400;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.trimestre-form label.ebd-native-file-picker > svg {
+  flex: 0 0 auto;
+}
+
+.ebd-file-selected {
+  margin-top: 2px;
+  padding: 10px 12px;
+
+  border: 1px solid #dfe8df;
+  border-radius: 11px;
+
+  background: #f5f9f5;
+  color: #4f6152;
+
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ebd-file-selected strong {
+  color: #35483a;
+}
+
+@media (max-width: 640px) {
+  .ebd-material-modal .modal-actions {
+    position: sticky;
+    bottom: calc(-24px - env(safe-area-inset-bottom));
+    z-index: 4;
+
+    margin-left: -20px;
+    margin-right: -20px;
+    padding:
+      12px 20px
+      calc(18px + env(safe-area-inset-bottom));
+
+    border-top: 1px solid #ecece8;
+
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
+  }
+}
