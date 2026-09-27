@@ -339,12 +339,17 @@ function RevistaPagina({
     useRef(null);
 
   const [
-    dimensoes,
-    setDimensoes,
+    tamanhoPagina,
+    setTamanhoPagina,
   ] = useState({
     width: 0,
     height: 0,
   });
+
+  const [
+    larguraContainer,
+    setLarguraContainer,
+  ] = useState(0);
 
   const [
     camada,
@@ -370,14 +375,8 @@ function RevistaPagina({
     const observer =
       new ResizeObserver(
         () => {
-          setDimensoes(
-            (atual) => ({
-              ...atual,
-
-              container:
-                elemento
-                  .clientWidth,
-            }),
+          setLarguraContainer(
+            elemento.clientWidth,
           );
         },
       );
@@ -485,10 +484,10 @@ function RevistaPagina({
         `${viewport.height}px`;
 
       contexto.setTransform(
-        dpr,
+        1,
         0,
         0,
-        dpr,
+        1,
         0,
         0,
       );
@@ -499,6 +498,18 @@ function RevistaPagina({
             contexto,
 
           viewport,
+
+          transform:
+            dpr === 1
+              ? null
+              : [
+                  dpr,
+                  0,
+                  0,
+                  dpr,
+                  0,
+                  0,
+                ],
         });
 
       const [
@@ -516,7 +527,7 @@ function RevistaPagina({
         return;
       }
 
-      setDimensoes({
+      setTamanhoPagina({
         width:
           viewport.width,
 
@@ -566,7 +577,7 @@ function RevistaPagina({
   }, [
     pdf,
     numero,
-    dimensoes.container,
+    larguraContainer,
   ]);
 
   function abrirPalavraSelecionada() {
@@ -611,13 +622,13 @@ function RevistaPagina({
         className="revista-interactive-page"
         style={{
           width:
-            dimensoes.width
-              ? `${dimensoes.width}px`
+            tamanhoPagina.width
+              ? `${tamanhoPagina.width}px`
               : undefined,
 
           height:
-            dimensoes.height
-              ? `${dimensoes.height}px`
+            tamanhoPagina.height
+              ? `${tamanhoPagina.height}px`
               : undefined,
         }}
         onDoubleClick={
