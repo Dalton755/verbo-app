@@ -7,6 +7,7 @@ import {
 import {
     ArrowLeft,
     BookOpen,
+    LibraryBig,
     ChevronRight,
     FileText,
     MoreVertical,
@@ -33,6 +34,8 @@ import {
     processarArquivoAula,
 } from "../lib/lessonFileProcessor";
 import { useAuth } from "../contexts/AuthContext";
+import EbdMagazineImport from "../components/EbdMagazineImport";
+import EbdSupportBookImport from "../components/EbdSupportBookImport";
 
 
 function TrimestrePage() {
@@ -44,6 +47,10 @@ function TrimestrePage() {
 
     const [trimestre, setTrimestre] = useState(null);
     const [aulas, setAulas] = useState([]);
+    const [revista, setRevista] = useState(null);
+    const [livrosApoio, setLivrosApoio] = useState([]);
+    const [modalRevistaAberto, setModalRevistaAberto] = useState(false);
+    const [modalLivroApoioAberto, setModalLivroApoioAberto] = useState(false);
 
     const [carregando, setCarregando] = useState(true);
     const [modalAberto, setModalAberto] = useState(false);
@@ -194,6 +201,86 @@ function TrimestrePage() {
         }
 
         carregar();
+    }, [id, user]);
+
+    useEffect(() => {
+        if (!user || !id) return;
+
+        let ativo = true;
+
+        async function carregarMateriaisTrimestre() {
+            const [
+                revistaResult,
+                livrosResult,
+            ] = await Promise.all([
+                supabase
+                    .from("revistas_ebd")
+                    .select(`
+                        id,
+                        usuario_id,
+                        trimestre_id,
+                        titulo,
+                        arquivo_nome,
+                        storage_path,
+                        total_paginas,
+                        ultima_pagina,
+                        created_at,
+                        updated_at
+                    `)
+                    .eq("trimestre_id", id)
+                    .eq("usuario_id", user.id)
+                    .maybeSingle(),
+
+                supabase
+                    .from("livros")
+                    .select(`
+                        id,
+                        titulo,
+                        autor,
+                        trimestre_id,
+                        arquivo_nome,
+                        total_paginas,
+                        created_at
+                    `)
+                    .eq("trimestre_id", id)
+                    .eq("usuario_id", user.id)
+                    .order("created_at", {
+                        ascending: false,
+                    }),
+            ]);
+
+            if (!ativo) {
+                return;
+            }
+
+            if (revistaResult.error) {
+                console.error(
+                    "Erro ao carregar revista do trimestre:",
+                    revistaResult.error,
+                );
+            } else {
+                setRevista(
+                    revistaResult.data ?? null,
+                );
+            }
+
+            if (livrosResult.error) {
+                console.error(
+                    "Erro ao carregar livros de apoio:",
+                    livrosResult.error,
+                );
+            } else {
+                setLivrosApoio(
+                    livrosResult.data ?? [],
+                );
+            }
+        }
+
+        carregarMateriaisTrimestre();
+
+        return () => {
+            ativo = false;
+        };
     }, [id, user]);
 
     function abrirEdicaoAula(
@@ -837,6 +924,186 @@ function TrimestrePage() {
                     </div>
                 )}
 
+                <section className="ebd-materials-section">
+                    <div className="section-heading ebd-materials-heading">
+                        <div>
+                            <span>Materiais do trimestre</span>
+                            <h3>Estude e ensine no mesmo lugar</h3>
+                        </div>
+                    </div>
+
+                    <div className="ebd-materials-grid">
+                        <article className="ebd-material-card ebd-material-card-revista">
+                            <div className="ebd-material-icon">
+                                <BookOpen size={23} />
+                            </div>
+
+                            <div className="ebd-material-copy">
+                                <span>REVISTA</span>
+                                <h3>
+                                    {revista
+                                        ? revista.titulo
+                                        : "Revista do trimestre"}
+                                </h3>
+
+                                <p>
+                                    {revista
+                                        ? `${revista.total_paginas} páginas · layout original preservado`
+                                        : "Adicione a revista em PDF e leia cada página exatamente como no material original."}
+                                </p>
+                            </div>
+
+                            <div className="ebd-material-actions">
+                                {revista ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="primary-button"
+                                            onClick={() =>
+                                                navigate(
+                                                    `/revistas/${revista.id}`,
+                                                )
+                                            }
+                                        >
+                                            Abrir revista
+                                            <ChevronRight size={18} />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className="text-button"
+                                            onClick={() =>
+                                                setModalRevistaAberto(
+                                                    true,
+                                                )
+                                            }
+                                        >
+                                            Trocar PDF
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="primary-button"
+                                        onClick={() =>
+                                            setModalRevistaAberto(
+                                                true,
+                                            )
+                                        }
+                                    >
+                                        <Plus size={18} />
+                                        Adicionar revista
+                                    </button>
+                                )}
+                            </div>
+                        </article>
+
+                        <article className="ebd-material-card ebd-material-card-apoio">
+                            <div className="ebd-material-icon">
+                                <LibraryBig size={23} />
+                            </div>
+
+                            <div className="ebd-material-copy">
+                                <span>LIVRO DE APOIO</span>
+
+                                {livrosApoio.length > 0 ? (
+                                    <>
+                                        <h3>
+                                            {livrosApoio[0].titulo}
+                                        </h3>
+
+                                        <p>
+                                            {livrosApoio[0].autor
+                                                ? `${livrosApoio[0].autor} · leitor completo do VERBO`
+                                                : "Leitor completo do VERBO"}
+                                        </p>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h3>Seu apoio para a lição</h3>
+                                        <p>
+                                            Adicione um PDF. O VERBO identifica nome e autor e abre no leitor de livros.
+                                        </p>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="ebd-material-actions">
+                                {livrosApoio.length > 0 ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className="primary-button"
+                                            onClick={() =>
+                                                navigate(
+                                                    `/livros/${livrosApoio[0].id}`,
+                                                )
+                                            }
+                                        >
+                                            Abrir leitor
+                                            <ChevronRight size={18} />
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            className="text-button"
+                                            onClick={() =>
+                                                setModalLivroApoioAberto(
+                                                    true,
+                                                )
+                                            }
+                                        >
+                                            Adicionar outro
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="primary-button"
+                                        onClick={() =>
+                                            setModalLivroApoioAberto(
+                                                true,
+                                            )
+                                        }
+                                    >
+                                        <Plus size={18} />
+                                        Adicionar livro
+                                    </button>
+                                )}
+                            </div>
+
+                            {livrosApoio.length > 1 && (
+                                <div className="ebd-support-book-list">
+                                    {livrosApoio
+                                        .slice(1, 4)
+                                        .map((livro) => (
+                                            <button
+                                                type="button"
+                                                key={livro.id}
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/livros/${livro.id}`,
+                                                    )
+                                                }
+                                            >
+                                                <BookOpen size={16} />
+                                                <span>{livro.titulo}</span>
+                                                <ChevronRight size={16} />
+                                            </button>
+                                        ))}
+                                </div>
+                            )}
+                        </article>
+                    </div>
+                </section>
+
+                <div className="section-heading ebd-aulas-heading">
+                    <div>
+                        <span>Apresentações</span>
+                        <h3>Aulas do trimestre</h3>
+                    </div>
+                </div>
+
                 {aulas.length === 0 ? (
                     <section className="empty-state trimestre-empty-state">
                         <div className="empty-icon">
@@ -990,6 +1257,44 @@ function TrimestrePage() {
                     Importar aula
                 </button>
             </div>
+
+            <EbdMagazineImport
+                aberto={modalRevistaAberto}
+                trimestre={trimestre}
+                user={user}
+                revistaAtual={revista}
+                onClose={() =>
+                    setModalRevistaAberto(
+                        false,
+                    )
+                }
+                onImported={(item) =>
+                    setRevista(item)
+                }
+            />
+
+            <EbdSupportBookImport
+                aberto={modalLivroApoioAberto}
+                trimestre={trimestre}
+                user={user}
+                onClose={() =>
+                    setModalLivroApoioAberto(
+                        false,
+                    )
+                }
+                onImported={(livro) =>
+                    setLivrosApoio(
+                        (anteriores) => [
+                            livro,
+                            ...anteriores.filter(
+                                (item) =>
+                                    item.id !==
+                                    livro.id,
+                            ),
+                        ],
+                    )
+                }
+            />
 
             {modalEditarAulaAberto && (
                 <div
