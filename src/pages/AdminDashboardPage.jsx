@@ -9,6 +9,8 @@ import {
   KeyRound,
   MessageSquareText,
   RefreshCw,
+  Save,
+  Settings2,
   ShieldCheck,
   Star,
   TrendingUp,
@@ -166,6 +168,26 @@ function AdminDashboardPage() {
   ] = useState(null);
 
   const [
+    configComercial,
+    setConfigComercial,
+  ] = useState(null);
+
+  const [
+    salvandoConfigComercial,
+    setSalvandoConfigComercial,
+  ] = useState(false);
+
+  const [
+    erroConfigComercial,
+    setErroConfigComercial,
+  ] = useState("");
+
+  const [
+    sucessoConfigComercial,
+    setSucessoConfigComercial,
+  ] = useState("");
+
+  const [
     liberacaoAberta,
     setLiberacaoAberta,
   ] = useState(false);
@@ -214,10 +236,11 @@ function AdminDashboardPage() {
         painelResposta,
         usuariosResposta,
         feedbackResposta,
+        configResposta,
       ] = await Promise.all([
         supabase
           .schema("biblia_slides")
-          .rpc("admin_dashboard"),
+          .rpc("admin_dashboard_configuravel"),
 
         supabase
           .schema("biblia_slides")
@@ -226,12 +249,17 @@ function AdminDashboardPage() {
         supabase
           .schema("biblia_slides")
           .rpc("admin_feedback"),
+
+        supabase
+          .schema("biblia_slides")
+          .rpc("admin_configuracao_comercial"),
       ]);
 
       const error =
         painelResposta.error ||
         usuariosResposta.error ||
-        feedbackResposta.error;
+        feedbackResposta.error ||
+        configResposta.error;
 
       if (error) {
         console.error(
@@ -265,6 +293,10 @@ function AdminDashboardPage() {
 
       setFeedbackGerencial(
         feedbackResposta.data ?? null,
+      );
+
+      setConfigComercial(
+        configResposta.data ?? null,
       );
 
       setCarregando(false);
@@ -394,6 +426,157 @@ function AdminDashboardPage() {
         "A liberação foi processada, mas a confirmação retornou incompleta.",
       );
     }
+  }
+
+  function atualizarConfigComercial(
+    campo,
+    valor,
+  ) {
+    setConfigComercial((atual) => ({
+      ...(atual ?? {}),
+      [campo]: valor,
+    }));
+
+    setErroConfigComercial("");
+    setSucessoConfigComercial("");
+  }
+
+  function atualizarPrecoPlano(
+    planoId,
+    valor,
+  ) {
+    setConfigComercial((atual) => ({
+      ...(atual ?? {}),
+      planos: (atual?.planos ?? []).map(
+        (plano) =>
+          plano.id === planoId
+            ? {
+                ...plano,
+                preco: valor,
+              }
+            : plano,
+      ),
+    }));
+
+    setErroConfigComercial("");
+    setSucessoConfigComercial("");
+  }
+
+  async function salvarConfigComercial() {
+    setErroConfigComercial("");
+    setSucessoConfigComercial("");
+
+    const testeDias =
+      Number(configComercial?.teste_dias);
+
+    const precoVitalicio =
+      Number(
+        String(
+          configComercial?.vitalicio_preco ??
+            "",
+        ).replace(",", "."),
+      );
+
+    const planos =
+      (configComercial?.planos ?? []).map(
+        (plano) => ({
+          id: plano.id,
+          preco: Number(
+            String(
+              plano.preco ?? "",
+            ).replace(",", "."),
+          ),
+        }),
+      );
+
+    if (
+      !Number.isInteger(testeDias) ||
+      testeDias < 1 ||
+      testeDias > 365
+    ) {
+      setErroConfigComercial(
+        "O teste gratuito deve ter entre 1 e 365 dias.",
+      );
+      return;
+    }
+
+    if (
+      !Number.isFinite(precoVitalicio) ||
+      precoVitalicio <= 0
+    ) {
+      setErroConfigComercial(
+        "Informe um valor válido para o acesso vitalício.",
+      );
+      return;
+    }
+
+    if (
+      planos.some(
+        (plano) =>
+          !Number.isFinite(plano.preco) ||
+          plano.preco <= 0,
+      )
+    ) {
+      setErroConfigComercial(
+        "Todos os planos precisam ter um valor válido.",
+      );
+      return;
+    }
+
+    setSalvandoConfigComercial(true);
+
+    const {
+      data,
+      error,
+    } = await supabase
+      .schema("biblia_slides")
+      .rpc(
+        "admin_salvar_configuracao_comercial",
+        {
+          p_teste_gratuito_ativo:
+            configComercial
+              ?.teste_gratuito_ativo === true,
+
+          p_teste_dias:
+            testeDias,
+
+          p_vitalicio_ativo:
+            configComercial
+              ?.vitalicio_ativo === true,
+
+          p_vitalicio_preco:
+            precoVitalicio,
+
+          p_planos:
+            planos,
+        },
+      );
+
+    if (error) {
+      console.error(
+        "Erro ao salvar configuração comercial:",
+        error,
+      );
+
+      setErroConfigComercial(
+        "Não foi possível salvar as configurações comerciais.",
+      );
+
+      setSalvandoConfigComercial(false);
+      return;
+    }
+
+    setConfigComercial(
+      data ?? configComercial,
+    );
+
+    setSucessoConfigComercial(
+      "Configurações comerciais atualizadas. Os novos checkouts já usarão estes valores.",
+    );
+
+    setSalvandoConfigComercial(false);
+
+    await carregar();
   }
 
   const maxCadastros =
@@ -755,6 +938,265 @@ function AdminDashboardPage() {
                 Vitalícios ÷ usuários cadastrados
               </small>
             </article>
+          </div>
+        </section>
+
+        <section className="admin-section">
+          <div className="admin-section-title">
+            <div>
+              <span>
+                Configuração comercial
+              </span>
+
+              <h2>
+                Planos, teste e vitalício
+              </h2>
+            </div>
+
+            <Settings2 size={22} />
+          </div>
+
+          <div className="admin-commerce-config-grid">
+            <article className="admin-commerce-config-card">
+              <div className="admin-commerce-config-head">
+                <div>
+                  <strong>
+                    Teste gratuito
+                  </strong>
+
+                  <span>
+                    Controle a entrada gratuita no VERBO.
+                  </span>
+                </div>
+
+                <label className="admin-commerce-switch">
+                  <input
+                    type="checkbox"
+                    checked={
+                      configComercial
+                        ?.teste_gratuito_ativo ===
+                      true
+                    }
+                    onChange={(event) =>
+                      atualizarConfigComercial(
+                        "teste_gratuito_ativo",
+                        event.target.checked,
+                      )
+                    }
+                  />
+
+                  <span>
+                    {configComercial
+                      ?.teste_gratuito_ativo
+                      ? "Ativo"
+                      : "Desativado"}
+                  </span>
+                </label>
+              </div>
+
+              <label className="admin-commerce-field">
+                <span>
+                  Duração do teste
+                </span>
+
+                <div className="admin-commerce-input-suffix">
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    step="1"
+                    inputMode="numeric"
+                    value={
+                      configComercial
+                        ?.teste_dias ?? ""
+                    }
+                    onChange={(event) =>
+                      atualizarConfigComercial(
+                        "teste_dias",
+                        event.target.value,
+                      )
+                    }
+                  />
+
+                  <span>
+                    dias
+                  </span>
+                </div>
+              </label>
+
+              <small className="admin-commerce-note">
+                Alterar a duração recalcula os testes em andamento a partir da data em que cada usuário iniciou o teste. Desativar o teste interrompe os testes gratuitos ativos.
+              </small>
+            </article>
+
+            <article className="admin-commerce-config-card">
+              <div className="admin-commerce-config-head">
+                <div>
+                  <strong>
+                    VERBO Vitalício
+                  </strong>
+
+                  <span>
+                    Oferta de pagamento único.
+                  </span>
+                </div>
+
+                <label className="admin-commerce-switch">
+                  <input
+                    type="checkbox"
+                    checked={
+                      configComercial
+                        ?.vitalicio_ativo ===
+                      true
+                    }
+                    onChange={(event) =>
+                      atualizarConfigComercial(
+                        "vitalicio_ativo",
+                        event.target.checked,
+                      )
+                    }
+                  />
+
+                  <span>
+                    {configComercial
+                      ?.vitalicio_ativo
+                      ? "À venda"
+                      : "Pausado"}
+                  </span>
+                </label>
+              </div>
+
+              <label className="admin-commerce-field">
+                <span>
+                  Valor do vitalício
+                </span>
+
+                <div className="admin-commerce-input-prefix">
+                  <span>
+                    R$
+                  </span>
+
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    inputMode="decimal"
+                    value={
+                      configComercial
+                        ?.vitalicio_preco ?? ""
+                    }
+                    onChange={(event) =>
+                      atualizarConfigComercial(
+                        "vitalicio_preco",
+                        event.target.value,
+                      )
+                    }
+                  />
+                </div>
+              </label>
+
+              <small className="admin-commerce-note">
+                O novo valor é aplicado aos novos checkouts. Quem já comprou o vitalício mantém o acesso normalmente.
+              </small>
+            </article>
+          </div>
+
+          <div className="admin-commerce-plans-card">
+            <div className="admin-commerce-plans-head">
+              <div>
+                <strong>
+                  Planos mensais de armazenamento
+                </strong>
+
+                <span>
+                  Altere os preços sem mexer no código.
+                </span>
+              </div>
+
+              <CreditCard size={20} />
+            </div>
+
+            <div className="admin-commerce-plan-list">
+              {(
+                configComercial?.planos ?? []
+              ).map((plano) => (
+                <label
+                  className="admin-commerce-plan-row"
+                  key={plano.id}
+                >
+                  <div>
+                    <strong>
+                      {plano.nome}
+                    </strong>
+
+                    <span>
+                      {formatarBytes(
+                        plano.limite_bytes,
+                      )}
+                      {" · "}mensal
+                    </span>
+                  </div>
+
+                  <div className="admin-commerce-input-prefix compact">
+                    <span>
+                      R$
+                    </span>
+
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      inputMode="decimal"
+                      value={plano.preco ?? ""}
+                      onChange={(event) =>
+                        atualizarPrecoPlano(
+                          plano.id,
+                          event.target.value,
+                        )
+                      }
+                    />
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <small className="admin-commerce-note">
+              A alteração vale para novas contratações e trocas de plano. Assinaturas já existentes no Mercado Pago não têm a mensalidade reajustada automaticamente.
+            </small>
+          </div>
+
+          {(erroConfigComercial ||
+            sucessoConfigComercial) && (
+            <div
+              className={
+                erroConfigComercial
+                  ? "admin-commerce-feedback error"
+                  : "admin-commerce-feedback success"
+              }
+            >
+              {erroConfigComercial ||
+                sucessoConfigComercial}
+            </div>
+          )}
+
+          <div className="admin-commerce-actions">
+            <button
+              type="button"
+              className="admin-release-button"
+              onClick={salvarConfigComercial}
+              disabled={
+                salvandoConfigComercial ||
+                !configComercial
+              }
+            >
+              <Save size={18} />
+
+              <span>
+                {salvandoConfigComercial
+                  ? "Salvando..."
+                  : "Salvar configurações"}
+              </span>
+            </button>
           </div>
         </section>
 
