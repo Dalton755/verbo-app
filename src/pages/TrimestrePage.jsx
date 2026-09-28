@@ -36,6 +36,7 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import EbdMagazineImport from "../components/EbdMagazineImport";
 import EbdSupportBookImport from "../components/EbdSupportBookImport";
+import EbdMaterialCover from "../components/EbdMaterialCover";
 
 
 function TrimestrePage() {
@@ -239,6 +240,7 @@ function TrimestrePage() {
                         autor,
                         trimestre_id,
                         arquivo_nome,
+                        storage_path,
                         total_paginas,
                         created_at
                     `)
@@ -932,166 +934,149 @@ function TrimestrePage() {
                         </div>
                     </div>
 
-                    <div className="ebd-materials-grid">
-                        <article className="ebd-material-card ebd-material-card-revista">
-                            <div className="ebd-material-icon">
-                                <BookOpen size={23} />
-                            </div>
-
-                            <div className="ebd-material-copy">
-                                <span>REVISTA</span>
-                                <h3>
-                                    {revista
-                                        ? revista.titulo
-                                        : "Revista do trimestre"}
-                                </h3>
-
-                                <p>
-                                    {revista
-                                        ? `${revista.total_paginas} páginas · layout original preservado`
-                                        : "Adicione a revista em PDF e leia cada página exatamente como no material original."}
-                                </p>
-                            </div>
-
-                            <div className="ebd-material-actions">
-                                {revista ? (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="primary-button"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/revistas/${revista.id}`,
-                                                )
-                                            }
-                                        >
-                                            Abrir revista
-                                            <ChevronRight size={18} />
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            className="text-button"
-                                            onClick={() =>
-                                                setModalRevistaAberto(
-                                                    true,
-                                                )
-                                            }
-                                        >
-                                            Trocar PDF
-                                        </button>
-                                    </>
-                                ) : (
+                    <div className="ebd-cover-grid">
+                        <article className="ebd-cover-card">
+                            {revista ? (
+                                <>
                                     <button
                                         type="button"
-                                        className="primary-button"
+                                        className="ebd-cover-main"
+                                        onClick={() =>
+                                            navigate(
+                                                `/revistas/${revista.id}`,
+                                            )
+                                        }
+                                        aria-label="Abrir revista"
+                                    >
+                                        <EbdMaterialCover
+                                            storagePath={
+                                                revista.storage_path
+                                            }
+                                            alt={`Capa da revista ${revista.titulo}`}
+                                        />
+
+                                        <span className="ebd-cover-badge">
+                                            Revista
+                                        </span>
+
+                                        <span className="ebd-cover-open">
+                                            Abrir
+                                            <ChevronRight size={15} />
+                                        </span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="ebd-cover-manage"
                                         onClick={() =>
                                             setModalRevistaAberto(
                                                 true,
                                             )
                                         }
+                                        aria-label="Trocar PDF da revista"
+                                        title="Trocar PDF"
                                     >
-                                        <Plus size={18} />
-                                        Adicionar revista
+                                        <Pencil size={15} />
                                     </button>
-                                )}
-                            </div>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="ebd-cover-empty"
+                                    onClick={() =>
+                                        setModalRevistaAberto(
+                                            true,
+                                        )
+                                    }
+                                >
+                                    <span className="ebd-cover-empty-icon">
+                                        <BookOpen size={25} />
+                                    </span>
+
+                                    <strong>
+                                        Adicionar revista
+                                    </strong>
+
+                                    <span>
+                                        PDF do trimestre
+                                    </span>
+                                </button>
+                            )}
                         </article>
 
-                        <article className="ebd-material-card ebd-material-card-apoio">
-                            <div className="ebd-material-icon">
-                                <LibraryBig size={23} />
-                            </div>
-
-                            <div className="ebd-material-copy">
-                                <span>LIVRO DE APOIO</span>
-
-                                {livrosApoio.length > 0 ? (
-                                    <>
-                                        <h3>
-                                            {livrosApoio[0].titulo}
-                                        </h3>
-
-                                        <p>
-                                            {livrosApoio[0].autor
-                                                ? `${livrosApoio[0].autor} · leitor completo do VERBO`
-                                                : "Leitor completo do VERBO"}
-                                        </p>
-                                    </>
-                                ) : (
-                                    <>
-                                        <h3>Seu apoio para a lição</h3>
-                                        <p>
-                                            Adicione um PDF. O VERBO identifica nome e autor e abre no leitor de livros.
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-
-                            <div className="ebd-material-actions">
-                                {livrosApoio.length > 0 ? (
-                                    <>
-                                        <button
-                                            type="button"
-                                            className="primary-button"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/livros/${livrosApoio[0].id}`,
-                                                )
-                                            }
-                                        >
-                                            Abrir leitor
-                                            <ChevronRight size={18} />
-                                        </button>
-
-                                        <button
-                                            type="button"
-                                            className="text-button"
-                                            onClick={() =>
-                                                setModalLivroApoioAberto(
-                                                    true,
-                                                )
-                                            }
-                                        >
-                                            Adicionar outro
-                                        </button>
-                                    </>
-                                ) : (
+                        <article className="ebd-cover-card">
+                            {livrosApoio.length > 0 ? (
+                                <>
                                     <button
                                         type="button"
-                                        className="primary-button"
+                                        className="ebd-cover-main"
+                                        onClick={() =>
+                                            navigate(
+                                                `/livros/${livrosApoio[0].id}`,
+                                            )
+                                        }
+                                        aria-label="Abrir livro de apoio"
+                                    >
+                                        <EbdMaterialCover
+                                            storagePath={
+                                                livrosApoio[0]
+                                                    .storage_path
+                                            }
+                                            alt={`Capa do livro ${livrosApoio[0].titulo}`}
+                                        />
+
+                                        <span className="ebd-cover-badge">
+                                            Livro de apoio
+                                        </span>
+
+                                        <span className="ebd-cover-open">
+                                            Abrir
+                                            <ChevronRight size={15} />
+                                        </span>
+
+                                        {livrosApoio.length > 1 && (
+                                            <span className="ebd-cover-count">
+                                                +{livrosApoio.length - 1}
+                                            </span>
+                                        )}
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        className="ebd-cover-manage"
                                         onClick={() =>
                                             setModalLivroApoioAberto(
                                                 true,
                                             )
                                         }
+                                        aria-label="Adicionar outro livro de apoio"
+                                        title="Adicionar outro"
                                     >
-                                        <Plus size={18} />
-                                        Adicionar livro
+                                        <Plus size={16} />
                                     </button>
-                                )}
-                            </div>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="ebd-cover-empty"
+                                    onClick={() =>
+                                        setModalLivroApoioAberto(
+                                            true,
+                                        )
+                                    }
+                                >
+                                    <span className="ebd-cover-empty-icon">
+                                        <LibraryBig size={25} />
+                                    </span>
 
-                            {livrosApoio.length > 1 && (
-                                <div className="ebd-support-book-list">
-                                    {livrosApoio
-                                        .slice(1, 4)
-                                        .map((livro) => (
-                                            <button
-                                                type="button"
-                                                key={livro.id}
-                                                onClick={() =>
-                                                    navigate(
-                                                        `/livros/${livro.id}`,
-                                                    )
-                                                }
-                                            >
-                                                <BookOpen size={16} />
-                                                <span>{livro.titulo}</span>
-                                                <ChevronRight size={16} />
-                                            </button>
-                                        ))}
-                                </div>
+                                    <strong>
+                                        Adicionar livro
+                                    </strong>
+
+                                    <span>
+                                        Livro de apoio
+                                    </span>
+                                </button>
                             )}
                         </article>
                     </div>
