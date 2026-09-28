@@ -1,7 +1,5 @@
 import { withSupabase } from "npm:@supabase/server@^1";
 
-const PRECO = "9.90";
-
 // Versão: retorno Checkout Pro produção
 
 export default {
@@ -42,6 +40,81 @@ export default {
       const banco =
         ctx.supabaseAdmin
           .schema("biblia_slides");
+
+      const {
+        data: configComercial,
+        error: erroConfigComercial,
+      } =
+        await banco
+          .from("configuracao_comercial")
+          .select(`
+            vitalicio_ativo,
+            vitalicio_preco,
+            moeda
+          `)
+          .eq("chave", "VERBO")
+          .maybeSingle();
+
+      if (
+        erroConfigComercial ||
+        !configComercial
+      ) {
+        console.error(
+          "Erro ao carregar configuração comercial:",
+          erroConfigComercial,
+        );
+
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "Não foi possível carregar a configuração comercial.",
+          },
+          { status: 500 },
+        );
+      }
+
+      if (
+        configComercial.vitalicio_ativo !==
+        true
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "A oferta vitalícia está temporariamente pausada.",
+          },
+          { status: 409 },
+        );
+      }
+
+      const precoVitalicio =
+        Number(
+          configComercial
+            .vitalicio_preco,
+        ).toFixed(2);
+
+      const moedaConfigurada =
+        String(
+          configComercial.moeda ??
+            "BRL",
+        ).toUpperCase();
+
+      if (
+        !Number.isFinite(
+          Number(precoVitalicio),
+        ) ||
+        Number(precoVitalicio) <= 0
+      ) {
+        return Response.json(
+          {
+            ok: false,
+            erro:
+              "O valor do acesso vitalício está inválido.",
+          },
+          { status: 500 },
+        );
+      }
 
       // -----------------------------------------
       // 1. Verifica se já possui licença
@@ -149,10 +222,11 @@ export default {
       if (
         pendente &&
         (
-          Number(pendente.valor).toFixed(2) !== PRECO ||
+          Number(pendente.valor).toFixed(2) !== precoVitalicio ||
           String(
             pendente.moeda ?? ""
-          ).toUpperCase() !== "BRL"
+          ).toUpperCase() !==
+            moedaConfigurada
         )
       ) {
         const {
@@ -243,7 +317,7 @@ export default {
         referenciaExterna =
           `BS_${crypto.randomUUID()}`;
 
-        valorCheckout = PRECO;
+        valorCheckout = precoVitalicio;
 
         const {
           data: novoPagamentoId,
@@ -256,7 +330,7 @@ export default {
                 usuarioId,
 
               p_valor:
-                Number(PRECO),
+                Number(precoVitalicio),
 
               p_referencia_externa:
                 referenciaExterna,
