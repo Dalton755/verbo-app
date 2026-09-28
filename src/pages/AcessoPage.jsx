@@ -4,6 +4,16 @@ import { supabase } from "../lib/supabase";
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 
+function formatarMoeda(valor) {
+  return new Intl.NumberFormat(
+    "pt-BR",
+    {
+      style: "currency",
+      currency: "BRL",
+    },
+  ).format(Number(valor ?? 0));
+}
+
 function AcessoPage() {
 
   const navigate = useNavigate();
@@ -28,6 +38,17 @@ function AcessoPage() {
   const [erroCheckout, setErroCheckout] =
     useState("");
 
+  const [
+    configComercial,
+    setConfigComercial,
+  ] = useState({
+    teste_gratuito_ativo: true,
+    teste_dias: 7,
+    vitalicio_ativo: true,
+    vitalicio_preco: 9.9,
+    moeda: "BRL",
+  });
+
   const statusPagamento =
     new URLSearchParams(
       window.location.search
@@ -42,6 +63,10 @@ function AcessoPage() {
     motivoOferta ===
     "limite-demo";
 
+  const ofertaPorDemoExpirada =
+    motivoOferta ===
+    "demo-expirada";
+
   const retornoPagamento =
     statusPagamento ===
     "aprovado" ||
@@ -49,6 +74,44 @@ function AcessoPage() {
     "pendente" ||
     statusPagamento ===
     "falhou";
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarConfigComercial() {
+      const {
+        data,
+        error,
+      } = await supabase
+        .schema("biblia_slides")
+        .rpc(
+          "configuracao_comercial_publica",
+        );
+
+      if (!ativo) return;
+
+      if (error) {
+        console.error(
+          "Erro ao carregar configuração comercial:",
+          error,
+        );
+        return;
+      }
+
+      if (data) {
+        setConfigComercial((atual) => ({
+          ...atual,
+          ...data,
+        }));
+      }
+    }
+
+    carregarConfigComercial();
+
+    return () => {
+      ativo = false;
+    };
+  }, []);
 
   useEffect(() => {
     const parametros =
@@ -267,7 +330,10 @@ function AcessoPage() {
               {ofertaPorLimiteDemo
                 ? "Você concluiu o teste deste módulo"
                 : ofertaPorDemoExpirada
-                  ? "Seus 7 dias de demonstração terminaram"
+                  ? configComercial
+                      .teste_gratuito_ativo
+                    ? `Seus ${configComercial.teste_dias} ${Number(configComercial.teste_dias) === 1 ? "dia" : "dias"} de demonstração terminaram`
+                    : "O teste gratuito está pausado"
                   : "Libere o VERBO completo"}
             </strong>
 
@@ -275,7 +341,10 @@ function AcessoPage() {
               {ofertaPorLimiteDemo
                 ? "Na demonstração você pode importar 1 arquivo em cada módulo. Para importar outro arquivo neste módulo, libere o VERBO Vitalício."
                 : ofertaPorDemoExpirada
-                  ? "Seu período gratuito de 7 dias chegou ao fim. Libere o VERBO Vitalício para continuar usando seus materiais."
+                  ? configComercial
+                      .teste_gratuito_ativo
+                    ? `Seu período gratuito de ${configComercial.teste_dias} ${Number(configComercial.teste_dias) === 1 ? "dia" : "dias"} chegou ao fim. Libere o VERBO Vitalício para continuar usando seus materiais.`
+                    : "O teste gratuito está desativado neste momento. Você ainda pode liberar o VERBO Vitalício para continuar usando seus materiais."
                   : "Tenha acesso vitalício ao VERBO com 25 MB de armazenamento incluídos."}
             </span>
           </div>
@@ -376,16 +445,24 @@ function AcessoPage() {
           </span>
 
           <strong>
-            R$ 9,90
+            {configComercial.vitalicio_ativo
+              ? formatarMoeda(
+                  configComercial
+                    .vitalicio_preco,
+                )
+              : "Oferta pausada"}
           </strong>
 
           <small>
-            VERBO Vitalício · 25 MB incluídos · Sem mensalidade
+            {configComercial.vitalicio_ativo
+              ? "VERBO Vitalício · 25 MB incluídos · Sem mensalidade"
+              : "Novas compras do acesso vitalício estão temporariamente desativadas"}
           </small>
         </div>
 
         {statusPagamento !== "aprovado" &&
-          statusPagamento !== "pendente" && (
+          statusPagamento !== "pendente" &&
+          configComercial.vitalicio_ativo && (
             <button
               className="access-primary-button"
               type="button"
@@ -396,6 +473,20 @@ function AcessoPage() {
                 ? "Abrindo pagamento..."
                 : "Liberar VERBO Vitalício"}
             </button>
+          )}
+
+        {statusPagamento !== "aprovado" &&
+          statusPagamento !== "pendente" &&
+          !configComercial.vitalicio_ativo && (
+            <div className="access-status access-status-neutral">
+              <strong>
+                Compra temporariamente pausada
+              </strong>
+
+              <span>
+                O acesso vitalício não está disponível para novas compras neste momento.
+              </span>
+            </div>
           )}
 
         {ofertaPorLimiteDemo && (
