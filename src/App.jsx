@@ -14,6 +14,7 @@ import PwaManager from "./components/PwaManager";
 import OfflineStatus from "./components/OfflineStatus";
 import GuidedTour from "./components/GuidedTour";
 import EngagementManager from "./components/EngagementManager";
+import ActivationOnboarding from "./components/ActivationOnboarding";
 
 import BibliotecaPage from "./pages/BibliotecaPage";
 import EbdPage from "./pages/EbdPage";
@@ -33,6 +34,7 @@ import ModulosConfigPage from "./pages/ModulosConfigPage";
 import PrivacidadePage from "./pages/PrivacidadePage";
 import TermosPage from "./pages/TermosPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import ActivationDemoPage from "./pages/ActivationDemoPage";
 
 function App() {
   return (
@@ -43,6 +45,7 @@ function App() {
           <OfflineStatus />
           <GuidedTour />
           <EngagementManager />
+          <ActivationOnboarding />
 
           <Routes>
             <Route
@@ -139,6 +142,17 @@ function App() {
                 <ProtectedRoute>
                   <LicensedRoute>
                     <ApresentacaoPage />
+                  </LicensedRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/experiencia/:tipo"
+              element={
+                <ProtectedRoute>
+                  <LicensedRoute>
+                    <ActivationDemoPage />
                   </LicensedRoute>
                 </ProtectedRoute>
               }

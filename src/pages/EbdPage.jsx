@@ -18,11 +18,12 @@ import {
 
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import verboLogoHorizontal from "../assets/verbo-logo-horizontal.png";
 
 function EbdPage() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
 
     const [carregando, setCarregando] = useState(true);
@@ -50,6 +51,36 @@ function EbdPage() {
         ano: new Date().getFullYear().toString(),
         tema: "",
     });
+
+    useEffect(() => {
+        if (
+            !location.state?.abrirPrimeiraAcao
+        ) {
+            return;
+        }
+
+        const timer =
+            window.setTimeout(() => {
+                abrirNovoTrimestre();
+
+                navigate(
+                    location.pathname,
+                    {
+                        replace: true,
+                        state: null,
+                    },
+                );
+            }, 120);
+
+        return () =>
+            window.clearTimeout(
+                timer,
+            );
+    }, [
+        location.pathname,
+        location.state,
+        navigate,
+    ]);
 
     useEffect(() => {
         if (!user) return;

@@ -21,7 +21,7 @@ import {
   useAuth,
 } from "../contexts/AuthContext";
 
-const VERSAO_TOUR = "v1";
+const VERSAO_TOUR = "v2";
 
 const TOURS = [
   {
@@ -31,40 +31,27 @@ const TOURS = [
     titulo: "Sua Biblioteca VERBO",
     passos: [
       {
-        titulo: "Bem-vindo ao VERBO",
+        titulo: "Veja o valor antes de configurar qualquer coisa",
         texto:
-          "Este tour apresenta o aplicativo sem alterar seus materiais. Ele aparece automaticamente só na primeira visita de cada área e pode ser repetido pelo botão de ajuda.",
-      },
-      {
-        seletor: ".topbar",
-        titulo: "Cabeçalho principal",
-        texto:
-          "Aqui você identifica a área atual, acompanha o período de teste quando aplicável e acessa as ações gerais do aplicativo.",
-      },
-      {
-        seletor:
-          '.icon-button[aria-label="Configurar módulos"]',
-        titulo: "Personalize seus módulos",
-        texto:
-          "Use este botão para escolher quais módulos aparecem na Biblioteca. Ocultar um módulo não apaga nenhum conteúdo.",
+          "Em cerca de 1 minuto você vai entender onde o VERBO ajuda de verdade. Depois você escolhe um objetivo e usa seu próprio material.",
       },
       {
         seletor: ".module-grid",
-        titulo: "Seus módulos",
+        titulo: "Comece pelo que você precisa fazer",
         texto:
-          "EBD organiza trimestres e aulas, Sermões prepara PDFs ou DOCX para pregação e Livros reúne sua biblioteca de PDF e EPUB.",
-      },
-      {
-        seletor: ".storage-card",
-        titulo: "Armazenamento",
-        texto:
-          "Veja quanto espaço está usando, quanto ainda está disponível e gerencie armazenamento adicional quando precisar.",
+          "EBD, Sermões e Livros não são só pastas. Cada módulo muda a experiência para a tarefa: ensinar, pregar ou estudar.",
       },
       {
         seletor: ".library-tip",
-        titulo: "Bíblia conectada",
+        titulo: "O diferencial aparece dentro do conteúdo",
         texto:
-          "As referências bíblicas identificadas nos seus materiais podem continuar interativas dentro dos recursos de leitura e apresentação.",
+          "O VERBO reconhece referências bíblicas nos materiais para que a Bíblia continue acessível durante leitura, estudo, aula e pregação.",
+      },
+      {
+        seletor: ".storage-card",
+        titulo: "Seu material continua sendo seu",
+        texto:
+          "Aqui você acompanha o espaço usado. Agora escolha um módulo e experimente o fluxo com aquilo que você realmente faz.",
       },
     ],
   },
@@ -72,51 +59,26 @@ const TOURS = [
     id: "ebd",
     corresponde: (caminho) =>
       caminho === "/ebd",
-    titulo: "Módulo EBD",
+    titulo: "Preparar uma aula de EBD",
     passos: [
       {
-        titulo: "Como funciona a EBD",
+        titulo: "Do trimestre à apresentação, sem bagunça",
         texto:
-          "A organização segue um fluxo simples: crie um trimestre, entre nele, importe suas aulas em PDF ou PPTX e abra cada aula para apresentar.",
-      },
-      {
-        seletor: ".module-header",
-        titulo: "Navegação da EBD",
-        texto:
-          "O cabeçalho mostra onde você está e o botão Biblioteca leva de volta à página inicial.",
-      },
-      {
-        seletor: ".search-area",
-        titulo: "Busca rápida",
-        texto:
-          "Use a busca para localizar aulas ou trimestres sem precisar percorrer toda a sua biblioteca.",
-      },
-      {
-        seletor: ".section-heading",
-        titulo: "Seus trimestres",
-        texto:
-          "Os materiais da EBD ficam agrupados por trimestre. Cada trimestre pode ter seu número, ano e tema.",
+          "Você vai aprender o fluxo essencial: organizar o trimestre, adicionar a aula e apresentar com apoio bíblico sem quebrar sua concentração.",
       },
       {
         seletor:
           ".trimestres-grid, .empty-state",
-        titulo: "Abra ou crie um trimestre",
+        titulo: "Tudo começa no trimestre",
         texto:
-          "Toque em um trimestre para ver as aulas. Se ainda não houver nenhum, o próprio VERBO apresenta a opção de criar o primeiro.",
+          "O trimestre reúne o período, o tema e as aulas. Isso evita arquivos soltos e deixa a sequência de ensino clara.",
       },
       {
         seletor:
           ".mobile-action .primary-button, .section-heading .secondary-button, .empty-state .primary-button",
-        titulo: "Novo trimestre",
+        titulo: "Crie a estrutura uma vez",
         texto:
-          "Quando precisar organizar um novo período da EBD, comece por aqui.",
-      },
-      {
-        seletor:
-          ".ebd-trimestre-menu-area .book-theme-menu-button",
-        titulo: "Gerencie o trimestre",
-        texto:
-          "O menu de três pontos permite editar os dados do trimestre ou excluí-lo quando necessário.",
+          "Depois do trimestre criado, você entra nele e adiciona as aulas conforme precisar. O próximo passo já abre essa ação para você.",
       },
     ],
   },
@@ -233,52 +195,32 @@ const TOURS = [
     id: "sermoes",
     corresponde: (caminho) =>
       caminho === "/sermoes",
-    titulo: "Módulo Sermões",
+    titulo: "Preparar uma pregação",
     passos: [
       {
-        titulo: "Sua central de sermões",
+        titulo: "Seu esboço não precisa continuar sendo só um PDF",
         texto:
-          "Importe seus esboços em PDF, organize o acervo e abra cada sermão para preparar o conteúdo ou usar o Modo Pregação.",
+          "Em menos de 1 minuto você vai entender como o VERBO transforma o material em uma experiência de preparo e em uma tela própria para o púlpito.",
       },
       {
         seletor: ".sermons-heading",
-        titulo: "Visão do módulo",
+        titulo: "O objetivo é chegar pronto ao púlpito",
         texto:
-          "Nesta área ficam o título do módulo e as principais ações para começar ou adicionar novos sermões.",
-      },
-      {
-        seletor:
-          ".sermon-series-preview",
-        titulo: "Séries de sermões",
-        texto:
-          "Quando você usa séries, elas ajudam a agrupar mensagens relacionadas e a filtrar rapidamente seu acervo.",
+          "Você importa o esboço que já usa. Depois o VERBO organiza a continuidade do preparo e separa a experiência de Preparar da experiência de Pregar.",
       },
       {
         seletor:
           ".sermons-list, .module-empty",
-        titulo: "Seus sermões",
+        titulo: "Aqui ficam as mensagens que você pode continuar",
         texto:
-          "Cada cartão representa um sermão. Toque nele para entrar no leitor e acessar os recursos de preparação e pregação.",
+          "Depois da primeira importação, seus sermões ficam acessíveis para revisar, marcar, anotar e abrir novamente quando precisar.",
       },
       {
         seletor:
           ".desktop-import-button, .sermon-first-button, .mobile-action .primary-button",
-        titulo: "Importar sermão",
+        titulo: "Agora use um material seu",
         texto:
-          "Adicione o PDF que você já utiliza. O VERBO prepara o conteúdo para leitura e para o modo de pregação.",
-      },
-      {
-        seletor: ".sermon-card-main",
-        titulo: "Abrir sermão",
-        texto:
-          "Toque no cartão para abrir o arquivo e continuar preparando ou pregando.",
-      },
-      {
-        seletor:
-          ".sermon-item-menu-area .book-theme-menu-button",
-        titulo: "Gerencie o sermão",
-        texto:
-          "O menu de três pontos reúne ações de organização, edição e exclusão do item.",
+          "Importe o esboço que você já tem em PDF ou DOCX. O próximo toque já abre a importação, sem exigir configuração extra.",
       },
     ],
   },
@@ -346,52 +288,26 @@ const TOURS = [
     id: "livros",
     corresponde: (caminho) =>
       caminho === "/livros",
-    titulo: "Módulo Livros",
+    titulo: "Estudar um livro",
     passos: [
       {
-        titulo: "Sua biblioteca pessoal",
+        titulo: "Seu PDF pode virar uma experiência de estudo",
         texto:
-          "Importe livros em PDF, organize por temas e abra cada obra no leitor do VERBO.",
-      },
-      {
-        seletor: ".sermons-heading",
-        titulo: "Visão da estante",
-        texto:
-          "Aqui ficam o título da área e as ações principais para adicionar ou organizar seus livros.",
+          "Em cerca de 1 minuto você vai entender como o VERBO deixa a leitura mais útil no celular, sem perder o arquivo original.",
       },
       {
         seletor:
           ".books-themes-grid, .sermons-list, .module-empty",
-        titulo: "Temas e livros",
+        titulo: "Uma estante que continua de onde você parou",
         texto:
-          "Você pode navegar por temas ou abrir diretamente os livros exibidos na lista atual.",
-      },
-      {
-        seletor:
-          ".book-theme-add",
-        titulo: "Criar tema",
-        texto:
-          "Crie categorias como Teologia, Biografias ou Comentários para manter a estante organizada.",
+          "Seus livros podem ser organizados e reabertos para continuar a leitura, consultar notas, marcadores e destaques.",
       },
       {
         seletor:
           ".desktop-import-button, .sermon-first-button, .mobile-action .primary-button",
-        titulo: "Adicionar livro",
+        titulo: "Teste com um livro que você já possui",
         texto:
-          "O fluxo começa pelo PDF. O VERBO tenta identificar título e autor automaticamente e depois permite escolher ou criar o tema sem sair do formulário.",
-      },
-      {
-        seletor: ".book-card-main",
-        titulo: "Abrir livro",
-        texto:
-          "Toque no cartão do livro para entrar no leitor e acessar os recursos de leitura, notas, busca, destaques e marcadores.",
-      },
-      {
-        seletor:
-          ".book-item-menu-area .book-theme-menu-button, .book-theme-menu-area .book-theme-menu-button",
-        titulo: "Gerencie sua estante",
-        texto:
-          "Os menus de três pontos permitem editar, renomear ou excluir itens conforme o contexto.",
+          "Importe um PDF. O VERBO tenta identificar título e autor e prepara o conteúdo para uma leitura mais prática.",
       },
     ],
   },
@@ -516,6 +432,24 @@ const TOURS = [
   },
 ];
 
+const ACOES_FINAIS = {
+  sermoes: {
+    label: "Importar meu primeiro sermão",
+    seletor:
+      ".sermon-first-button, .desktop-import-button, .mobile-action .primary-button",
+  },
+  livros: {
+    label: "Importar meu primeiro livro",
+    seletor:
+      ".sermon-first-button, .desktop-import-button, .mobile-action .primary-button",
+  },
+  ebd: {
+    label: "Criar meu primeiro trimestre",
+    seletor:
+      ".empty-state .primary-button, .section-heading .secondary-button, .mobile-action .primary-button",
+  },
+};
+
 function obterTour(caminho) {
   return (
     TOURS.find((tour) =>
@@ -615,6 +549,14 @@ function GuidedTour() {
 
     const timer =
       window.setTimeout(() => {
+        if (
+          document.querySelector(
+            ".activation-onboarding-overlay",
+          )
+        ) {
+          return;
+        }
+
         setAberto(true);
       }, 850);
 
@@ -731,6 +673,10 @@ function GuidedTour() {
 
   const ultimo =
     passoAtual === total - 1;
+
+  const acaoFinal =
+    ACOES_FINAIS[tour.id] ??
+    null;
 
   const larguraCard =
     Math.min(
@@ -876,7 +822,7 @@ function GuidedTour() {
 
               <div>
                 <span className="guided-tour-badge">
-                  TOUR GUIADO
+                  APRENDA FAZENDO
                 </span>
 
                 <strong className="guided-tour-section">
@@ -889,14 +835,18 @@ function GuidedTour() {
                 </small>
               </div>
 
-              <button
-                type="button"
-                className="guided-tour-close"
-                aria-label="Fechar tour"
-                onClick={concluir}
-              >
-                <X size={18} />
-              </button>
+              {passoAtual >= 2 ? (
+                <button
+                  type="button"
+                  className="guided-tour-close"
+                  aria-label="Fechar tutorial"
+                  onClick={concluir}
+                >
+                  <X size={18} />
+                </button>
+              ) : (
+                <span aria-hidden="true" />
+              )}
             </div>
 
             <div className="guided-tour-copy">
@@ -907,6 +857,12 @@ function GuidedTour() {
               <p>
                 {passo.texto}
               </p>
+
+              {passoAtual === 0 && (
+                <div className="guided-tour-value-note">
+                  Leva cerca de 1 minuto e termina com uma ação prática no seu próprio material.
+                </div>
+              )}
             </div>
 
             <div className="guided-tour-progress">
@@ -919,13 +875,22 @@ function GuidedTour() {
             </div>
 
             <div className="guided-tour-actions">
-              <button
-                type="button"
-                className="guided-tour-skip"
-                onClick={concluir}
-              >
-                Pular tour
-              </button>
+              {passoAtual >= 2 ? (
+                <button
+                  type="button"
+                  className="guided-tour-skip"
+                  onClick={concluir}
+                >
+                  Sair do tutorial
+                </button>
+              ) : (
+                <span
+                  className="guided-tour-commitment"
+                  aria-hidden="true"
+                >
+                  Vale 1 minuto
+                </span>
+              )}
 
               <div>
                 {passoAtual > 0 && (
@@ -954,7 +919,24 @@ function GuidedTour() {
                   className="guided-tour-next"
                   onClick={() => {
                     if (ultimo) {
+                      const seletor =
+                        acaoFinal?.seletor;
+
                       concluir();
+
+                      if (seletor) {
+                        window.setTimeout(
+                          () => {
+                            document
+                              .querySelector(
+                                seletor,
+                              )
+                              ?.click();
+                          },
+                          60,
+                        );
+                      }
+
                       return;
                     }
 
@@ -968,8 +950,11 @@ function GuidedTour() {
                   }}
                 >
                   {ultimo
-                    ? "Concluir"
-                    : "Próximo"}
+                    ? acaoFinal?.label ??
+                      "Concluir"
+                    : passoAtual === 0
+                      ? "Mostrar na prática"
+                      : "Próximo"}
 
                   {!ultimo && (
                     <ChevronRight
