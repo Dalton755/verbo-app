@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 
 import {
+    useLocation,
     useNavigate,
 } from "react-router-dom";
 
@@ -80,6 +81,9 @@ function LivrosPage() {
 
     const navigate =
         useNavigate();
+
+    const location =
+        useLocation();
 
     const { user } =
         useAuth();
@@ -288,6 +292,36 @@ function LivrosPage() {
         erroGerenciarLivro,
         setErroGerenciarLivro,
     ] = useState("");
+
+    useEffect(() => {
+        if (
+            !location.state?.abrirPrimeiraAcao
+        ) {
+            return;
+        }
+
+        const timer =
+            window.setTimeout(() => {
+                abrirImportacao();
+
+                navigate(
+                    location.pathname,
+                    {
+                        replace: true,
+                        state: null,
+                    },
+                );
+            }, 120);
+
+        return () =>
+            window.clearTimeout(
+                timer,
+            );
+    }, [
+        location.pathname,
+        location.state,
+        navigate,
+    ]);
 
     useEffect(() => {
         if (!user) {
