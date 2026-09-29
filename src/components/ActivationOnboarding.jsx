@@ -34,7 +34,7 @@ const OBJETIVOS = [
     titulo: "Preparar uma pregação",
     descricao:
       "Veja como transformar seu esboço em uma experiência pronta para preparar e pregar.",
-    rota: "/sermoes",
+    rota: "/experiencia/sermoes",
     icone: Mic2,
     beneficios: [
       "Modo Pregação limpo para o púlpito",
@@ -48,7 +48,7 @@ const OBJETIVOS = [
     titulo: "Preparar uma aula de EBD",
     descricao:
       "Entenda como organizar o trimestre, importar a aula e apresentar sem sair do fluxo.",
-    rota: "/ebd",
+    rota: "/experiencia/ebd",
     icone: BookOpen,
     beneficios: [
       "Trimestres e aulas organizados",
@@ -62,7 +62,7 @@ const OBJETIVOS = [
     titulo: "Estudar um livro",
     descricao:
       "Veja como um PDF vira uma leitura mais prática para estudo, consulta e anotações.",
-    rota: "/livros",
+    rota: "/experiencia/livros",
     icone: LibraryBig,
     beneficios: [
       "Leitura adaptada ao celular",
