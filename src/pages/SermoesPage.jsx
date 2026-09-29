@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import {
+    useLocation,
     useNavigate,
 } from "react-router-dom";
 
@@ -51,6 +52,7 @@ import verboLogoHorizontal from "../assets/verbo-logo-horizontal.png";
 
 function SermoesPage() {
     const navigate = useNavigate();
+    const location = useLocation();
 
     const { user } = useAuth();
 
@@ -115,6 +117,36 @@ function SermoesPage() {
 
     const [arquivo, setArquivo] =
         useState(null);
+
+    useEffect(() => {
+        if (
+            !location.state?.abrirPrimeiraAcao
+        ) {
+            return;
+        }
+
+        const timer =
+            window.setTimeout(() => {
+                abrirImportacao();
+
+                navigate(
+                    location.pathname,
+                    {
+                        replace: true,
+                        state: null,
+                    },
+                );
+            }, 120);
+
+        return () =>
+            window.clearTimeout(
+                timer,
+            );
+    }, [
+        location.pathname,
+        location.state,
+        navigate,
+    ]);
 
     useEffect(() => {
         if (!user) return;
