@@ -34,6 +34,7 @@ import ModulosConfigPage from "./pages/ModulosConfigPage";
 import PrivacidadePage from "./pages/PrivacidadePage";
 import TermosPage from "./pages/TermosPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import ActivationDemoPage from "./pages/ActivationDemoPage";
 
 function App() {
   return (
@@ -141,6 +142,17 @@ function App() {
                 <ProtectedRoute>
                   <LicensedRoute>
                     <ApresentacaoPage />
+                  </LicensedRoute>
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/experiencia/:tipo"
+              element={
+                <ProtectedRoute>
+                  <LicensedRoute>
+                    <ActivationDemoPage />
                   </LicensedRoute>
                 </ProtectedRoute>
               }
