@@ -14,6 +14,7 @@ import PwaManager from "./components/PwaManager";
 import OfflineStatus from "./components/OfflineStatus";
 import GuidedTour from "./components/GuidedTour";
 import EngagementManager from "./components/EngagementManager";
+import ActivationOnboarding from "./components/ActivationOnboarding";
 
 import BibliotecaPage from "./pages/BibliotecaPage";
 import EbdPage from "./pages/EbdPage";
@@ -43,6 +44,7 @@ function App() {
           <OfflineStatus />
           <GuidedTour />
           <EngagementManager />
+          <ActivationOnboarding />
 
           <Routes>
             <Route
