@@ -21,7 +21,7 @@ import {
   useAuth,
 } from "../contexts/AuthContext";
 
-const VERSAO_TOUR = "v1";
+const VERSAO_TOUR = "v2";
 
 const TOURS = [
   {
@@ -33,7 +33,7 @@ const TOURS = [
       {
         titulo: "Bem-vindo ao VERBO",
         texto:
-          "Este tour apresenta o aplicativo sem alterar seus materiais. Ele aparece automaticamente só na primeira visita de cada área e pode ser repetido pelo botão de ajuda.",
+          "Em cerca de 1 minuto você vai entender como o VERBO transforma seus materiais em uma experiência de estudo, ensino e pregação. Vamos mostrar valor primeiro — não um catálogo de botões.",
       },
       {
         seletor: ".topbar",
@@ -77,7 +77,7 @@ const TOURS = [
       {
         titulo: "Como funciona a EBD",
         texto:
-          "A organização segue um fluxo simples: crie um trimestre, entre nele, importe suas aulas em PDF ou PPTX e abra cada aula para apresentar.",
+          "Você vai aprender o fluxo que realmente importa: organizar o trimestre, adicionar a aula e apresentar com apoio bíblico sem quebrar sua concentração.",
       },
       {
         seletor: ".module-header",
@@ -238,7 +238,7 @@ const TOURS = [
       {
         titulo: "Sua central de sermões",
         texto:
-          "Importe seus esboços em PDF, organize o acervo e abra cada sermão para preparar o conteúdo ou usar o Modo Pregação.",
+          "Em menos de 1 minuto você vai ver como um esboço vira uma ferramenta de preparo e uma tela própria para o púlpito. No final, o VERBO abre a importação do seu primeiro sermão.",
       },
       {
         seletor: ".sermons-heading",
@@ -351,7 +351,7 @@ const TOURS = [
       {
         titulo: "Sua biblioteca pessoal",
         texto:
-          "Importe livros em PDF, organize por temas e abra cada obra no leitor do VERBO.",
+          "Em cerca de 1 minuto você vai ver como um PDF vira uma experiência melhor de estudo: leitura adaptada, busca, notas, destaques e continuidade.",
       },
       {
         seletor: ".sermons-heading",
@@ -516,6 +516,24 @@ const TOURS = [
   },
 ];
 
+const ACOES_FINAIS = {
+  sermoes: {
+    label: "Importar meu primeiro sermão",
+    seletor:
+      ".sermon-first-button, .desktop-import-button, .mobile-action .primary-button",
+  },
+  livros: {
+    label: "Importar meu primeiro livro",
+    seletor:
+      ".sermon-first-button, .desktop-import-button, .mobile-action .primary-button",
+  },
+  ebd: {
+    label: "Criar meu primeiro trimestre",
+    seletor:
+      ".empty-state .primary-button, .section-heading .secondary-button, .mobile-action .primary-button",
+  },
+};
+
 function obterTour(caminho) {
   return (
     TOURS.find((tour) =>
@@ -615,6 +633,14 @@ function GuidedTour() {
 
     const timer =
       window.setTimeout(() => {
+        if (
+          document.querySelector(
+            ".activation-onboarding-overlay",
+          )
+        ) {
+          return;
+        }
+
         setAberto(true);
       }, 850);
 
@@ -731,6 +757,10 @@ function GuidedTour() {
 
   const ultimo =
     passoAtual === total - 1;
+
+  const acaoFinal =
+    ACOES_FINAIS[tour.id] ??
+    null;
 
   const larguraCard =
     Math.min(
@@ -876,7 +906,7 @@ function GuidedTour() {
 
               <div>
                 <span className="guided-tour-badge">
-                  TOUR GUIADO
+                  APRENDA FAZENDO
                 </span>
 
                 <strong className="guided-tour-section">
@@ -907,6 +937,12 @@ function GuidedTour() {
               <p>
                 {passo.texto}
               </p>
+
+              {passoAtual === 0 && (
+                <div className="guided-tour-value-note">
+                  Leva cerca de 1 minuto e termina com uma ação prática no seu próprio material.
+                </div>
+              )}
             </div>
 
             <div className="guided-tour-progress">
@@ -919,13 +955,22 @@ function GuidedTour() {
             </div>
 
             <div className="guided-tour-actions">
-              <button
-                type="button"
-                className="guided-tour-skip"
-                onClick={concluir}
-              >
-                Pular tour
-              </button>
+              {passoAtual >= 2 ? (
+                <button
+                  type="button"
+                  className="guided-tour-skip"
+                  onClick={concluir}
+                >
+                  Sair do tutorial
+                </button>
+              ) : (
+                <span
+                  className="guided-tour-commitment"
+                  aria-hidden="true"
+                >
+                  Vale 1 minuto
+                </span>
+              )}
 
               <div>
                 {passoAtual > 0 && (
@@ -954,7 +999,24 @@ function GuidedTour() {
                   className="guided-tour-next"
                   onClick={() => {
                     if (ultimo) {
+                      const seletor =
+                        acaoFinal?.seletor;
+
                       concluir();
+
+                      if (seletor) {
+                        window.setTimeout(
+                          () => {
+                            document
+                              .querySelector(
+                                seletor,
+                              )
+                              ?.click();
+                          },
+                          60,
+                        );
+                      }
+
                       return;
                     }
 
@@ -968,8 +1030,11 @@ function GuidedTour() {
                   }}
                 >
                   {ultimo
-                    ? "Concluir"
-                    : "Próximo"}
+                    ? acaoFinal?.label ??
+                      "Concluir"
+                    : passoAtual === 0
+                      ? "Mostrar na prática"
+                      : "Próximo"}
 
                   {!ultimo && (
                     <ChevronRight
