@@ -213,15 +213,24 @@ Deno.serve(async (req: Request) => {
   if (current?.asaas_ambiente === "production") {
     return json(req, { error: "ASSINATURA_OUTRO_AMBIENTE" }, 409);
   }
-  if (current?.status === "active" && current?.validade_ate &&
-      new Date(current.validade_ate).getTime() > Date.now()) {
-    return json(req, { status: "active", message: "Sua assinatura já está ativa." });
+  if (current?.validade_ate &&
+      new Date(current.validade_ate).getTime() > Date.now() &&
+      ["active","canceled"].includes(current.status)) {
+    return json(req, {
+      status: current.status,
+      message: current.status==="canceled"
+        ? "Sua renovação foi cancelada. O acesso já pago continua até o vencimento."
+        : "Sua assinatura já está ativa."
+    });
   }
 
   let etapa = "cliente";
   try {
     let customerId = current?.asaas_customer_id as string | undefined;
-    let subscriptionId = current?.asaas_subscription_id as string | undefined;
+    // Uma recorrência já cancelada no Asaas NÃO pode ser reutilizada.
+    // Após expirar o período pago, uma nova contratação precisa de um novo ID.
+    let subscriptionId = current?.status==="canceled" ? undefined
+      : current?.asaas_subscription_id as string | undefined;
     if (!customerId) {
       const customer = await asaasRequest(key, "/customers", {
         method: "POST",
@@ -264,6 +273,8 @@ Deno.serve(async (req: Request) => {
         usuario_id: user.id, asaas_customer_id: customerId,
         asaas_subscription_id: subscriptionId, asaas_ambiente: "sandbox",
         status: "pending", valor_mensal: 5.99, ciclo: "MONTHLY", metodo: "PIX",
+        ultimo_pagamento_id: null, pagamento_url: null, proximo_vencimento: null,
+        cancelada_em: null,
       }, { onConflict: "usuario_id" });
       if (error) throw error;
     }
