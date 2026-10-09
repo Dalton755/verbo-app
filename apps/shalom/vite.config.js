@@ -18,6 +18,7 @@ export default defineConfig({
   },
   transform(code,id){
    if(id.endsWith("/src/pages/LivroPage.jsx"))return code.replaceAll('"biblia-slides-pdfs"','"shalom-livros"');
+   if(id.endsWith("/src/lib/bibleApi.js"))return code.replace(/export const VERSAO_BIBLICA_PADRAO\s*=\s*"ALM1911_ATUAL";/, 'export const VERSAO_BIBLICA_PADRAO = "BLIVRE";');
    return null;
   }
  },react()],
