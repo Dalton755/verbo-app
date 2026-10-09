@@ -11,6 +11,20 @@ const Reader=lazy(()=>import("../../src/pages/LivroPage.jsx"));
 // Em previews da Vercel, o domínio do build muda a cada deploy.
 // Um callback estável evita o fallback do Supabase para o Site URL geral.
 const authReturnBase=(import.meta.env.VITE_SHALOM_AUTH_BASE_URL||window.location.origin).replace(/\/+$/,"");
+// Máscara brasileira visível: CPF 000.000.000-00 ou CNPJ 00.000.000/0000-00.
+// Somente os dígitos são enviados ao checkout; o documento não é persistido.
+function formatarDocumento(valor){
+  const digitos=String(valor||"").replace(/\D/g,"").slice(0,14);
+  if(digitos.length<=11){
+    return digitos.replace(/^(\d{3})(\d)/,"$1.$2")
+      .replace(/^(\d{3})\.(\d{3})(\d)/,"$1.$2.$3")
+      .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/,"$1.$2.$3-$4");
+  }
+  return digitos.replace(/^(\d{2})(\d)/,"$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/,"$1.$2.$3")
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/,"$1.$2.$3/$4")
+    .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/,"$1.$2.$3/$4-$5");
+}
 function Brand({compact=false}){return <div className="shalom-brand"><div className="shalom-logo"><BookOpen size={compact?19:23} strokeWidth={1.8}/></div><div><strong>shalom<span>.</span></strong>{!compact&&<small>Um tempo de paz para ler</small>}</div></div>}
 function Login(){const {user,loading}=useAuth(),navigate=useNavigate();const [mode,setMode]=useState("entrar"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[name,setName]=useState(""),[showPass,setShowPass]=useState(false),[busy,setBusy]=useState(false),[info,setInfo]=useState("");
  useEffect(()=>{if(!loading&&user)navigate("/",{replace:true})},[user,loading,navigate]);
@@ -110,7 +124,7 @@ function Account(){
     {checkoutEnabled&&<div className="shalom-sandbox-warning">Ambiente de teste Asaas · Pix fictício. Não realize pagamentos reais.</div>}
     {showCheckout&&checkoutEnabled&&<form id="shalom-checkout-form" className="shalom-checkout-form" onSubmit={pay}>
       <label>Nome completo<input value={name} onChange={e=>setName(e.target.value)} required minLength={3} autoComplete="name"/></label>
-      <label>CPF ou CNPJ<input inputMode="numeric" type="password" autoComplete="off" value={document} onChange={e=>setDocument(e.target.value)} required placeholder="Somente números"/></label>
+      <label>CPF ou CNPJ<input inputMode="numeric" type="text" autoComplete="off" value={document} maxLength={18} onChange={e=>setDocument(formatarDocumento(e.target.value))} required placeholder="000.000.000-00" aria-label="CPF ou CNPJ"/></label>
       <button type="submit" className="button-main" disabled={busy}>{busy?"Preparando Pix de teste...":"Gerar Pix de teste"} <ArrowRight size={17}/></button>
     </form>}
     {!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
