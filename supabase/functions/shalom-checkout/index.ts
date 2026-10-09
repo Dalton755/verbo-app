@@ -23,6 +23,31 @@ function json(req: Request, body: Record<string, unknown>, status = 200) {
 }
 
 const ASAAS_BASE = "https://api-sandbox.asaas.com/v3";
+
+// O Asaas devolve códigos e mensagens úteis de validação. Guardamos apenas
+// código + etapa + HTTP nos logs, nunca documento, token ou payload pessoal.
+class AsaasRequestError extends Error {
+  constructor(
+    public httpStatus: number,
+    public providerCode: string,
+    public safeDescription: string,
+  ) {
+    super("Asaas Sandbox retornou HTTP " + httpStatus);
+    this.name = "AsaasRequestError";
+  }
+}
+
+function sanitizedDescription(value: unknown) {
+  // Não repassar para o browser campos pessoais contidos em eventuais erros.
+  return String(value || "A operação não foi aceita pelo Asaas.")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[e-mail protegido]")
+    .replace(/\b\d{6,}\b/g, "[número protegido]")
+    .slice(0, 240);
+}
+function cleanProviderCode(value: unknown) {
+  return /^[a-zA-Z0-9_-]{1,70}$/.test(String(value || ""))
+    ? String(value) : "unknown_error";
+}
 async function asaasRequest(
   apiKey: string, path: string, init: { method?: string; body?: unknown } = {}
 ) {
@@ -43,8 +68,12 @@ async function asaasRequest(
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       const message = result?.errors?.[0]?.description || result?.message ||
-        "O Asaas não conseguiu concluir a solicitação.";
-      throw new Error(String(message).slice(0, 250));
+        "A solicitação não foi aceita pelo Asaas.";
+      throw new AsaasRequestError(
+        response.status,
+        cleanProviderCode(result?.errors?.[0]?.code),
+        sanitizedDescription(message),
+      );
     }
     return result;
   } finally {
@@ -71,9 +100,11 @@ function validCpfCnpj(value: string) {
 
 function billingDate() {
   // O cliente brasileiro deve enxergar o vencimento no horário local, não UTC.
-  return new Intl.DateTimeFormat("en-CA", {
+  const partes = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
-  }).format(new Date());
+  }).formatToParts(new Date());
+  const campo = (tipo: string) => partes.find(p => p.type === tipo)?.value || "";
+  return `${campo("year")}-${campo("month")}-${campo("day")}`;
 }
 
 function validPaymentLink(url?: string) {
@@ -134,6 +165,7 @@ Deno.serve(async (req: Request) => {
     return json(req, { status: "active", message: "Sua assinatura já está ativa." });
   }
 
+  let etapa = "cliente";
   try {
     let customerId = current?.asaas_customer_id as string | undefined;
     let subscriptionId = current?.asaas_subscription_id as string | undefined;
@@ -152,16 +184,29 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
     }
 
+    etapa = "assinatura";
     if (!subscriptionId) {
-      const subscription = await asaasRequest(key, "/subscriptions", {
-        method: "POST",
-        body: { customer: customerId, billingType: "PIX", value: 4.99,
-          nextDueDate: billingDate(), cycle: "MONTHLY",
-          description: "Shalom — biblioteca e leitura inteligente",
-          externalReference: "shalom:" + user.id },
-      });
-      subscriptionId = subscription.id;
-      if (!subscriptionId) throw new Error("Não foi possível criar a assinatura de teste.");
+      // Consulta pontual antes de criar evita assinaturas duplicadas após
+      // timeout/sucesso remoto sem persistência local.
+      const ref = "shalom:" + user.id;
+      const existentes = await asaasRequest(key,
+        "/subscriptions?customer=" + encodeURIComponent(customerId) +
+        "&externalReference=" + encodeURIComponent(ref) + "&limit=10");
+      const encontrada = Array.isArray(existentes.data)
+        ? existentes.data.find((a: { id?: string; customer?: string; externalReference?: string; status?: string }) =>
+            a.customer === customerId && a.externalReference === ref && a.status !== "INACTIVE") : null;
+      subscriptionId = encontrada?.id;
+      if (!subscriptionId) {
+        const subscription = await asaasRequest(key, "/subscriptions", {
+          method: "POST",
+          body: { customer: customerId, billingType: "PIX", value: 4.99,
+            nextDueDate: billingDate(), cycle: "MONTHLY",
+            description: "Shalom — biblioteca e leitura inteligente",
+            externalReference: ref },
+        });
+        subscriptionId = subscription.id;
+      }
+      if (!subscriptionId) throw new Error("Não foi possível identificar a assinatura de teste.");
       const { error } = await table.upsert({
         usuario_id: user.id, asaas_customer_id: customerId,
         asaas_subscription_id: subscriptionId, asaas_ambiente: "sandbox",
@@ -170,6 +215,7 @@ Deno.serve(async (req: Request) => {
       if (error) throw error;
     }
 
+    etapa = "cobranca";
     const payments = await asaasRequest(
       key, "/subscriptions/" + encodeURIComponent(subscriptionId) + "/payments?limit=10"
     );
@@ -191,8 +237,23 @@ Deno.serve(async (req: Request) => {
       message: "Cobrança de teste criada. Pague somente no ambiente Sandbox.",
     });
   } catch (error) {
-    // Não registrar CPF, API key ou dados financeiros pessoais em logs.
-    console.error("Falha no checkout Shalom Sandbox:", error instanceof Error ? error.name : "unknown");
-    return json(req, { error: "FALHA_CHECKOUT", message: "Não foi possível preparar o Pix de teste. Tente novamente mais tarde." }, 502);
+    if (error instanceof AsaasRequestError) {
+      // Campos seguros de diagnóstico; nunca imprimir JSON da API nem CPF.
+      console.error("Falha no checkout Shalom Sandbox", {
+        etapa, httpStatus: error.httpStatus, providerCode: error.providerCode,
+      });
+      return json(req, {
+        error: "ASAAS_REJEITOU_OPERACAO", etapa,
+        providerCode: error.providerCode,
+        message: error.safeDescription,
+      }, 502);
+    }
+    console.error("Falha no checkout Shalom Sandbox", {
+      etapa, tipo: error instanceof Error ? error.name : "unknown",
+    });
+    return json(req, {
+      error: "FALHA_CHECKOUT", etapa,
+      message: "Falha ao preparar o pagamento de teste. Tente novamente.",
+    }, 502);
   }
 });
