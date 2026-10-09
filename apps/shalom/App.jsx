@@ -48,6 +48,10 @@ function HomePage({mode="home"}){const {user}=useAuth(),navigate=useNavigate(),f
  async function createGroup(){const name=window.prompt("Nome da coleção");if(!name?.trim())return;const {data,error:e}=await supabase.from("temas_livros").insert({usuario_id:user.id,nome:name.trim()}).select("id,nome").single();if(e){setError(e.message);return;}setGroups(prev=>[...prev,data]);setGroupId(data.id)}
  async function deleteBook(b){if(!window.confirm(`Excluir "${b.titulo}" da sua biblioteca?`))return;const {data,error:e}=await supabase.from("livros").select("storage_path,capa_path").eq("id",b.id).eq("usuario_id",user.id).single();if(e||!data)return setError("Não foi possível excluir o livro.");const {error:de}=await supabase.from("livros").delete().eq("id",b.id).eq("usuario_id",user.id);if(de)return setError(de.message);await supabase.storage.from(SHALOM_BUCKET).remove([data.storage_path,...(data.capa_path?[data.capa_path]:[])]);reload();}
  return <div className="shalom-app"><header className="shalom-header"><Brand/><div className="header-actions"><span className="price-pill">R$ 5,99/mês</span><button type="button" className="icon-button" onClick={()=>navigate("/conta")} aria-label="Minha conta"><UserRound size={21}/></button></div></header><main className="shalom-main">{mode==="home"?<><section className="hero-row"><div><span className="eyebrow">SUA BIBLIOTECA PESSOAL</span><h1>Um bom livro.<br/><em>Um novo olhar.</em></h1><p>Abra, leia e continue exatamente de onde parou.</p><button className="button-main" onClick={()=>fileRef.current?.click()}><Plus size={19}/> Adicionar livro</button></div><div className="hero-art"><BookOpen size={94} strokeWidth={0.9}/><span>shalom.</span></div></section>{books.length>0&&continuing&&<section className="continue-card" onClick={()=>navigate("/livros/"+continuing.id)}><span className="eyebrow">CONTINUE DE ONDE PAROU</span><div><div><h2>{continuing.titulo}</h2><p>{continuing.autor||"Sua leitura"} · Página {continuing.ultima_pagina||1} de {continuing.total_paginas||"—"}</p></div><span className="continue-icon"><ArrowRight size={21}/></span></div><div className="progress-line"><span style={{width:`${Math.min(100,100*(continuing.ultima_pagina||1)/(continuing.total_paginas||1))}%`}}/></div></section>}</>:<section className="shelf-top"><span className="eyebrow">ORGANIZE SUAS LEITURAS</span><h1>Minha estante<span>.</span></h1><p>Seu espaço, seus livros, seu ritmo.</p></section>}<section className="shelf"><div className="section-head"><div><span className="eyebrow">COLEÇÃO PARTICULAR</span><h2>{mode==="home"?"Minha estante":"Todos os livros"} <small>{books.length}</small></h2></div><button className="button-outline" onClick={()=>fileRef.current?.click()}><BookPlus size={18}/> Adicionar</button></div>{books.length>0&&<div className="shelf-filters"><div className="search-input"><Search size={18}/><input placeholder="Buscar título ou autor" value={search} onChange={e=>setSearch(e.target.value)}/></div><div className="filters-scroll"><button className={group==="todos"?"selected":""} onClick={()=>setGroup("todos")}>Todos</button>{groups.map(g=><button key={g.id} className={group===g.id?"selected":""} onClick={()=>setGroup(g.id)}>{g.nome}</button>)}</div></div>}{error&&<p className="inline-error" role="alert">{error}</p>}{notice&&<p className="inline-success">{notice}</p>}{busy?<div className="empty-state"><RefreshCw className="spin" size={25}/><p>Organizando seus livros...</p></div>:books.length===0?<div className="empty-state"><div className="empty-icon"><BookOpen size={35}/></div><h3>Sua próxima leitura começa aqui</h3><p>Importe seu primeiro PDF ou EPUB. O Shalom organiza o livro e prepara uma experiência de leitura com referências, notas e destaques.</p><button className="button-main" onClick={()=>fileRef.current?.click()}><UploadCloud size={19}/> Importar meu primeiro livro</button><span>Simples. Sem configurações complicadas.</span></div>:shown.length===0?<div className="empty-state"><p>Nenhum livro encontrado nessa busca.</p></div>:<div className="book-grid">{shown.map(b=><article key={b.id} className="shelf-book"><button className="book-open" onClick={()=>navigate("/livros/"+b.id)} aria-label={"Abrir "+b.titulo}><div className="book-cover">{coverUrls[b.id]?<img src={coverUrls[b.id]} alt="" loading="lazy"/>:<BookOpen size={39} strokeWidth={1.2}/>}<span>{b.arquivo_tipo?.toUpperCase()||"LIVRO"}</span></div><div className="book-data"><strong>{b.titulo}</strong><small>{b.autor||"Autor não identificado"}</small><p>Página {b.ultima_pagina||1} <ChevronRight size={14}/></p></div></button><button className="book-delete" title="Remover livro" onClick={()=>deleteBook(b)}>Excluir</button></article>)}</div>}</section><section className="value-strip"><div><BookOpen size={20}/><span>Leitura em páginas</span></div><div><Bookmark size={20}/><span>Marcadores e notas</span></div><div><Highlighter size={20}/><span>Referências bíblicas</span></div></section></main><BottomNav/><Promo/><input ref={fileRef} type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" hidden onChange={e=>{chooseFile(e.target.files?.[0]);e.target.value=""}}/>{importing&&<div className="shalom-modal-backdrop" role="dialog" aria-modal="true" aria-label="Adicionar livro"><form className="shalom-modal" onSubmit={upload}><button type="button" className="modal-close" onClick={()=>{if(!uploadStep){setImporting(false);setSelectedFile(null)}}}><X size={20}/></button><span className="eyebrow">NOVO LIVRO</span><h2>Prepare sua leitura</h2><p>Confira os dados reconhecidos automaticamente.</p><label>Título<input value={title} onChange={e=>setTitle(e.target.value)} required/></label><label>Autor (opcional)<input value={author} onChange={e=>setAuthor(e.target.value)}/></label><label>Coleção<div className="collection-row"><select value={groupId} onChange={e=>setGroupId(e.target.value)}><option value="">Sem coleção</option>{groups.map(g=><option key={g.id} value={g.id}>{g.nome}</option>)}</select><button type="button" onClick={createGroup} aria-label="Criar coleção"><Plus size={19}/></button></div></label><p className="file-name">{selectedFile?.name}</p>{error&&<p role="alert" className="form-info">{error}</p>}<button type="submit" className="button-main full" disabled={Boolean(uploadStep)}>{uploadStep||"Importar e começar a ler"} <ArrowRight size={17}/></button></form></div>}</div>}
+function dataBr(valor){
+  const partes=String(valor||"").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : "—";
+}
 function Account(){
  const {user}=useAuth(),navigate=useNavigate();
  const [subscription,setSubscription]=useState(null);
@@ -65,7 +69,7 @@ function Account(){
  const checkoutEnabled=import.meta.env.VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED==="true";
  const loadSubscription=useCallback(async()=>{
    const {data,error}=await supabase.from("assinaturas")
-     .select("status,valor_mensal,validade_ate,asaas_ambiente,pagamento_url,asaas_subscription_id,ultimo_pagamento_id")
+     .select("status,valor_mensal,validade_ate,proximo_vencimento,ultimo_pagamento_em,asaas_ambiente,pagamento_url,asaas_subscription_id,ultimo_pagamento_id")
      .eq("usuario_id",user.id).maybeSingle();
    if(!error) setSubscription(data);
  },[user.id]);
@@ -151,7 +155,11 @@ function Account(){
    finally{setBusy(false);}
  }
  async function signout(){await supabase.auth.signOut();navigate("/login",{replace:true})}
- const status=subscription?.status==="active"?"Ativa":subscription?.status==="pending"&&!subscription?.asaas_subscription_id?"Cadastro iniciado · assinatura não criada":subscription?.status==="pending"&&!subscription?.ultimo_pagamento_id?"Assinatura criada · aguardando cobrança":subscription?.status==="pending"?"Pagamento pendente":subscription?.status==="past_due"?"Pagamento vencido":subscription?.status==="canceled"?"Cancelada":"Não ativada";
+ const assinaturaValida=subscription?.status==="active" &&
+   subscription?.validade_ate && new Date(subscription.validade_ate).getTime()>Date.now();
+ const aguardandoPagamento=subscription?.status==="pending" && !!subscription?.ultimo_pagamento_id;
+ const podeIniciarCheckout=!assinaturaValida && !aguardandoPagamento;
+ const status=assinaturaValida?"Ativa":subscription?.status==="active"?"Validade encerrada":subscription?.status==="pending"&&!subscription?.asaas_subscription_id?"Cadastro iniciado · assinatura não criada":subscription?.status==="pending"&&!subscription?.ultimo_pagamento_id?"Assinatura criada · aguardando cobrança":subscription?.status==="pending"?"Pagamento pendente":subscription?.status==="past_due"?"Pagamento vencido":subscription?.status==="canceled"?"Cancelada":"Não ativada";
  return <div className="shalom-app">
   <header className="shalom-header"><Brand/><button onClick={()=>navigate("/")} className="button-outline">Voltar</button></header>
   <main className="shalom-main account-content">
@@ -165,14 +173,24 @@ function Account(){
     <h2>Leitura sem distrações.</h2>
     <p>Acesso à biblioteca, PDF e EPUB, destaques, notas e referências bíblicas.</p>
     <div className="plan-price">R$ 5,99 <small>/mês</small></div>
-    <p className="plan-state">Status: {status}</p>
+    <p className={assinaturaValida?"plan-state shalom-plan-status-active":"plan-state"}>Status: {status}</p>
+    {assinaturaValida&&<section className="shalom-plan-confirmed" role="status" aria-label="Assinatura ativa">
+      <strong>✓ Assinatura ativada com sucesso</strong>
+      <p>Seu Shalom está ativo. Continue aproveitando sua biblioteca e os recursos de estudo.</p>
+      <div className="shalom-plan-dates">
+        <div><span>Válida até</span><b>{dataBr(subscription?.validade_ate)}</b></div>
+        <div><span>Próxima cobrança prevista</span><b>{dataBr(subscription?.proximo_vencimento)}</b></div>
+      </div>
+      <small>A renovação mensal por Pix convencional exige um novo pagamento; não há débito automático.</small>
+    </section>}
+    {aguardandoPagamento&&<div className="shalom-plan-awaiting" role="status">A cobrança já foi gerada. Aguarde a confirmação do Pix de teste ou atualize o status abaixo.</div>
     {checkoutEnabled&&<div className="shalom-sandbox-warning">Ambiente de teste Asaas · Pix fictício. Não realize pagamentos reais.</div>}
-    {showCheckout&&checkoutEnabled&&<form id="shalom-checkout-form" className="shalom-checkout-form" onSubmit={pay}>
+    {podeIniciarCheckout&&showCheckout&&checkoutEnabled&&<form id="shalom-checkout-form" className="shalom-checkout-form" onSubmit={pay}>
       <label>Nome completo<input value={name} onChange={e=>setName(e.target.value)} required minLength={3} autoComplete="name"/></label>
       <label>CPF ou CNPJ<input inputMode="numeric" type="text" autoComplete="off" value={document} maxLength={18} onChange={e=>setDocument(formatarDocumento(e.target.value))} required placeholder="000.000.000-00" aria-label="CPF ou CNPJ"/></label>
       <button type="submit" className="button-main" disabled={busy}>{busy?"Preparando Pix de teste...":"Gerar Pix de teste"} <ArrowRight size={17}/></button>
     </form>}
-    {!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
+    {podeIniciarCheckout&&!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
        {checkoutEnabled?"Testar assinatura Pix":"Assinar com Pix"} <ArrowRight size={17}/>
      </button>}
     {checkoutEnabled && subscription?.status==="pending" && subscription?.ultimo_pagamento_id && <>
@@ -192,7 +210,7 @@ function Account(){
     {(paymentLink||subscription?.pagamento_url)&&subscription?.status!=="active"&&
       <a href={paymentLink||subscription?.pagamento_url} target="_blank" rel="noopener noreferrer" className="button-outline shalom-payment-link">Abrir cobrança no Asaas Sandbox <ExternalLink size={16}/></a>}
     {payError&&<div role="status" className="form-info">{payError}</div>}
-    <p className="shalom-payment-note">Pix mensal convencional: uma nova cobrança é gerada a cada mês e o usuário realiza o pagamento. Para débito automático é necessária autorização específica de Pix Automático.</p>
+    {!assinaturaValida&&<p className="shalom-payment-note">Pix mensal convencional: uma nova cobrança é gerada a cada mês e o usuário realiza o pagamento. Para débito automático é necessária autorização específica de Pix Automático.</p>}
    </div>
    <button onClick={signout} className="signout"><LogOut size={19}/> Sair da conta</button>
   </main><BottomNav/>
