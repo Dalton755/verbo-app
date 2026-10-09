@@ -57,6 +57,11 @@ function Account(){
  const [busy,setBusy]=useState(false);
  const [payError,setPayError]=useState("");
  const [paymentLink,setPaymentLink]=useState(null);
+ const [pix,setPix]=useState(null);
+ const [pixBusy,setPixBusy]=useState(false);
+ const [pixInfo,setPixInfo]=useState("");
+ const [pixCopied,setPixCopied]=useState(false);
+ const pixFetchedRef=useRef(null);
  const checkoutEnabled=import.meta.env.VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED==="true";
  const loadSubscription=useCallback(async()=>{
    const {data,error}=await supabase.from("assinaturas")
@@ -65,6 +70,46 @@ function Account(){
    if(!error) setSubscription(data);
  },[user.id]);
  useEffect(()=>{loadSubscription()},[loadSubscription]);
+ const fetchPix=useCallback(async()=>{
+   setPixBusy(true);setPixInfo("");setPixCopied(false);
+   try{
+     const {data,error}=await supabase.functions.invoke("shalom-checkout",{
+       body:{action:"get-pix"}
+     });
+     if(error){
+       let info=data;
+       if(!info && error.context && typeof error.context.json==="function"){
+         try{info=await error.context.json()}catch{/* status de erro sem JSON */}
+       }
+       throw new Error(info?.message||"Não foi possível consultar o QR Code Pix.");
+     }
+     if(data?.available && (data.encodedImage||data.payload)){
+       setPix(data);
+     }else{
+       setPix(null);
+       setPixInfo(data?.message||"O QR Code não está disponível para esta cobrança.");
+     }
+   }catch(error){setPix(null);setPixInfo(error.message||"O QR Code Pix não está disponível.");}
+   finally{setPixBusy(false);}
+ },[]);
+ useEffect(()=>{
+   const id=subscription?.ultimo_pagamento_id;
+   if(!checkoutEnabled || subscription?.status!=="pending" || !id) return;
+   if(pixFetchedRef.current===id)return;
+   pixFetchedRef.current=id;
+   fetchPix();
+ },[checkoutEnabled,subscription?.status,subscription?.ultimo_pagamento_id,fetchPix]);
+ async function copyPix(){
+   if(!pix?.payload)return;
+   try{
+     await navigator.clipboard.writeText(pix.payload);
+     setPixCopied(true);
+     setPixInfo("");
+   }catch{
+     setPixCopied(false);
+     setPixInfo("Não foi possível copiar automaticamente. Selecione o código abaixo para copiar.");
+   }
+ }
  async function pay(e){
    e.preventDefault();
    if(!checkoutEnabled){
@@ -72,7 +117,7 @@ function Account(){
      return;
    }
    if(!showCheckout){setShowCheckout(true);return;}
-   setBusy(true);setPayError("");setPaymentLink(null);
+   setBusy(true);setPayError("");setPaymentLink(null);setPix(null);setPixInfo("");
    try{
      const {data,error}=await supabase.functions.invoke("shalom-checkout",{
        body:{nome:name.trim(),cpfCnpj:document.replace(/\D/g,"")}
@@ -130,7 +175,22 @@ function Account(){
     {!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
        {checkoutEnabled?"Testar assinatura Pix":"Assinar com Pix"} <ArrowRight size={17}/>
      </button>}
-    {paymentLink&&<a href={paymentLink} target="_blank" rel="noopener noreferrer" className="button-outline shalom-payment-link">Abrir cobrança de teste <ExternalLink size={16}/></a>}
+    {checkoutEnabled && subscription?.status==="pending" && subscription?.ultimo_pagamento_id && <>
+      <section className="shalom-pix-box" aria-label="Pagamento Pix de teste">
+        <span className="eyebrow">PIX DE TESTE · SANDBOX</span>
+        <h3>Sua cobrança de R$ 5,99</h3>
+        <p>Este Pix é fictício. Não tente pagá-lo com seu aplicativo bancário real.</p>
+        {pixBusy&&<div role="status" className="shalom-pix-loading"><RefreshCw size={18} className="spin"/> Preparando QR Code Pix...</div>}
+        {pix?.encodedImage&&<img className="shalom-pix-qr" src={"data:image/png;base64,"+pix.encodedImage} alt="QR Code Pix de teste do Shalom"/>}
+        {pix?.expirationDate&&<small className="shalom-pix-expiry">Validade do código: {pix.expirationDate}</small>}
+        {pix?.payload&&<div className="shalom-pix-copy"><label>Pix Copia e Cola<textarea readOnly rows={2} value={pix.payload} onFocus={e=>e.target.select()}/></label><button type="button" className="button-main" onClick={copyPix}>{pixCopied?"Código copiado":"Copiar Pix"}</button></div>}
+        {pixInfo&&<p className="shalom-pix-note" role="status">{pixInfo}</p>}
+        {!pixBusy&&<button type="button" className="button-outline shalom-pix-refresh" onClick={fetchPix}>Atualizar QR Code Pix</button>}
+        <button type="button" className="shalom-pix-status" onClick={loadSubscription}>Atualizar status da assinatura</button>
+      </section>
+    </>}
+    {(paymentLink||subscription?.pagamento_url)&&subscription?.status!=="active"&&
+      <a href={paymentLink||subscription?.pagamento_url} target="_blank" rel="noopener noreferrer" className="button-outline shalom-payment-link">Abrir cobrança no Asaas Sandbox <ExternalLink size={16}/></a>}
     {payError&&<div role="status" className="form-info">{payError}</div>}
     <p className="shalom-payment-note">Pix mensal convencional: uma nova cobrança é gerada a cada mês e o usuário realiza o pagamento. Para débito automático é necessária autorização específica de Pix Automático.</p>
    </div>
