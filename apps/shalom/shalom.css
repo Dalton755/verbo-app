@@ -125,3 +125,12 @@ h1,h2,h3{font-family:'Manrope',sans-serif;letter-spacing:-.045em}
     margin-bottom: 5px;
   }
 }
+
+/* Checkout de testes — só é exibido quando a integração Sandbox é liberada. */
+.shalom-checkout-form{display:grid;gap:13px;margin:18px 0}
+.shalom-checkout-form label{display:block;color:var(--sh-green);font-size:12px;font-weight:750}
+.shalom-checkout-form input{display:block;width:100%;margin-top:7px;padding:12px 13px;box-sizing:border-box;border:1px solid #cadccc;border-radius:11px;background:#fff;outline:none;color:#203f32}
+.shalom-checkout-form input:focus{border-color:#668b78}
+.shalom-sandbox-warning{padding:11px 14px;background:#fff5e4;border:1px solid #f2ddb3;color:#805d20;border-radius:10px;font-size:12px;font-weight:700;margin:13px 0}
+.shalom-payment-link{margin:11px 0;display:inline-flex}
+.shalom-payment-note{font-size:11px!important;margin:15px 0 0;opacity:.82;max-width:570px}
