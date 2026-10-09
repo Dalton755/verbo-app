@@ -306,3 +306,72 @@ h1,h2,h3{font-family:'Manrope',sans-serif;letter-spacing:-.045em}
 @media(max-width: 390px){
   .shalom-plan-dates { grid-template-columns: 1fr; }
 }
+
+
+/* Cancelamento transparente: confirmação explícita, sem sobrepor navegação. */
+.shalom-cancel-section{
+ margin-top:20px;
+ padding-top:18px;
+ border-top:1px solid rgba(37,76,52,.15);
+}
+.shalom-cancel-section h3{
+ margin:0 0 9px;
+ font-size:14px;
+ font-weight:700;
+ color:#244a38;
+}
+.shalom-cancel-link{
+ border:0;
+ background:transparent;
+ padding:9px 0;
+ text-align:left;
+ color:#9a504a;
+ font-size:12px;
+ font-weight:650;
+ cursor:pointer;
+ text-decoration:underline;
+ text-underline-offset:3px;
+}
+.shalom-cancel-confirm{
+ padding:14px;
+ border-radius:14px;
+ background:#fff8f4;
+ border:1px solid #eacdc5;
+}
+.shalom-cancel-confirm p{
+ color:#70564f;
+ font-size:12px;
+ line-height:1.65;
+ margin:0 0 13px;
+}
+.shalom-cancel-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.shalom-cancel-actions button{min-height:40px;font-size:12px}
+.shalom-cancel-danger{
+ background:#8b4644;
+ color:#fff;
+ border:0;
+ border-radius:11px;
+ padding:10px 15px;
+ cursor:pointer;
+ font-weight:700;
+}
+.shalom-cancel-danger:disabled{opacity:.55;cursor:wait}
+.shalom-cancel-error{
+ padding:11px;
+ margin:12px 0 0;
+ border-radius:11px;
+ font-size:12px;
+ color:#8b4644;
+ background:#fff0eb;
+}
+.shalom-cancel-success{
+ padding:12px 13px;
+ border:1px solid #c7dfce;
+ border-radius:12px;
+ background:#e4f2e7;
+ color:#245b3f;
+ font-size:12px;
+}
+.shalom-plan-confirmed .shalom-plan-dates:has(> div:only-child){
+ grid-template-columns:minmax(0,1fr);
+}
