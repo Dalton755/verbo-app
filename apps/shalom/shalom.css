@@ -96,3 +96,32 @@ h1,h2,h3{font-family:'Manrope',sans-serif;letter-spacing:-.045em}
     transition: none;
   }
 }
+
+
+/* Segurança visual mobile: todas as ações e textos finais permanecem
+   acessíveis acima da navegação flutuante, inclusive com barra gestual. */
+.shalom-app .shalom-main {
+  padding-bottom: calc(155px + env(safe-area-inset-bottom, 0px));
+}
+.shalom-app .shalom-bottom {
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+@media (max-width: 760px) {
+  .shalom-app .shalom-main {
+    padding-bottom: calc(165px + env(safe-area-inset-bottom, 0px));
+  }
+  .shalom-app .shalom-bottom {
+    width: min(338px, calc(100vw - 30px));
+    box-sizing: border-box;
+    justify-content: space-around;
+    bottom: calc(9px + env(safe-area-inset-bottom, 0px));
+  }
+  .shalom-app .shalom-bottom button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 9px 11px;
+  }
+  .shalom-app .value-strip {
+    margin-bottom: 5px;
+  }
+}
