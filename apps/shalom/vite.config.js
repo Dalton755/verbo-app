@@ -1,4 +1,5 @@
 import {defineConfig} from "vite";
+import {patchReaderPagination} from "./readerPaginationPatch.js";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
@@ -19,7 +20,7 @@ export default defineConfig({
    return null;
   },
   transform(code,id){
-   if(id.endsWith("/src/pages/LivroPage.jsx"))return code.replaceAll('"biblia-slides-pdfs"','"shalom-livros"');
+   if(id.endsWith("/src/pages/LivroPage.jsx"))return patchReaderPagination(code.replaceAll('"biblia-slides-pdfs"','"shalom-livros"'));
    if(id.endsWith("/src/lib/bibleApi.js"))return code.replace(/export const VERSAO_BIBLICA_PADRAO\s*=\s*"ALM1911_ATUAL";/, 'export const VERSAO_BIBLICA_PADRAO = "BLIVRE";');
    if(id.endsWith("/src/components/DictionaryModal.jsx"))return code
      .replace("Fonte: Dicionário Aberto", 'Fonte: {resultado?.fonte || "Dicionário Aberto"}')
