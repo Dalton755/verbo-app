@@ -65,11 +65,15 @@ function Account(){
  const [pixBusy,setPixBusy]=useState(false);
  const [pixInfo,setPixInfo]=useState("");
  const [pixCopied,setPixCopied]=useState(false);
+ const [showCancelConfirm,setShowCancelConfirm]=useState(false);
+ const [cancelBusy,setCancelBusy]=useState(false);
+ const [cancelError,setCancelError]=useState("");
+ const [cancelNotice,setCancelNotice]=useState("");
  const pixFetchedRef=useRef(null);
  const checkoutEnabled=import.meta.env.VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED==="true";
  const loadSubscription=useCallback(async()=>{
    const {data,error}=await supabase.from("assinaturas")
-     .select("status,valor_mensal,validade_ate,proximo_vencimento,ultimo_pagamento_em,asaas_ambiente,pagamento_url,asaas_subscription_id,ultimo_pagamento_id")
+     .select("status,valor_mensal,validade_ate,proximo_vencimento,ultimo_pagamento_em,cancelada_em,asaas_ambiente,pagamento_url,asaas_subscription_id,ultimo_pagamento_id")
      .eq("usuario_id",user.id).maybeSingle();
    if(!error) setSubscription(data);
  },[user.id]);
@@ -154,12 +158,43 @@ function Account(){
    }catch(error){setPayError(error.message||"Não foi possível preparar o Pix de teste.");}
    finally{setBusy(false);}
  }
+ async function cancelRecurring(){
+   if(!checkoutEnabled || cancelBusy || !showCancelConfirm)return;
+   setCancelBusy(true);setCancelError("");setCancelNotice("");
+   try{
+     const {data,error}=await supabase.functions.invoke("shalom-cancelar-assinatura",{
+       body:{confirmar:true}
+     });
+     if(error){
+       let info=data;
+       if(!info && error.context && typeof error.context.json==="function"){
+         try {info=await error.context.json()} catch { /* sem JSON */ }
+       }
+       throw new Error(info?.message||"Não foi possível confirmar o cancelamento. Tente novamente.");
+     }
+     if(data?.status!=="canceled") throw new Error("Não foi possível confirmar o cancelamento.");
+     setCancelNotice("Renovação cancelada. Seu acesso já pago permanece até a data informada.");
+     setShowCancelConfirm(false);
+     await loadSubscription();
+   }catch(error){
+     setCancelError(error.message||"Ocorreu um erro no cancelamento.");
+   }finally{setCancelBusy(false);}
+ }
  async function signout(){await supabase.auth.signOut();navigate("/login",{replace:true})}
- const assinaturaValida=subscription?.status==="active" &&
+ const recorrenciaCancelada=subscription?.status==="canceled";
+ const assinaturaValida=["active","canceled"].includes(subscription?.status) &&
    subscription?.validade_ate && new Date(subscription.validade_ate).getTime()>Date.now();
  const aguardandoPagamento=subscription?.status==="pending" && !!subscription?.ultimo_pagamento_id;
  const podeIniciarCheckout=!assinaturaValida && !aguardandoPagamento;
- const status=assinaturaValida?"Ativa":subscription?.status==="active"?"Validade encerrada":subscription?.status==="pending"&&!subscription?.asaas_subscription_id?"Cadastro iniciado · assinatura não criada":subscription?.status==="pending"&&!subscription?.ultimo_pagamento_id?"Assinatura criada · aguardando cobrança":subscription?.status==="pending"?"Pagamento pendente":subscription?.status==="past_due"?"Pagamento vencido":subscription?.status==="canceled"?"Cancelada":"Não ativada";
+ const podeCancelar=checkoutEnabled && !recorrenciaCancelada &&
+   ["active","pending","past_due"].includes(subscription?.status) &&
+   !!subscription?.asaas_subscription_id;
+ const status=recorrenciaCancelada
+   ? assinaturaValida ? "Cancelada · acesso mantido" : "Cancelada · período encerrado"
+   : assinaturaValida?"Ativa":subscription?.status==="active"?"Validade encerrada":
+     subscription?.status==="pending"&&!subscription?.asaas_subscription_id?"Cadastro iniciado · assinatura não criada":
+     subscription?.status==="pending"&&!subscription?.ultimo_pagamento_id?"Assinatura criada · aguardando cobrança":
+     subscription?.status==="pending"?"Pagamento pendente":subscription?.status==="past_due"?"Pagamento vencido":"Não ativada";
  return <div className="shalom-app">
   <header className="shalom-header"><Brand/><button onClick={()=>navigate("/")} className="button-outline">Voltar</button></header>
   <main className="shalom-main account-content">
@@ -174,16 +209,20 @@ function Account(){
     <p>Acesso à biblioteca, PDF e EPUB, destaques, notas e referências bíblicas.</p>
     <div className="plan-price">R$ 5,99 <small>/mês</small></div>
     <p className={assinaturaValida?"plan-state shalom-plan-status-active":"plan-state"}>Status: {status}</p>
-    {assinaturaValida&&<section className="shalom-plan-confirmed" role="status" aria-label="Assinatura ativa">
-      <strong>✓ Assinatura ativada com sucesso</strong>
-      <p>Seu Shalom está ativo. Continue aproveitando sua biblioteca e os recursos de estudo.</p>
+    {assinaturaValida&&<section className="shalom-plan-confirmed" role="status" aria-label="Benefício de assinatura">
+      <strong>{recorrenciaCancelada?"✓ Renovação cancelada":"✓ Assinatura ativada com sucesso"}</strong>
+      <p>{recorrenciaCancelada
+        ?"Você continua com acesso durante o período já pago. Não haverá novas cobranças dessa recorrência."
+        :"Seu Shalom está ativo. Continue aproveitando sua biblioteca e os recursos de estudo."}</p>
       <div className="shalom-plan-dates">
-        <div><span>Válida até</span><b>{dataBr(subscription?.validade_ate)}</b></div>
-        <div><span>Próxima cobrança prevista</span><b>{dataBr(subscription?.proximo_vencimento)}</b></div>
+        <div><span>Seu acesso vai até</span><b>{dataBr(subscription?.validade_ate)}</b></div>
+        {!recorrenciaCancelada&&<div><span>Próxima cobrança prevista</span><b>{dataBr(subscription?.proximo_vencimento)}</b></div>}
       </div>
-      <small>A renovação mensal por Pix convencional exige um novo pagamento; não há débito automático.</small>
+      {!recorrenciaCancelada&&<small>A renovação mensal por Pix convencional exige um novo pagamento; não há débito automático.</small>}
+      {recorrenciaCancelada&&<small>O período pago permanece disponível até a validade registrada. Depois disso, você poderá contratar novamente.</small>}
     </section>}
-    {aguardandoPagamento&&<div className="shalom-plan-awaiting" role="status">A cobrança já foi gerada. Aguarde a confirmação do Pix de teste ou atualize o status abaixo.</div>
+    {aguardandoPagamento&&<div className="shalom-plan-awaiting" role="status">A cobrança já foi gerada. Aguarde a confirmação do Pix de teste ou atualize o status abaixo.</div>}
+    {recorrenciaCancelada&&!assinaturaValida&&<p className="shalom-plan-awaiting">Sua assinatura terminou. Para voltar a usar os recursos premium após sua validade, faça uma nova contratação.</p>}
     {checkoutEnabled&&<div className="shalom-sandbox-warning">Ambiente de teste Asaas · Pix fictício. Não realize pagamentos reais.</div>}
     {podeIniciarCheckout&&showCheckout&&checkoutEnabled&&<form id="shalom-checkout-form" className="shalom-checkout-form" onSubmit={pay}>
       <label>Nome completo<input value={name} onChange={e=>setName(e.target.value)} required minLength={3} autoComplete="name"/></label>
@@ -210,6 +249,19 @@ function Account(){
     {(paymentLink||subscription?.pagamento_url)&&subscription?.status!=="active"&&
       <a href={paymentLink||subscription?.pagamento_url} target="_blank" rel="noopener noreferrer" className="button-outline shalom-payment-link">Abrir cobrança no Asaas Sandbox <ExternalLink size={16}/></a>}
     {payError&&<div role="status" className="form-info">{payError}</div>}
+    {podeCancelar&&<section className="shalom-cancel-section" aria-label="Gerenciar assinatura">
+      <h3>Gerenciar assinatura</h3>
+      {!showCancelConfirm&&<button className="shalom-cancel-link" type="button" onClick={()=>{setCancelError("");setShowCancelConfirm(true)}}>Cancelar renovação da assinatura</button>}
+      {showCancelConfirm&&<div className="shalom-cancel-confirm">
+        <p>Deseja realmente cancelar? O Asaas deixará de gerar novas cobranças. Você manterá acesso ao período já pago{subscription?.validade_ate?" até "+dataBr(subscription.validade_ate):""}. Essa operação encerra a recorrência.</p>
+        <div className="shalom-cancel-actions">
+          <button className="button-outline" type="button" disabled={cancelBusy} onClick={()=>setShowCancelConfirm(false)}>Manter assinatura</button>
+          <button className="shalom-cancel-danger" type="button" disabled={cancelBusy} onClick={cancelRecurring}>{cancelBusy?"Cancelando...":"Confirmar cancelamento"}</button>
+        </div>
+      </div>}
+      {cancelError&&<p role="alert" className="shalom-cancel-error">{cancelError}</p>}
+    </section>}
+    {cancelNotice&&<p role="status" className="shalom-cancel-success">{cancelNotice}</p>}
     {!assinaturaValida&&<p className="shalom-payment-note">Pix mensal convencional: uma nova cobrança é gerada a cada mês e o usuário realiza o pagamento. Para débito automático é necessária autorização específica de Pix Automático.</p>}
    </div>
    <button onClick={signout} className="signout"><LogOut size={19}/> Sair da conta</button>
