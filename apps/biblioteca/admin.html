@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#173d3c" />
+  <title>Acervo · Administração VERBO</title>
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="./admin.css" />
+</head>
+<body class="admin-body">
+  <header class="site-header">
+    <div class="shell header-content">
+      <a class="brand" href="./index.html" aria-label="Voltar à biblioteca"><span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span class="brand-type">VERBO<small>BIBLIOTECA CRISTÃ</small></span></a>
+      <div class="admin-header-actions"><span class="workspace-pill">● Acervo · Gestão</span><a class="header-action" href="./index.html">Ver biblioteca ↗</a><button id="logout" class="header-action" type="button" hidden>Sair</button></div>
+    </div>
+  </header>
+  <main class="shell admin-shell">
+    <section id="access-loading" class="admin-state" aria-live="polite"><span class="admin-state-icon">✦</span><h1>Preparando seu painel</h1><p>Verificando sua sessão e autorização.</p></section>
+    <section id="login-screen" class="admin-auth" hidden>
+      <div class="auth-intro"><span class="kicker">ÁREA RESTRITA</span><h1>O conhecimento começa<br><em>com uma boa curadoria.</em></h1><p>Gerencie obras, revise informações e disponibilize apenas materiais com direito de distribuição verificado.</p><div class="auth-points"><span>✓ Seus arquivos protegidos</span><span>✓ Catálogo sem duplicidades</span><span>✓ Revisão antes de publicar</span></div></div>
+      <div class="auth-card"><span class="kicker">ADMINISTRAÇÃO</span><h2>Acessar painel</h2><p>Entre com sua conta autorizada no projeto VERBO.</p>
+        <button id="google-login" type="button" class="admin-primary full-width" style="margin-top:22px">Continuar com Google →</button><span class="auth-divider">ou entrar com e-mail e senha</span>
+        <form id="login-form">
+          <label for="auth-email">E-mail</label><input id="auth-email" type="email" autocomplete="email" required placeholder="seuemail@exemplo.com" />
+          <label for="auth-password">Senha</label><input id="auth-password" type="password" autocomplete="current-password" required placeholder="Sua senha" minlength="6" />
+          <button type="submit" class="admin-secondary full-width" id="login-submit">Entrar com e-mail</button>
+        </form>
+        <p class="auth-caption">Acesso condicionado à autorização do gestor. Não há cadastro público de administradores.</p>
+        <p class="inline-notice" id="login-message" role="status" hidden></p>
+      </div>
+    </section>
+    <section id="denied-screen" class="admin-state" hidden><span class="admin-state-icon">🔒</span><h1>Conta ainda sem permissão</h1><p>Sua conta está conectada, mas não consta na lista de gestores autorizados. O acesso ao acervo é bloqueado até a liberação.</p><div class="identity-box"><span>Identificador da sua conta</span><code id="current-user-id"></code><button type="button" id="copy-user-id" class="admin-secondary">Copiar ID</button></div><p class="inline-note">O administrador principal deve liberar esse ID em <code>biblioteca.administradores</code> no Supabase. A tela não concede privilégios automaticamente.</p></section>
+    <section id="admin-workspace" hidden>
+      <div class="workspace-top"><div><span class="kicker">SEU PAINEL DE CURADORIA</span><h1>Gestão do <em>acervo.</em></h1><p>Organize os arquivos em poucos passos. A biblioteca pública permanece intacta até você aprovar cada publicação.</p></div><div class="admin-top-actions"><button id="run-diagnostics" class="admin-secondary" type="button">✓ Testar conexão</button><button id="focus-import" class="admin-primary" type="button">＋ Adicionar materiais</button></div></div>
+      <div id="diagnostics-result" class="diagnostics-result" role="status" hidden></div>
+      <div class="stats-grid" aria-label="Indicadores do acervo">
+        <div class="stat-card"><div class="stat-icon">▤</div><span>Total de materiais</span><strong id="stat-total">—</strong><small>Catálogo completo</small></div>
+        <div class="stat-card"><div class="stat-icon amber">◌</div><span>Aguardando revisão</span><strong id="stat-review">—</strong><small>Precisam de análise</small></div>
+        <div class="stat-card"><div class="stat-icon green">✓</div><span>Publicados</span><strong id="stat-published">—</strong><small>Visíveis na biblioteca</small></div>
+        <div class="stat-card"><div class="stat-icon blue">⇩</div><span>Arquivos vinculados</span><strong id="stat-files">—</strong><small>PDFs e EPUBs</small></div>
+      </div>
+      <div class="workspace-tabs" role="tablist" aria-label="Seções do painel"><button class="tab-active" role="tab" id="tab-import" aria-selected="true" aria-controls="section-import" data-tab="import" type="button">Importar materiais</button><button role="tab" id="tab-catalog" aria-selected="false" aria-controls="section-catalog" data-tab="catalog" type="button">Gerenciar catálogo</button></div>
+      <section id="section-import" role="tabpanel" aria-labelledby="tab-import" class="workspace-grid">
+        <div class="upload-column"><div class="panel-title"><div><span class="kicker">IMPORTAÇÃO ASSISTIDA</span><h2>Adicionar livros e materiais</h2></div><span class="step-tag">ETAPA 01</span></div><p class="panel-lead">Selecione PDFs e EPUBs. O sistema tenta identificar título, autor e tema e deixa tudo pronto para sua revisão.</p>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Escolher arquivos para importar"><span class="dropzone-symbol">⇧</span><strong>Arraste seus livros para cá</strong><span>ou toque para escolher arquivos</span><small>PDF ou EPUB · até 50 MB por arquivo · vários arquivos por vez</small><input id="file-input" type="file" multiple accept=".pdf,.epub,application/pdf,application/epub+zip" hidden /></div>
+          <div class="upload-info"><span class="info-dot">i</span><p><b>Proteção do acervo.</b> Todo arquivo começa como rascunho. Nenhum download é liberado automaticamente. Confira os direitos antes de publicar.</p></div>
+          <div class="queue-header"><h3>Arquivos selecionados <span id="queue-count">0</span></h3><div class="queue-actions"><button id="pause-batch" type="button" class="admin-secondary" hidden>Pausar lote</button><button id="clear-queue" type="button" class="admin-text" hidden>Limpar fila</button><button id="import-all" type="button" class="admin-primary" hidden>Importar todos</button></div></div>
+          <p id="batch-summary" class="batch-summary" aria-live="polite">Adicione materiais para começar.</p><div id="file-queue" class="file-queue" aria-live="polite"><div class="queue-empty">Nenhum arquivo selecionado.<br>Adicione um PDF ou EPUB para começar.</div></div>
+        </div>
+        <aside class="howto-column"><div class="howto-card"><span class="kicker">PROCESSO DE CURADORIA</span><h3>Da importação à biblioteca</h3><div class="howto-step"><b>01</b><div><strong>Importe</strong><p>Você envia os arquivos em lote para análise inicial.</p></div></div><div class="howto-step"><b>02</b><div><strong>Revise</strong><p>Confira título, autor, categoria e direitos de distribuição.</p></div></div><div class="howto-step"><b>03</b><div><strong>Publique</strong><p>Após verificar a licença, libere o download gratuitamente.</p></div></div><div class="howto-divider"></div><span class="howto-hint">✦</span><p class="howto-footer">Classificação estatística local (TF-IDF e exemplos curados), sem enviar textos a serviços externos. Revise tudo antes de publicar.</p></div></aside>
+      </section>
+      <section id="section-catalog" role="tabpanel" aria-labelledby="tab-catalog" hidden>
+        <div class="catalog-tools"><div><span class="kicker">GESTÃO DO CATÁLOGO</span><h2>Seus materiais</h2><p>Revise os rascunhos, comprove direitos e decida o que fica disponível para download.</p></div><div class="catalog-tool-actions"><input id="admin-search" type="search" placeholder="Buscar no catálogo..." aria-label="Pesquisar materiais"/><select id="admin-status" aria-label="Filtrar por status"><option value="">Todos os status</option><option value="rascunho">Rascunhos</option><option value="revisao">Em revisão</option><option value="publicado">Publicados</option><option value="oculto">Ocultos</option></select></div></div>
+        <div id="material-list" class="material-list" aria-live="polite"></div>
+        <div class="admin-pagination"><button id="load-more-admin" class="admin-secondary" type="button" hidden>Carregar mais materiais</button></div><p class="muted-small">50 materiais por página. Continue para acessar registros mais antigos.</p>
+      </section>
+    </section>
+  </main>
+  <div class="admin-modal-backdrop" id="edit-backdrop" hidden><div class="admin-edit-modal" role="dialog" aria-modal="true" aria-labelledby="edit-title"><button type="button" id="close-edit" class="modal-close" aria-label="Fechar edição">×</button><span class="kicker">CONFERÊNCIA DO MATERIAL</span><h2 id="edit-title">Revisar publicação</h2><p id="edit-subtitle">Confira os dados bibliográficos e verifique o direito de distribuir o arquivo.</p>
+    <form id="edit-form">
+      <div class="admin-fields"><label>Título *<input id="edit-name" required maxlength="240" /></label><label>Autor<input id="edit-author" maxlength="240" placeholder="Não identificado"/></label><label>Tipo de material<select id="edit-type"><option value="livro">Livro</option><option value="biblia">Bíblia</option><option value="dicionario">Dicionário</option><option value="revista_ebd">Revista EBD</option><option value="comentario">Comentário</option><option value="concordancia">Concordância</option><option value="atlas">Atlas</option><option value="apostila">Apostila</option><option value="outro">Outro</option></select></label><label>Categoria<select id="edit-category"><option value="">Sem categoria</option></select></label><label>ISBN<input id="edit-isbn" placeholder="978..." inputmode="numeric" maxlength="20"/></label><label>Ano de publicação<input id="edit-year" type="number" min="1400" max="2200" placeholder="2026"/></label><label>Trimestre EBD<select id="edit-ebd-quarter"><option value="">Não aplicável</option><option value="1">1º trimestre</option><option value="2">2º trimestre</option><option value="3">3º trimestre</option><option value="4">4º trimestre</option></select></label><label>Ano EBD<input id="edit-ebd-year" type="number" min="1900" max="2200" placeholder="2026"/></label><label>Referências bíblicas (separadas por ponto e vírgula)<input id="edit-references" placeholder="Gn 12:1; Romanos 8:1"/></label><label>Temas<input id="edit-topics" placeholder="Graça, aliança, salvação..."/></label><label>Editora<input id="edit-publisher" placeholder="Se identificada"/></label><label>Direitos de distribuição<select id="edit-rights"><option value="pendente">A verificar</option><option value="dominio_publico">Domínio público</option><option value="licenca_aberta">Licença aberta</option><option value="autorizado">Autorização do titular</option><option value="somente_catalogo">Somente referência bibliográfica</option></select></label><label>Fonte/comprovante<input id="edit-proof" placeholder="Link da licença, documento ou referência"/></label><label class="full-width">Descrição<textarea id="edit-description" rows="3" placeholder="Resumo e observações"></textarea></label></div>
+      <label class="rights-check"><input type="checkbox" id="edit-verified"/><span><b>Confirmei os direitos de distribuição desta obra.</b><small>Somente marque após conferir a licença ou autorização. Isso não é feito automaticamente pela IA.</small></span></label>
+      <div id="edit-files" class="edit-file-list"></div>
+      <div class="edit-reanalyze"><button id="reanalyze-material" type="button" class="admin-secondary">↻ Reanalisar arquivo original</button><small>Refaz a extração e sugere alterações nos campos. Nada é salvo sem sua confirmação.</small></div>
+      <div class="edit-actions"><button class="admin-secondary" id="save-draft" type="button">Salvar rascunho</button><button class="admin-primary" id="publish-material" type="button">Publicar e liberar download →</button></div><p class="inline-notice" id="edit-message" role="status" hidden></p>
+    </form></div></div>
+  <div id="admin-toast" class="toast" hidden role="status" aria-live="polite"></div>
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

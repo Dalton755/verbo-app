@@ -1,0 +1,60 @@
+name: VERBO Biblioteca - previa GitHub Pages
+
+on:
+  push:
+    branches:
+      - feature/verbo-biblioteca-preview
+    paths:
+      - 'apps/biblioteca/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tests/**'
+      - '.github/workflows/verbo-biblioteca-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: verbo-biblioteca-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Validar e compilar biblioteca
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter codigo
+        uses: actions/checkout@v4
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Instalar dependencias
+        run: npm install --no-audit --no-fund
+      - name: Rodar testes unitarios
+        run: node --test tests/*.test.mjs
+      - name: Compilar para GitHub Pages
+        run: npm run build -- --base=/verbo-app/
+      - name: Evitar interpretacao Jekyll
+        run: touch apps/biblioteca/dist/.nojekyll
+      - name: Preparar Pages
+        uses: actions/configure-pages@v5
+      - name: Publicar artefato do site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: apps/biblioteca/dist
+
+  deploy:
+    name: Atualizar preview no GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar site de preview
+        id: deployment
+        uses: actions/deploy-pages@v4

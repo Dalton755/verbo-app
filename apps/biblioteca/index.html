@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12282c" />
+    <meta name="description" content="VERBO: biblioteca cristã gratuita para encontrar e baixar livros, Bíblias, dicionários e revistas de Escola Bíblica Dominical." />
+    <title>VERBO — Biblioteca Cristã Gratuita</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="site-header">
+        <div class="shell header-content">
+          <a class="brand" href="./" aria-label="VERBO, página inicial"><span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span><span class="brand-type">VERBO<small>BIBLIOTECA CRISTÃ</small></span></a>
+          <nav class="top-nav" aria-label="Navegação principal"><a href="#inicio" class="active">Início</a><a href="#acervo">Explorar acervo</a><a href="#sobre">Sobre</a></nav>
+          <a href="#acervo" class="header-action">Explorar biblioteca <span aria-hidden="true">↗</span></a>
+        </div>
+      </header>
+      <main id="inicio">
+        <section class="hero-section shell" aria-labelledby="hero-title">
+          <div class="hero-content">
+            <span class="eyebrow"><span class="eyebrow-star">✦</span> CONHECIMENTO PARA TODOS</span>
+            <h1 id="hero-title">Grandes leituras.<br/><em>Uma fé mais profunda.</em></h1>
+            <p>Encontre livros cristãos, Bíblias, dicionários e materiais de estudo em um só lugar. Descubra, baixe e aprofunde seu conhecimento.</p>
+            <form id="hero-search" class="hero-search" role="search">
+              <span class="search-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="10.8" cy="10.8" r="6.7"/><path d="m16 16 5 5"/></svg></span>
+              <label class="sr-only" for="query">Pesquisar no acervo</label>
+              <input id="query" type="search" placeholder="Pesquise um livro, autor ou assunto..." autocomplete="off" />
+              <button type="submit" aria-label="Buscar no acervo">Pesquisar <span aria-hidden="true">→</span></button>
+            </form>
+            <div class="hero-benefits"><span><b class="benefit-dot"></b>100% gratuito</span><span><b class="benefit-dot"></b>Sem assinatura</span><span><b class="benefit-dot"></b>Download direto</span></div>
+          </div>
+          <div class="hero-art" aria-hidden="true"><div class="art-glow"></div><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="book book-back"><span class="book-top"></span><i></i><b></b></div><div class="book book-mid"><span class="book-top"></span><i></i><b></b></div><div class="book book-front"><span class="cover-line"></span><span class="cover-ornament">✦</span><span class="cover-name">VERBO</span><span class="cover-sub">CONHECIMENTO<br/>QUE TRANSFORMA</span><span class="cover-base"></span></div><div class="art-caption"><span>✦</span> Uma biblioteca para sua jornada de fé</div></div>
+        </section>
+        <section class="quick-category-section shell" aria-label="Explore por tipo de material">
+          <div class="quick-heading"><div><span class="kicker">COMECE POR AQUI</span><h2>O que você procura?</h2></div><span class="small-muted">Explore nossa coleção por tipo de material</span></div>
+          <div class="quick-categories">
+            <button class="quick-tile" data-type="livro"><span class="quick-icon tone-peach" aria-hidden="true">▤</span><span><strong>Livros</strong><small>Teologia, fé e vida cristã</small></span><span class="tile-arrow" aria-hidden="true">↗</span></button>
+            <button class="quick-tile" data-type="biblia"><span class="quick-icon tone-sky" aria-hidden="true">✝</span><span><strong>Bíblias</strong><small>Traduções e edições</small></span><span class="tile-arrow" aria-hidden="true">↗</span></button>
+            <button class="quick-tile" data-type="revista_ebd"><span class="quick-icon tone-lime" aria-hidden="true">▣</span><span><strong>Revistas EBD</strong><small>Ensine com mais recursos</small></span><span class="tile-arrow" aria-hidden="true">↗</span></button>
+            <button class="quick-tile" data-type="dicionario"><span class="quick-icon tone-lavender" aria-hidden="true">⌘</span><span><strong>Dicionários</strong><small>Consulte e aprofunde</small></span><span class="tile-arrow" aria-hidden="true">↗</span></button>
+          </div>
+        </section>
+        <section id="acervo" class="catalog-section shell" aria-labelledby="catalog-title">
+          <div class="catalog-heading"><div><span class="kicker">NOSSO ACERVO</span><h2 id="catalog-title">Explore a biblioteca<span class="headline-mark">.</span></h2><p>Materiais para sua caminhada, estudo e ensino da Palavra.</p></div><button id="clear-all" class="clean-link" type="button" hidden>Limpar filtros <span aria-hidden="true">×</span></button></div>
+          <div class="catalog-layout">
+            <aside class="filters" aria-label="Filtros do acervo"><h3>Filtrar materiais</h3><div class="filter-label">TIPO DE MATERIAL</div><div id="type-filters" class="filter-buttons"><button data-type="" class="filter-button is-selected" type="button"><span>Todos os materiais</span><span>›</span></button><button data-type="livro" class="filter-button" type="button"><span>Livros</span><span>›</span></button><button data-type="biblia" class="filter-button" type="button"><span>Bíblias</span><span>›</span></button><button data-type="revista_ebd" class="filter-button" type="button"><span>Revistas EBD</span><span>›</span></button><button data-type="dicionario" class="filter-button" type="button"><span>Dicionários</span><span>›</span></button><button data-type="comentario" class="filter-button" type="button"><span>Comentários</span><span>›</span></button><button data-type="apostila" class="filter-button" type="button"><span>Apostilas</span><span>›</span></button></div><div class="filter-separator"></div><label class="filter-label" for="topic-select">ASSUNTO</label><select id="topic-select"><option value="">Todos os assuntos</option><option value="teologia">Teologia</option><option value="estudos-biblicos">Estudos bíblicos</option><option value="vida-crista">Vida cristã</option><option value="historia-da-igreja">História da Igreja</option><option value="pregacao-homiletica">Pregação e homilética</option><option value="ebd">Escola Bíblica Dominical</option><option value="dicionarios-referencias">Dicionários e referências</option><option value="comentarios-biblicos">Comentários bíblicos</option><option value="biografias">Biografias</option><option value="missoes-evangelismo">Missões e evangelismo</option><option value="familia-aconselhamento">Família e aconselhamento</option></select><div class="filter-tip"><span aria-hidden="true">✳</span><p>Um lugar para descobrir materiais que edificam e inspiram.</p></div></aside>
+            <div class="results-column"><div class="results-top"><div><h3 id="result-title">Todos os materiais</h3><span id="result-summary" aria-live="polite">Buscando no catálogo...</span></div><label class="sort-control">Ordenar por <select id="sort-select"><option value="recentes">Mais recentes</option><option value="titulo">Título A–Z</option></select></label></div><div id="preview-indicator" class="preview-banner" hidden><span aria-hidden="true">✦</span><span><strong>Prévia de interface</strong> — capas e títulos ilustrativos. Nenhum arquivo de demonstração pode ser baixado.</span></div><div id="results" class="book-grid" aria-live="polite"></div><div id="pagination" class="pagination" hidden><button id="load-more" type="button">Carregar mais materiais <span aria-hidden="true">↓</span></button></div></div>
+          </div>
+        </section>
+        <section id="sobre" class="mission-section shell"><div class="mission-decoration" aria-hidden="true">✦</div><div><span class="kicker">NOSSA MISSÃO</span><h2>O conhecimento cresce<br/>quando é compartilhado.</h2></div><div><p>O VERBO nasceu para facilitar o acesso a materiais cristãos de distribuição autorizada. Aqui você encontra recursos para estudar, ensinar e fortalecer sua jornada de fé — gratuitamente.</p><span class="mission-foot">FEITO COM PROPÓSITO · NETHANEL TECNOLOGIA</span></div></section>
+      </main>
+      <footer class="site-footer"><div class="shell footer-content"><div class="footer-brand"><strong>VERBO<span>.</span></strong><p>Uma biblioteca para todos.</p></div><div class="footer-right"><span>© <span id="year"></span> Nethanel Tecnologia</span><span>Feito para edificar.</span></div></div></footer>
+    </div>
+    <div class="modal-backdrop" id="detail-modal" hidden><div class="modal-panel detail-panel" role="dialog" aria-modal="true" aria-labelledby="detail-title"><button type="button" class="modal-close" data-close aria-label="Fechar detalhes">×</button><div id="detail-body"></div></div></div>
+    <div class="modal-backdrop" id="shalom-modal" hidden><div class="modal-panel shalom-panel" role="dialog" aria-modal="true" aria-labelledby="shalom-title"><button type="button" class="modal-close" data-close aria-label="Fechar sugestão">×</button><span class="modal-illust" aria-hidden="true">✦</span><span class="kicker">SUA PRÓXIMA LEITURA</span><h2 id="shalom-title">Seu livro está sendo baixado!</h2><p>Quer organizar seus livros, fazer anotações e destacar trechos importantes? Conheça o <strong>Shalom</strong>, nosso aplicativo dedicado à leitura.</p><a id="shalom-link" class="primary-link" href="#" hidden target="_blank" rel="noopener noreferrer">Conhecer o Shalom <span aria-hidden="true">↗</span></a><span id="shalom-soon" class="coming-soon">Shalom em desenvolvimento · Em breve</span><button type="button" class="text-button" data-close>Continuar explorando a biblioteca</button></div></div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
