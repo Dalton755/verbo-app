@@ -143,8 +143,62 @@ Deno.serve(async (req: Request) => {
   const { data: { user }, error: authError } = await admin.auth.getUser(token);
   if (authError || !user?.id) return json(req, { error: "SESSAO_INVALIDA" }, 401);
 
-  let body: { nome?: string; cpfCnpj?: string };
+  let body: { action?: string; nome?: string; cpfCnpj?: string };
   try { body = await req.json(); } catch { return json(req, { error: "DADOS_INVALIDOS" }, 400); }
+
+  const table = admin.schema("shalom").from("assinaturas");
+  if (body.action === "get-pix") {
+    // Recupera apenas a cobrança registrada para o titular autenticado.
+    // Nunca aceita ID da cobrança informado pelo navegador.
+    const { data: own, error: ownError } = await table
+      .select("asaas_ambiente,asaas_customer_id,asaas_subscription_id,ultimo_pagamento_id,status")
+      .eq("usuario_id", user.id).maybeSingle();
+    if (ownError) return json(req, { error: "BANCO_INDISPONIVEL" }, 503);
+    if (!own || own.asaas_ambiente !== "sandbox" ||
+        !own.ultimo_pagamento_id || !own.asaas_subscription_id ||
+        !own.asaas_customer_id) {
+      return json(req, { error: "COBRANCA_NAO_ENCONTRADA", message: "Nenhuma cobrança Pix de teste está vinculada à sua conta." }, 404);
+    }
+    try {
+      const payment = await asaasRequest(key,
+        "/payments/" + encodeURIComponent(own.ultimo_pagamento_id));
+      if (payment.id !== own.ultimo_pagamento_id ||
+          payment.customer !== own.asaas_customer_id ||
+          payment.subscription !== own.asaas_subscription_id ||
+          !["PIX","BOLETO","UNDEFINED"].includes(payment.billingType)) {
+        return json(req, { error: "COBRANCA_INCONSISTENTE" }, 409);
+      }
+      if (!["PENDING","OVERDUE"].includes(payment.status)) {
+        return json(req, { status: payment.status, available: false,
+          message: "Esta cobrança já não está aguardando pagamento." });
+      }
+      const qr = await asaasRequest(key,
+        "/payments/" + encodeURIComponent(own.ultimo_pagamento_id) + "/pixQrCode");
+      const image = typeof qr.encodedImage === "string" &&
+        qr.encodedImage.length < 150000 &&
+        /^[A-Za-z0-9+/=]+$/.test(qr.encodedImage) ? qr.encodedImage : null;
+      const payload = typeof qr.payload === "string" && qr.payload.length <= 4096
+        ? qr.payload : null;
+      if (!image && !payload) {
+        return json(req, { status: "pending", available: false,
+          message: "O Asaas ainda não disponibilizou um QR Code Pix. Você pode abrir a cobrança de teste." });
+      }
+      return json(req, { status: "pending", available: true,
+        encodedImage: image, payload,
+        expirationDate: typeof qr.expirationDate === "string" ? qr.expirationDate : null,
+        ambiente: "sandbox" });
+    } catch (error) {
+      console.error("Falha na recuperação do QR Code Shalom Sandbox", {
+        httpStatus: error instanceof AsaasRequestError ? error.httpStatus : null,
+        providerCode: error instanceof AsaasRequestError ? error.providerCode : "other",
+      });
+      return json(req, { status: "pending", available: false,
+        message: "QR Code Pix indisponível no Asaas Sandbox. Confira a chave Pix da conta ou abra a cobrança de teste." });
+    }
+  }
+  if (body.action && body.action !== "create") {
+    return json(req, { error: "ACAO_INVALIDA" }, 400);
+  }
 
   const nome = String(body.nome ?? user.user_metadata?.full_name ?? "").trim().slice(0, 120);
   const documento = String(body.cpfCnpj ?? "").replace(/\D/g, "");
@@ -152,7 +206,6 @@ Deno.serve(async (req: Request) => {
     return json(req, { error: "DADOS_INVALIDOS", message: "Informe seu nome e um CPF ou CNPJ válido." }, 400);
   }
 
-  const table = admin.schema("shalom").from("assinaturas");
   const { data: current, error: dbError } = await table
     .select("usuario_id,status,validade_ate,asaas_customer_id,asaas_subscription_id,asaas_ambiente")
     .eq("usuario_id", user.id).maybeSingle();
