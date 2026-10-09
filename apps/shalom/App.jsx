@@ -60,7 +60,7 @@ function Account(){
  const checkoutEnabled=import.meta.env.VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED==="true";
  const loadSubscription=useCallback(async()=>{
    const {data,error}=await supabase.from("assinaturas")
-     .select("status,valor_mensal,validade_ate,asaas_ambiente,pagamento_url")
+     .select("status,valor_mensal,validade_ate,asaas_ambiente,pagamento_url,asaas_subscription_id,ultimo_pagamento_id")
      .eq("usuario_id",user.id).maybeSingle();
    if(!error) setSubscription(data);
  },[user.id]);
@@ -106,7 +106,7 @@ function Account(){
    finally{setBusy(false);}
  }
  async function signout(){await supabase.auth.signOut();navigate("/login",{replace:true})}
- const status=subscription?.status==="active"?"Ativa":subscription?.status==="pending"?"Pagamento pendente":subscription?.status==="past_due"?"Pagamento vencido":subscription?.status==="canceled"?"Cancelada":"Não ativada";
+ const status=subscription?.status==="active"?"Ativa":subscription?.status==="pending"&&!subscription?.asaas_subscription_id?"Cadastro iniciado · assinatura não criada":subscription?.status==="pending"&&!subscription?.ultimo_pagamento_id?"Assinatura criada · aguardando cobrança":subscription?.status==="pending"?"Pagamento pendente":subscription?.status==="past_due"?"Pagamento vencido":subscription?.status==="canceled"?"Cancelada":"Não ativada";
  return <div className="shalom-app">
   <header className="shalom-header"><Brand/><button onClick={()=>navigate("/")} className="button-outline">Voltar</button></header>
   <main className="shalom-main account-content">
