@@ -63,7 +63,19 @@ function Account(){
      const {data,error}=await supabase.functions.invoke("shalom-checkout",{
        body:{nome:name.trim(),cpfCnpj:document.replace(/\D/g,"")}
      });
-     if(error) throw new Error(data?.message||"O serviço de pagamento ainda não está disponível.");
+     if(error){
+       // Em erros HTTP, supabase-js fornece o corpo original em error.context,
+       // não necessariamente em data. Mostrar validação segura do Sandbox.
+       let detail=data;
+       if(!detail && error.context && typeof error.context.json==="function"){
+         try { detail=await error.context.json(); } catch { /* sem JSON */ }
+       }
+       const etapa=({cliente:"cliente",assinatura:"assinatura",cobranca:"cobrança"})[detail?.etapa]||"pagamento";
+       const message=detail?.message||"O serviço de pagamento ainda não está disponível.";
+       const code=typeof detail?.providerCode==="string" && detail.providerCode!=="unknown_error"
+         ? " ("+detail.providerCode+")" : "";
+       throw new Error(message+" — Etapa: "+etapa+code);
+     }
      if(data?.invoiceUrl){
        const url=new URL(data.invoiceUrl);
        const valid=url.protocol==="https:" &&
@@ -98,7 +110,7 @@ function Account(){
     {checkoutEnabled&&<div className="shalom-sandbox-warning">Ambiente de teste Asaas · Pix fictício. Não realize pagamentos reais.</div>}
     {showCheckout&&checkoutEnabled&&<form id="shalom-checkout-form" className="shalom-checkout-form" onSubmit={pay}>
       <label>Nome completo<input value={name} onChange={e=>setName(e.target.value)} required minLength={3} autoComplete="name"/></label>
-      <label>CPF ou CNPJ<input inputMode="numeric" value={document} onChange={e=>setDocument(e.target.value)} required placeholder="Somente números"/></label>
+      <label>CPF ou CNPJ<input inputMode="numeric" type="password" autoComplete="off" value={document} onChange={e=>setDocument(e.target.value)} required placeholder="Somente números"/></label>
       <button type="submit" className="button-main" disabled={busy}>{busy?"Preparando Pix de teste...":"Gerar Pix de teste"} <ArrowRight size={17}/></button>
     </form>}
     {!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
