@@ -25,7 +25,7 @@
 6. Só então definir `VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED=true` **exclusivamente na prévia Vercel**, refazer o build da prévia e testar com dados fictícios válidos.
 
 ## Regras do produto
-- Plano fixo de teste: R$ 4,99/mês, `billingType = PIX`, `cycle = MONTHLY`.
+- Plano fixo de teste: R$ 5,99/mês, `billingType = PIX`, `cycle = MONTHLY`.
 - Assinatura Asaas convencional **não debita automaticamente** o Pix: uma cobrança nova é gerada mensalmente e o cliente paga cada cobrança. Pix Automático exige autorização bancária específica.
 - Criar assinatura não significa pagamento confirmado: ativação do benefício ocorre apenas com evento autenticado de pagamento.
 - Repetir o mesmo `evento_id` não duplica o processamento. Eventos desconhecidos ou sem assinatura correspondente são ignorados.
