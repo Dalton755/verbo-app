@@ -179,7 +179,7 @@ Deno.serve(async (req: Request) => {
       if (!customerId) throw new Error("Não recebemos a identificação do cliente no Asaas.");
       const { error } = await table.upsert({
         usuario_id: user.id, asaas_customer_id: customerId, asaas_ambiente: "sandbox",
-        status: "pending", valor_mensal: 4.99, ciclo: "MONTHLY", metodo: "PIX",
+        status: "pending", valor_mensal: 5.99, ciclo: "MONTHLY", metodo: "PIX",
       }, { onConflict: "usuario_id" });
       if (error) throw error;
     }
@@ -199,7 +199,7 @@ Deno.serve(async (req: Request) => {
       if (!subscriptionId) {
         const subscription = await asaasRequest(key, "/subscriptions", {
           method: "POST",
-          body: { customer: customerId, billingType: "PIX", value: 4.99,
+          body: { customer: customerId, billingType: "PIX", value: 5.99,
             nextDueDate: billingDate(), cycle: "MONTHLY",
             description: "Shalom — biblioteca e leitura inteligente",
             externalReference: ref },
@@ -210,7 +210,7 @@ Deno.serve(async (req: Request) => {
       const { error } = await table.upsert({
         usuario_id: user.id, asaas_customer_id: customerId,
         asaas_subscription_id: subscriptionId, asaas_ambiente: "sandbox",
-        status: "pending", valor_mensal: 4.99, ciclo: "MONTHLY", metodo: "PIX",
+        status: "pending", valor_mensal: 5.99, ciclo: "MONTHLY", metodo: "PIX",
       }, { onConflict: "usuario_id" });
       if (error) throw error;
     }
