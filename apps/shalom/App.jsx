@@ -61,7 +61,7 @@ function Account(){
    setBusy(true);setPayError("");setPaymentLink(null);
    try{
      const {data,error}=await supabase.functions.invoke("shalom-checkout",{
-       body:{nome:name.trim(),cpfCnpj:document.replace(/\\D/g,"")}
+       body:{nome:name.trim(),cpfCnpj:document.replace(/\D/g,"")}
      });
      if(error) throw new Error(data?.message||"O serviço de pagamento ainda não está disponível.");
      if(data?.invoiceUrl){
