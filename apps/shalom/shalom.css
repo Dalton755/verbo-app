@@ -36,3 +36,63 @@ h1,h2,h3{font-family:'Manrope',sans-serif;letter-spacing:-.045em}
 @media(max-width:760px){.shalom-header{padding:16px 19px}.shalom-main{padding:17px 17px 120px}.hero-row{grid-template-columns:1fr;padding:32px 24px;min-height:0}.hero-row h1{font-size:37px}.hero-art{display:none}.login-layout{display:flex;flex-direction:column;align-items:stretch;gap:23px;padding:12px 20px 35px}.login-copy h1{font-size:44px}.login-copy>p{font-size:13px}.login-features{margin-top:18px}.login-panel{padding:25px}.shelf{margin-top:29px}.book-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.book-cover{height:205px}.shalom-bottom{bottom:8px}.shalom-bottom button{min-width:76px;padding:9px 13px}.header-actions{gap:8px}.price-pill{font-size:10px;padding:8px}.section-head h2{font-size:20px}.section-head .button-outline{font-size:12px;padding:10px}.value-strip{gap:15px}.value-strip div{width:100%}.shelf-filters{gap:10px}.filters-scroll{width:100%}.search-input{width:100%}.shalom-modal{padding:24px}.shalom-brand small{font-size:9px}}
 /* Verbete consultado em forma singular: esclarecimento discreto no leitor. */
 .shalom-dictionary-form{display:block;margin-top:5px;font-size:12px;font-weight:500;line-height:1.4;color:#72877d;letter-spacing:0;}
+
+
+/* SHALOM · PAGINAÇÃO SEM SOBREPOSIÇÃO NO TEXTO
+   A reserva vertical entra no cálculo das colunas (scrollWidth), assim
+   a última linha nunca fica coberta pelos controles. */
+.book-reader-paginated .book-paged-content {
+  height: calc(100dvh - 174px);
+}
+
+.book-reader-paginated .book-page-navigation {
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 9px);
+  transition: opacity .2s ease, transform .2s ease;
+  will-change: opacity, transform;
+}
+
+.book-reader-paginated:not(.book-reader-dark) .book-page-navigation {
+  background: rgba(255,255,255,.9);
+  border-color: rgba(46,76,61,.10);
+  box-shadow: 0 5px 17px rgba(21,44,33,.10);
+}
+
+.book-reader-paginated .book-page-navigation.shalom-page-nav-visible,
+.book-reader-paginated .book-page-navigation:focus-within {
+  opacity: .96;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.book-reader-paginated .book-page-nav-button {
+  width: 33px;
+  height: 33px;
+}
+
+.book-reader-paginated .book-page-navigation span {
+  min-width: 62px;
+  font-size: 11px;
+}
+
+@media (max-width: 760px) {
+  .book-reader-paginated .book-paged-content {
+    /* 63px de respiro extra em relação à paginação anterior. */
+    height: calc(100dvh - 188px);
+  }
+
+  .book-reader-paginated .book-page-navigation {
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-reader-paginated .book-page-navigation {
+    transition: none;
+  }
+}
