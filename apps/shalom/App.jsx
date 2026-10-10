@@ -1,5 +1,5 @@
 import React,{lazy,Suspense,useCallback,useEffect,useRef,useState} from "react";
-import {BrowserRouter,Routes,Route,Navigate,useNavigate,useLocation} from "react-router-dom";
+import {BrowserRouter,HashRouter,Routes,Route,Navigate,useNavigate,useLocation} from "react-router-dom";
 import {BookOpen,BookPlus,Search,Home,Library,UserRound,Plus,UploadCloud,ArrowRight,ChevronRight,X,LogOut,Eye,EyeOff,Bookmark,Highlighter,NotebookPen,ExternalLink,RefreshCw} from "lucide-react";
 import {ShalomAuthProvider,useAuth} from "./auth.jsx";
 import {supabase,SHALOM_BUCKET} from "./supabase.js";
@@ -8,8 +8,9 @@ import {extrairMetadadosShalom} from "./metadata.js";
 import {gerarCapaLivro} from "../../src/lib/bookCover.js";
 import {formatoArquivo} from "../../src/lib/fileFormats.js";
 const Reader=lazy(()=>import("../../src/pages/LivroPage.jsx"));
-// Em previews da Vercel, o domínio do build muda a cada deploy.
-// Um callback estável evita o fallback do Supabase para o Site URL geral.
+// GitHub Pages oferece prévia estável; a Vercel é reservada para produção.
+const githubPagesPreview=import.meta.env.VITE_SHALOM_GITHUB_PAGES==="true";
+const AppRouter=githubPagesPreview?HashRouter:BrowserRouter;
 const authReturnBase=(import.meta.env.VITE_SHALOM_AUTH_BASE_URL||window.location.origin).replace(/\/+$/,"");
 // Máscara brasileira visível: CPF 000.000.000-00 ou CNPJ 00.000.000/0000-00.
 // Somente os dígitos são enviados ao checkout; o documento não é persistido.
@@ -269,4 +270,4 @@ function Account(){
  </div>;
 }
 function Root(){const {user,loading}=useAuth(),loc=useLocation();if(loading)return <div className="shalom-loading"><Brand/><p>Preparando sua biblioteca...</p></div>;if(!user&&loc.pathname!=="/login"&&loc.pathname!=="/redefinir-senha")return <Navigate to="/login" replace/>;if(user&&loc.pathname==="/login")return <Navigate to="/" replace/>;return <Routes><Route path="/login" element={<Login/>}/><Route path="/redefinir-senha" element={<Reset/>}/><Route path="/" element={<HomePage/>}/><Route path="/estante" element={<HomePage mode="shelf"/>}/><Route path="/livros" element={<Navigate to="/estante" replace/>}/><Route path="/livros/:id" element={<Suspense fallback={<div className="shalom-loading">Abrindo seu livro...</div>}><Reader/></Suspense>}/><Route path="/conta" element={<Account/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}
-export default function App(){return <BrowserRouter><ShalomAuthProvider><Root/></ShalomAuthProvider></BrowserRouter>}
+export default function App(){return <AppRouter><ShalomAuthProvider><Root/></ShalomAuthProvider></AppRouter>}
