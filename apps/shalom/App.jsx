@@ -42,7 +42,7 @@ function Login(){const {user,loading}=useAuth(),navigate=useNavigate();const [mo
 function Reset(){const [pass,setPass]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);async function save(e){e.preventDefault();setBusy(true);const {error}=await supabase.auth.updateUser({password:pass});setMessage(error?.message||"Senha alterada. Você já pode voltar à biblioteca.");setBusy(false)}return <div className="reset-page"><Brand/><form onSubmit={save}><h1>Nova senha</h1><input type="password" minLength={6} value={pass} onChange={e=>setPass(e.target.value)} required/><button className="button-main" disabled={busy}>Salvar senha</button><p>{message}</p></form></div>}
 function BottomNav(){const navigate=useNavigate(),loc=useLocation();if(loc.pathname.startsWith("/livros/")||loc.pathname==="/login"||loc.pathname==="/redefinir-senha")return null;return <nav className="shalom-bottom" aria-label="Menu principal"><button className={loc.pathname==="/"?"active":""} onClick={()=>navigate("/")}><Home size={20}/><span>Início</span></button><button className={loc.pathname==="/estante"?"active":""} onClick={()=>navigate("/estante")}><Library size={20}/><span>Estante</span></button><button className={loc.pathname==="/conta"?"active":""} onClick={()=>navigate("/conta")}><UserRound size={20}/><span>Conta</span></button></nav>}
 function Promo(){const [promo,setPromo]=useState(null),[open,setOpen]=useState(false);useEffect(()=>{const last=Number(localStorage.getItem("shalom-promo-visto")||0);if(Date.now()-last<24*60*60*1000)return;let active=true;let timeout;supabase.from("promocoes").select("id,titulo,descricao,url").eq("ativo",true).order("prioridade").limit(1).then(({data})=>{if(active&&data?.length){setPromo(data[0]);timeout=setTimeout(()=>setOpen(true),16000)}});return()=>{active=false;clearTimeout(timeout)}},[]);function dismiss(){setOpen(false);localStorage.setItem("shalom-promo-visto",String(Date.now()))}if(!promo||!open)return null;return <div className="shalom-promo" role="complementary"><button className="promo-close" aria-label="Fechar indicação" onClick={dismiss}><X size={15}/></button><span>OUTRO APP NETHANEL</span><strong>{promo.titulo}</strong><p>{promo.descricao}</p><a href={promo.url} target="_blank" rel="noopener noreferrer" onClick={dismiss}>Conhecer <ExternalLink size={14}/></a></div>}
-function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshAccess,status:accessStatus}=useShalomAccess(),navigate=useNavigate(),fileRef=useRef(null),[books,setBooks]=useState([]),[coverUrls,setCoverUrls]=useState({}),[groups,setGroups]=useState([]),[group,setGroup]=useState("todos"),[search,setSearch]=useState(""),[busy,setBusy]=useState(true),[importing,setImporting]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[uploadStep,setUploadStep]=useState("");const [selectedFile,setSelectedFile]=useState(null),[title,setTitle]=useState(""),[author,setAuthor]=useState(""),[groupId,setGroupId]=useState("");
+function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshAccess,status:accessStatus,simulado}=useShalomAccess(),navigate=useNavigate(),fileRef=useRef(null),[books,setBooks]=useState([]),[coverUrls,setCoverUrls]=useState({}),[groups,setGroups]=useState([]),[group,setGroup]=useState("todos"),[search,setSearch]=useState(""),[busy,setBusy]=useState(true),[importing,setImporting]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[uploadStep,setUploadStep]=useState("");const [selectedFile,setSelectedFile]=useState(null),[title,setTitle]=useState(""),[author,setAuthor]=useState(""),[groupId,setGroupId]=useState("");
  const reload=useCallback(async()=>{if(!user)return;setBusy(true);setError("");const [{data,error:dbError},{data:folderData}]=await Promise.all([supabase.rpc("listar_estante"),supabase.from("temas_livros").select("id,nome").eq("usuario_id",user.id).order("nome")]);if(dbError)setError("Não foi possível acessar sua estante. Confira a exposição do schema shalom na API do Supabase.");setBooks(data||[]);setGroups(folderData||[]);setBusy(false);if(!data?.length)return;const urls=await Promise.all(data.filter(b=>b.capa_path).map(async b=>{const {data:url}=await supabase.storage.from(SHALOM_BUCKET).createSignedUrl(b.capa_path,3600);return [b.id,url?.signedUrl]}));setCoverUrls(Object.fromEntries(urls.filter(x=>x[1])));},[user]);
  useEffect(()=>{reload()},[reload]);const shown=books.filter(b=>(group==="todos"||b.tema_id===group)&&[b.titulo,b.autor].join(" ").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));const continuing=books.find(b=>b.ultima_pagina>1)||books[0];
  async function chooseFile(file){if(!file)return;if(!active){navigate("/conta");return;}setNotice("");setError("");if(!/\.(pdf|epub)$/i.test(file.name)){setError("Selecione um PDF ou EPUB.");return;}if(file.size>50*1024*1024){setError("O limite por arquivo é 50 MB.");return;}setSelectedFile(file);setTitle(file.name.replace(/\.(pdf|epub)$/i,"").replace(/[-_]/g," "));setAuthor("");setImporting(true);try{const format=formatoArquivo(file);const data=format==="pdf"?await extrairMetadadosShalom(file):await processarArquivoLivro(file);setTitle(data.titulo||data.metadados?.titulo||file.name.replace(/\.(pdf|epub)$/i,""));setAuthor(data.autor||data.metadados?.autor||"")}catch(e){console.debug("Metadados indisponíveis",e)}}
@@ -51,7 +51,7 @@ function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshA
  async function deleteBook(b){if(!active){navigate("/conta");return;}if(!window.confirm(`Excluir "${b.titulo}" da sua biblioteca?`))return;const {data,error:e}=await supabase.from("livros").select("storage_path,capa_path").eq("id",b.id).eq("usuario_id",user.id).single();if(e||!data)return setError("Não foi possível excluir o livro.");const {error:de}=await supabase.from("livros").delete().eq("id",b.id).eq("usuario_id",user.id);if(de)return setError(de.message);await supabase.storage.from(SHALOM_BUCKET).remove([data.storage_path,...(data.capa_path?[data.capa_path]:[])]);reload();}
  return <div className="shalom-app"><header className="shalom-header"><Brand/><div className="header-actions"><span className="price-pill">R$ 5,99/mês</span><button type="button" className="icon-button" onClick={()=>navigate("/conta")} aria-label="Minha conta"><UserRound size={21}/></button></div></header><main className="shalom-main">
     {accessStatus==="inactive"&&<section className="shalom-expired-banner" role="status">
-      <div><strong>Sua biblioteca continua aqui.</strong><p>Seu período terminou. Livros, marcadores e anotações continuam salvos. Renove para voltar a ler.</p></div>
+      <div><strong>{simulado?"Simulação de vencimento — apenas prévia":"Sua biblioteca continua aqui."}</strong><p>{simulado?"Este teste não altera sua assinatura real nem remove seus livros. A leitura fica bloqueada somente nesta simulação.":"Seu período terminou. Livros, marcadores e anotações continuam salvos. Renove para voltar a ler."}</p></div>
       <button type="button" className="button-main" onClick={()=>navigate("/conta")}>Renovar por R$ 5,99 <ArrowRight size={16}/></button>
     </section>}
     {accessStatus==="error"&&<section className="shalom-expired-banner shalom-access-error" role="alert">
@@ -64,7 +64,7 @@ function dataBr(valor){
   return partes ? `${partes[3]}/${partes[2]}/${partes[1]}` : "—";
 }
 function Account(){
- const {user}=useAuth(),{refresh:refreshAccess}=useShalomAccess(),navigate=useNavigate();
+ const {user}=useAuth(),{refresh:refreshAccess,simulado}=useShalomAccess(),navigate=useNavigate();
  const [subscription,setSubscription]=useState(null);
  const [name,setName]=useState(user.user_metadata?.full_name||"");
  const [document,setDocument]=useState("");
@@ -196,6 +196,11 @@ function Account(){
  const assinaturaValida=["active","canceled"].includes(subscription?.status) &&
    subscription?.validade_ate && new Date(subscription.validade_ate).getTime()>Date.now();
  const aguardandoPagamento=subscription?.status==="pending" && !!subscription?.ultimo_pagamento_id;
+ useEffect(()=>{
+   if(!aguardandoPagamento)return;
+   const timer=window.setInterval(loadSubscription,30000);
+   return ()=>window.clearInterval(timer);
+ },[aguardandoPagamento,loadSubscription]);
  const podeIniciarCheckout=!assinaturaValida && !aguardandoPagamento;
  const podeCancelar=checkoutEnabled && !recorrenciaCancelada &&
    ["active","pending","past_due"].includes(subscription?.status) &&
@@ -215,6 +220,7 @@ function Account(){
     <div><strong>{user.user_metadata?.full_name||"Leitor Shalom"}</strong><p>{user.email}</p></div>
    </div>
    <div className="plan-card">
+    {simulado&&<p className="shalom-plan-awaiting"><strong>Modo de teste:</strong> você está simulando uma assinatura vencida no GitHub. O status abaixo mostra sua assinatura REAL, que não foi alterada. Para sair da simulação, abra a prévia sem o parâmetro simular_vencimento.</p>}
     <span className="eyebrow">ASSINATURA SHALOM</span>
     <h2>Leitura sem distrações.</h2>
     <p>Acesso à biblioteca, PDF e EPUB, destaques, notas e referências bíblicas.</p>
@@ -241,7 +247,7 @@ function Account(){
       <button type="submit" className="button-main" disabled={busy}>{busy?"Preparando Pix de teste...":"Gerar Pix de teste"} <ArrowRight size={17}/></button>
     </form>}
     {podeIniciarCheckout&&!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
-       {checkoutEnabled?"Testar assinatura Pix":"Assinar com Pix"} <ArrowRight size={17}/>
+       {checkoutEnabled?(subscription?.status==="canceled"||subscription?.status==="past_due"||subscription?.status==="active"?"Renovar assinatura · Pix teste":"Testar assinatura Pix"):"Assinar com Pix"} <ArrowRight size={17}/>
      </button>}
     {checkoutEnabled && subscription?.status==="pending" && subscription?.ultimo_pagamento_id && <>
       <section className="shalom-pix-box" aria-label="Pagamento Pix de teste">
