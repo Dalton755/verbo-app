@@ -1,0 +1,78 @@
+name: Shalom — prévia no GitHub Pages (sem Vercel)
+
+on:
+  push:
+    branches:
+      - feature/shalom-leitor-preview
+    paths:
+      - 'apps/shalom/**'
+      - 'src/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/shalom-github-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: shalom-pages-preview
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Construir somente no GitHub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+      - name: Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Instalar dependências
+        run: npm ci
+      - name: Compilar Shalom para GitHub Pages
+        env:
+          SHALOM_PAGES_BASE: /verbo-app/shalom/
+          VITE_SHALOM_GITHUB_PAGES: 'true'
+          VITE_SHALOM_AUTH_BASE_URL: https://dalton755.github.io/verbo-app/shalom
+          VITE_SUPABASE_URL: https://uhuowymzlqstnaajcuta.supabase.co
+          # Public key destinada a apps frontend, protegida por RLS. Nunca usar service_role.
+          VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_g9frRIEMnl9_la6XwLEyQQ_vGBWJDDR'
+          VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED: 'true'
+        run: npx vite build --config apps/shalom/vite.config.js
+      - name: Preparar diretório compartilhado de prévias
+        run: |
+          mkdir -p _pages/shalom
+          cp -a apps/shalom/dist/. _pages/shalom/
+          cat > _pages/index.html <<'HTML'
+          <!doctype html>
+          <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+          <title>Nethanel — Prévia de aplicativos</title></head>
+          <body style="font-family:system-ui;max-width:700px;margin:10vh auto;padding:24px;background:#f7f7f3;color:#234534">
+          <h1>Nethanel · Prévia de aplicativos</h1>
+          <p>Este é um ambiente de desenvolvimento e testes. Nenhuma atualização é enviada à Vercel.</p>
+          <a href="./shalom/" style="color:#19553b">Abrir Shalom — leitura e biblioteca</a></body></html>
+          HTML
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Preparar arquivos para GitHub Pages
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./_pages
+
+  deploy:
+    name: Publicar prévia no GitHub Pages
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar prévia (não usa Vercel)
+        id: deployment
+        uses: actions/deploy-pages@v4
