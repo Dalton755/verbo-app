@@ -405,3 +405,74 @@ h1,h2,h3{font-family:'Manrope',sans-serif;letter-spacing:-.045em}
  .shalom-expired-banner{align-items:stretch;flex-direction:column;padding:17px 15px}
  .shalom-expired-banner .button-main{width:100%;justify-content:center}
 }
+
+/* Ações de seleção exclusivamente no leitor Shalom.
+   A bandeja do Android/Google pode cobrir o bottom:24px do leitor original. */
+.book-reader .book-highlight-toolbar {
+  position: fixed;
+  top: var(--shalom-selection-toolbar-top, 85px);
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  z-index: 850;
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: center;
+  align-items: center;
+  width: max-content;
+  max-width: calc(100vw - 18px);
+  padding: 9px 10px;
+  gap: 7px;
+  border-radius: 20px;
+  box-shadow: 0 10px 32px rgba(24, 43, 31, .24);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.book-reader .book-highlight-toolbar button {
+  flex: 0 0 auto;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.book-reader .book-highlight-note {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 65px;
+  min-height: 35px;
+  gap: 5px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: #e7f0e9;
+  color: #244c36;
+  font-size: 12px;
+  font-weight: 800;
+}
+.book-reader .shalom-highlight-meaning {
+  min-height: 35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 9px;
+  border-radius: 12px;
+  border: 1px solid #d1e2d6;
+  background: #f5faf6;
+  color: #29533a;
+  font-size: 11px;
+  font-weight: 750;
+}
+.book-reader-dark .book-highlight-note,
+.book-reader-dark .shalom-highlight-meaning {
+  background: #335541;
+  border-color: #41694f;
+  color: #f3f8f4;
+}
+@media (max-width: 410px) {
+  .book-reader .book-highlight-toolbar { padding: 7px; gap: 5px; }
+  .book-reader .book-highlight-color { width: 27px; height: 27px; }
+  .book-reader .book-highlight-note { min-width: 56px; padding: 0 7px; }
+  .book-reader .shalom-highlight-meaning { padding: 0 6px; }
+  .book-reader .shalom-highlight-meaning span { display: none; }
+}

@@ -10,6 +10,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'tests/shalom-access.test.mjs'
+      - 'tests/shalom-reader-selection.test.mjs'
       - '.github/workflows/shalom-github-pages.yml'
   workflow_dispatch:
 
@@ -43,7 +44,7 @@ jobs:
       - name: Instalar dependências Shalom
         run: npm ci --no-audit --no-fund
       - name: Testar regras de vencimento do Shalom
-        run: node --test tests/shalom-access.test.mjs
+        run: node --test tests/shalom-access.test.mjs tests/shalom-reader-selection.test.mjs
       - name: Compilar Shalom para a subpasta
         env:
           SHALOM_PAGES_BASE: /verbo-app/shalom/
