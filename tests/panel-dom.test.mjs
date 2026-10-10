@@ -41,3 +41,14 @@ test('botão de exclusão de rascunho possui confirmação, filtro de status e l
   assert.match(js,/validateDraftDeletion/);
   assert.match(js,/\.remove\(paths\)/);
 });
+
+test('capas reais são apresentadas na biblioteca e podem ser revistas pelo gestor',()=>{
+ const html=get('admin.html'),js=get('admin.js'),publicJs=get('main.js');
+ for(const id of ['cover-generate','cover-choose','cover-upload','edit-cover-img','edit-cover-empty'])assert.ok(html.includes('id="'+id+'"'));
+ assert.match(js,/renderPdfCoverPage/);
+ assert.match(js,/persistMaterialCover/);
+ assert.match(js,/\.upload\(path,blob/);
+ assert.match(publicJs,/loadProtectedCover/);
+ assert.match(publicJs,/storage\/v1\/object\/authenticated/);
+ assert.match(js,/capa_url/);
+});

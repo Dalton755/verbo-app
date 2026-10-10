@@ -45,3 +45,17 @@
  .delete-actions{flex-direction:column}
  .delete-actions button{width:100%}
 }
+
+/* Capas reais da biblioteca no catálogo e na revisão */
+.material-icon{overflow:hidden;position:relative}
+.material-cover-img{width:100%;height:100%;object-fit:cover;border-radius:5px}
+.queue-cover{width:40px;height:53px;object-fit:cover;border-radius:6px;box-shadow:0 2px 7px #102a2a2a}
+.cover-edit-box{display:flex;align-items:flex-start;gap:20px;border:1px solid #e5ebe5;background:#fafcf9;border-radius:12px;padding:18px;margin-top:22px}
+.cover-preview-frame{width:117px;height:164px;display:grid;place-items:center;flex:none;background:#e9efe7;border:1px solid #dae5dc;border-radius:7px;overflow:hidden;color:#778c7b;font-size:12px;text-align:center}
+.cover-preview-frame img{width:100%;height:100%;object-fit:contain}
+.cover-edit-tools{display:flex;align-content:start;align-items:flex-start;flex-wrap:wrap;gap:9px;min-width:0}
+.cover-edit-tools strong{width:100%;color:#294e3e;font-size:14px}
+.cover-edit-tools p{width:100%;font-size:11px;color:#788a7c;line-height:1.65;margin:0 0 5px}
+.cover-edit-tools small{font-size:10px;line-height:1.55;color:#839485;width:100%}
+.cover-edit-tools .admin-secondary{padding:10px 12px;font-size:11px}
+@media(max-width:460px){.cover-edit-box{padding:12px;gap:12px}.cover-preview-frame{width:93px;height:133px}.cover-edit-tools .admin-secondary{width:100%}}

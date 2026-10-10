@@ -1,4 +1,5 @@
 import './config.js';
+import {isStoredCoverPath,COVER_BUCKET} from './cover-utils.js';
 const cfg = window.VERBO_CONFIG || {};
 const queryParams = new URLSearchParams(location.search);
 const isPreview = queryParams.get('preview') === '1' || window.VERBO_PREVIEW === true;
@@ -164,16 +165,36 @@ async function refresh(reset=true) {
     if (appState.controller === controller) appState.loading = false;
   }
 }
+async function loadProtectedCover(img,path){
+  // Capas ficam num bucket privado: o visitante só recebe imagens de livros publicados via RLS.
+  if(!isStoredCoverPath(path)||!cfg.supabaseUrl||!cfg.storageAnonJwt)return;
+  const url=cfg.supabaseUrl.replace(/\/$/,'')+'/storage/v1/object/authenticated/'+COVER_BUCKET+'/'+path;
+  try{
+    const response=await fetch(url,{headers:{apikey:cfg.supabasePublishableKey,Authorization:'Bearer '+cfg.storageAnonJwt}});
+    if(!response.ok)throw new Error('Acesso à capa negado ('+response.status+').');
+    const blob=await response.blob();
+    if(!img.isConnected)return;
+    const objectUrl=URL.createObjectURL(blob);
+    img.onload=()=>{URL.revokeObjectURL(objectUrl);img.onload=null;};
+    img.src=objectUrl;
+  }catch(error){
+    // Sem imagem, o card pode continuar com capa ilustrativa.
+    img.dispatchEvent(new Event('error'));
+  }
+}
 function coverArt(item, compact=false) {
   const c = el('div', compact ? 'detail-cover' : 'card-cover-area');
   const [color, bg] = stableColor(item);
   c.style.background = bg;
   if (!compact) c.append(el('span','cover-badge',TYPE_NAMES[item.tipo]||'Material'));
   const imageUrl = safeImageUrl(item.capa_url);
-  if (imageUrl) {
+  const privatePath = isStoredCoverPath(item.capa_url) ? item.capa_url : null;
+  if (imageUrl || privatePath) {
     const img = el('img','actual-cover');
     img.alt = 'Capa de ' + clean(item.titulo);
-    img.loading = 'lazy'; img.src = imageUrl;
+    img.loading = 'lazy';
+    if(privatePath)loadProtectedCover(img,privatePath);
+    else img.src = imageUrl;
     img.onerror = () => img.replaceWith(genericBook());
     c.append(img);
   } else c.append(genericBook());

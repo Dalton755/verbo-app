@@ -62,6 +62,20 @@
     <form id="edit-form">
       <div class="admin-fields"><label>Título *<input id="edit-name" required maxlength="240" /></label><label>Autor<input id="edit-author" maxlength="240" placeholder="Não identificado"/></label><label>Tipo de material<select id="edit-type"><option value="livro">Livro</option><option value="biblia">Bíblia</option><option value="dicionario">Dicionário</option><option value="revista_ebd">Revista EBD</option><option value="comentario">Comentário</option><option value="concordancia">Concordância</option><option value="atlas">Atlas</option><option value="apostila">Apostila</option><option value="outro">Outro</option></select></label><label>Categoria<select id="edit-category"><option value="">Sem categoria</option></select></label><label>ISBN<input id="edit-isbn" placeholder="978..." inputmode="numeric" maxlength="20"/></label><label>Ano de publicação<input id="edit-year" type="number" min="1400" max="2200" placeholder="2026"/></label><label>Trimestre EBD<select id="edit-ebd-quarter"><option value="">Não aplicável</option><option value="1">1º trimestre</option><option value="2">2º trimestre</option><option value="3">3º trimestre</option><option value="4">4º trimestre</option></select></label><label>Ano EBD<input id="edit-ebd-year" type="number" min="1900" max="2200" placeholder="2026"/></label><label>Referências bíblicas (separadas por ponto e vírgula)<input id="edit-references" placeholder="Gn 12:1; Romanos 8:1"/></label><label>Temas<input id="edit-topics" placeholder="Graça, aliança, salvação..."/></label><label>Editora<input id="edit-publisher" placeholder="Se identificada"/></label><label>Direitos de distribuição<select id="edit-rights"><option value="pendente">A verificar</option><option value="dominio_publico">Domínio público</option><option value="licenca_aberta">Licença aberta</option><option value="autorizado">Autorização do titular</option><option value="somente_catalogo">Somente referência bibliográfica</option></select></label><label>Fonte/comprovante<input id="edit-proof" placeholder="Link da licença, documento ou referência"/></label><label class="full-width">Descrição<textarea id="edit-description" rows="3" placeholder="Resumo e observações"></textarea></label></div>
       <label class="rights-check"><input type="checkbox" id="edit-verified"/><span><b>Confirmei os direitos de distribuição desta obra.</b><small>Somente marque após conferir a licença ou autorização. Isso não é feito automaticamente pela IA.</small></span></label>
+      <div class="cover-edit-box">
+        <div class="cover-preview-frame">
+          <span id="edit-cover-empty">Sem capa</span>
+          <img id="edit-cover-img" alt="Capa do livro em revisão" hidden />
+        </div>
+        <div class="cover-edit-tools">
+          <strong>Capa do livro</strong>
+          <p>Extraída da primeira página do PDF durante a importação. Você pode gerar novamente ou escolher sua própria imagem.</p>
+          <button type="button" id="cover-generate" class="admin-secondary">↻ Gerar capa do PDF</button>
+          <button type="button" id="cover-choose" class="admin-secondary">Trocar capa</button>
+          <input type="file" id="cover-upload" accept="image/png,image/jpeg,image/webp" hidden />
+          <small>JPG, PNG ou WebP até 8 MB. A capa será otimizada e armazenada em formato WebP.</small>
+        </div>
+      </div>
       <div id="edit-files" class="edit-file-list"></div>
       <div class="edit-reanalyze"><button id="reanalyze-material" type="button" class="admin-secondary">↻ Reanalisar arquivo original</button><small>Refaz a extração e sugere alterações nos campos. Nada é salvo sem sua confirmação.</small></div>
       <div class="edit-actions"><button class="admin-danger-outline" id="delete-draft" type="button" hidden>Excluir rascunho</button><button class="admin-secondary" id="save-draft" type="button">Salvar rascunho</button><button class="admin-primary" id="publish-material" type="button">Publicar e liberar download →</button></div><p class="inline-notice" id="edit-message" role="status" hidden></p>

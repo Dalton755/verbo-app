@@ -1,4 +1,5 @@
 import './config.js';
+import {COVER_BUCKET,COVER_MAX_BYTES,coverPath,isStoredCoverPath,validateCoverInput} from './cover-utils.js';
 import {estimateCatalog,findISBN,findBiblicalReferences,findEditionYear,findEbdPeriod} from './intelligence.js';
 import { createClient } from '@supabase/supabase-js';
 import {validateIncomingFile, validatePublication, validateStoredFiles, validateDraftDeletion, MAX_BATCH_FILES} from './flow-guards.js';
@@ -16,6 +17,7 @@ const $ = (id) => document.getElementById(id);
 const views = {loading:$('access-loading'),login:$('login-screen'),denied:$('denied-screen'),workspace:$('admin-workspace')};
 const state = {user:null,isAdmin:false,categories:[],materials:[],materialsPage:0,materialsHasMore:false,queue:[],editing:null,deleting:null,busy:false,batchRunning:false,batchPaused:false};
 const typeLabels = {livro:'Livro',biblia:'Bíblia',dicionario:'Dicionário',revista_ebd:'Revista EBD',comentario:'Comentário',concordancia:'Concordância',atlas:'Atlas',apostila:'Apostila',outro:'Material'};
+const coverQueueUrls=new WeakMap();
 const bytesText = (size) => size>=1048576 ? `${(size/1048576).toFixed(1)} MB` : `${Math.ceil(size/1024)} KB`;
 function showScreen(screen){Object.entries(views).forEach(([key,node]) => {node.hidden=key!==screen;});}
 function note(node,message,isError=true){node.textContent=message;node.hidden=!message;node.style.borderColor=isError?'#edd8ad':'#c7e4cf';}
@@ -53,6 +55,48 @@ async function readEpub(file){
   const opf=await getEntry(packageName);const xml=new DOMParser().parseFromString(opf,'application/xml');
   return {titulo:xmlNode(xml,'title'),autor:xmlNode(xml,'creator'),editora:xmlNode(xml,'publisher'),temas:xmlNode(xml,'subject')};
 }
+function canvasToWebp(canvas,quality=.84){
+ return new Promise((resolve,reject)=>{
+   canvas.toBlob(blob=>{
+     if(!blob||blob.type!=='image/webp')return reject(new Error('Este navegador não conseguiu gerar uma capa WebP.'));
+     if(blob.size>COVER_MAX_BYTES)return reject(new Error('A capa gerada ultrapassou 2 MB.'));
+     resolve(blob);
+   },'image/webp',quality);
+ });
+}
+async function renderPdfCoverPage(pdf){
+  const page=await pdf.getPage(1),natural=page.getViewport({scale:1});
+  const factor=Math.min(1.6,460/natural.width,660/natural.height);
+  const viewport=page.getViewport({scale:factor});
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(viewport.width));canvas.height=Math.max(1,Math.round(viewport.height));
+  const context=canvas.getContext('2d',{alpha:false});
+  if(!context)throw new Error('Canvas indisponível neste aparelho.');
+  await page.render({canvasContext:context,canvas,viewport}).promise;
+  try{return await canvasToWebp(canvas);}finally{page.cleanup();canvas.width=0;canvas.height=0;}
+}
+async function convertImageToCover(file){
+  const error=validateCoverInput(file);if(error)throw new Error(error);
+  const bitmap=await createImageBitmap(file);
+  try{
+    const scale=Math.min(1,520/bitmap.width,780/bitmap.height);
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    const context=canvas.getContext('2d',{alpha:false});
+    if(!context)throw new Error('Não foi possível processar a imagem.');
+    context.fillStyle='#ffffff';context.fillRect(0,0,canvas.width,canvas.height);
+    context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+    try{return await canvasToWebp(canvas);}finally{canvas.width=0;canvas.height=0;}
+  }finally{bitmap.close();}
+}
+async function pdfCoverFromFile(file){
+  const pdfjs=await import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc=(await import('pdfjs-dist/legacy/build/pdf.worker.mjs?url')).default;
+  const loadingTask=pdfjs.getDocument({data:new Uint8Array(await file.arrayBuffer()),useSystemFonts:true,stopAtErrors:false});
+  let pdf;
+  try{pdf=await loadingTask.promise;return await renderPdfCoverPage(pdf);}
+  finally{await closePdfReader(loadingTask,pdf,error=>console.warn('[VERBO] Falha ao encerrar PDF para capa:',error));}
+}
 async function readPdf(file){
   // O worker Vite retorna um URL público; manter no mesmo domínio reduz falhas CORS.
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
@@ -75,7 +119,11 @@ async function readPdf(file){
       filename:file.name,
       pages
     });
+    let capa_blob=null;
+    try{capa_blob=await renderPdfCoverPage(doc);}
+    catch(error){console.warn('[VERBO] Prévia de capa não gerada:',error);}
     return {
+      capa_blob,
       titulo:bib.titulo,
       autor:bib.autor,
       editora:bib.editora,
@@ -123,7 +171,7 @@ async function analyzeFile(file){
     editora:asText(info.editora).slice(0,120),descricao:'',isbn,
     ano_publicacao:detectedYear,trimestre_ebd:period.trimestre_ebd,ano_ebd:period.ano_ebd,
     referencias_biblicas:references,
-    paginas:info.paginas||null,confiança:suggestion.confidence,aviso:warning,
+    paginas:info.paginas||null,capa_blob:info.capa_blob||null,confiança:suggestion.confidence,aviso:warning,
     origem_titulo:info.extracao_origem?.titulo||'nome_arquivo',
     origem_autor:info.extracao_origem?.autor||'nao_encontrado'
   };
@@ -152,7 +200,7 @@ async function loadMaterials(append=false){
   const page=append?state.materialsPage+1:0;
   const size=50;
   const {data,error}=await supabase.from('verbo_admin_materiais')
-    .select('id,titulo,autor,tipo,editora,isbn,ano_publicacao,trimestre_ebd,ano_ebd,referencias_biblicas,descricao,temas_texto,status,direitos_tipo,direitos_verificados,direitos_comprovante,publicado_em,created_at')
+    .select('id,titulo,autor,tipo,editora,isbn,ano_publicacao,trimestre_ebd,ano_ebd,referencias_biblicas,descricao,temas_texto,capa_url,status,direitos_tipo,direitos_verificados,direitos_comprovante,publicado_em,created_at')
     .order('created_at',{ascending:false}).range(page*size,page*size+size-1);
   if(error){toast('Falha ao carregar catálogo: '+error.message);return;}
   state.materials=append?[...state.materials,...(data||[])]:data||[];
@@ -179,6 +227,34 @@ function showTab(name){
   });
   $('section-import').hidden=name!=='import';$('section-catalog').hidden=name!=='catalog';
 }
+function imageBlobInto(img,blob){
+ const url=URL.createObjectURL(blob);
+ img.onload=()=>{URL.revokeObjectURL(url);img.onload=null;};
+ img.onerror=()=>{URL.revokeObjectURL(url);img.hidden=true;img.onload=null;img.onerror=null;};
+ img.hidden=false;img.src=url;
+}
+async function displayAdminCover(img,path,expectedItem){
+ if(!isStoredCoverPath(path)){img.hidden=true;return;}
+ try{
+   const {data,error}=await supabase.storage.from(COVER_BUCKET).download(path);
+   if(error||!data)throw(error||new Error('Capa não disponível'));
+   if(expectedItem&&state.editing!==expectedItem)return;
+   if(!img.isConnected)return;
+   imageBlobInto(img,data);
+ }catch(err){console.warn('[VERBO] Falha ao carregar miniatura privada:',err);img.hidden=true;}
+}
+async function persistMaterialCover(material,blob){
+ if(!blob||blob.type!=='image/webp'||blob.size>COVER_MAX_BYTES)throw new Error('A capa precisa estar em WebP e ter até 2 MB.');
+ const path=coverPath(material.id);
+ const {error:storageError}=await supabase.storage.from(COVER_BUCKET).upload(path,blob,{contentType:'image/webp',cacheControl:'60',upsert:true});
+ if(storageError)throw storageError;
+ const {data,error}=await supabase.from('verbo_admin_materiais').update({capa_url:path,updated_at:new Date().toISOString()})
+   .eq('id',material.id).select('id');
+ if(error)throw error;
+ if(data?.length!==1)throw new Error('Não foi possível registrar o caminho da capa.');
+ material.capa_url=path;
+ return path;
+}
 function renderQueue(){
   const area=$('file-queue');area.replaceChildren();
   $('queue-count').textContent=state.queue.length;
@@ -191,7 +267,12 @@ function renderQueue(){
   for(const item of state.queue){
     const card=makeNode('div','queue-card'+(item.status==='erro'?' failed':''));
     const ext=item.file.name.split('.').pop()?.toUpperCase()||'DOC';
-    card.append(makeNode('span','queue-file-icon',ext));
+    const queueCover=item.meta?.capa_blob;
+    if(queueCover){
+      const picture=makeNode('img','queue-cover');picture.alt='Capa prévia de '+(item.meta.titulo||item.file.name);
+      if(!coverQueueUrls.has(queueCover))coverQueueUrls.set(queueCover,URL.createObjectURL(queueCover));
+      picture.src=coverQueueUrls.get(queueCover);card.append(picture);
+    } else card.append(makeNode('span','queue-file-icon',ext));
     const details=makeNode('div','queue-meta');details.append(makeNode('strong','',item.meta?.titulo||item.file.name));
     details.append(makeNode('small','',`${bytesText(item.file.size)} · ${item.status==='analisando'?'Identificando metadados...': item.status==='pronto'?'Sugestão pronta para curadoria':item.status==='enviando'?'Enviando ao acervo...':item.status==='salvo'?'Rascunho salvo':item.error||'Pendente'}`));
     if(item.meta) details.append(makeNode('small','queue-sub',`${typeLabels[item.meta.tipo]} · ${item.meta.autor||'Autor não identificado'} · pontuação de classificação ${Math.round(item.meta.confiança*100)}% · ${item.meta.categoria_slug||'sem categoria'}`));
@@ -258,6 +339,10 @@ async function importOne(item){
     if(category){const {error:linkErr}=await supabase.from('verbo_admin_vinculos').insert({material_id:materialId,categoria_id:category.id});if(linkErr)throw linkErr;}
     const {error:jobErr}=await supabase.from('verbo_admin_jobs').insert({material_id:materialId,storage_path:storagePath,status:'revisao',etapa:'validacao_humana',modelo:'tfidf-curadoria-local-v2',confianca:item.meta.confiança,sugestao:{titulo:item.meta.titulo,autor:item.meta.autor,tipo:item.meta.tipo,categoria:item.meta.categoria_slug,ranking:item.meta.ranking,temas:item.meta.temas_texto,isbn:item.meta.isbn,ano:item.meta.ano_publicacao,referencias:item.meta.referencias_biblicas,observacao:item.meta.aviso||null}});
     if(jobErr)toast('Arquivo salvo, mas o histórico de classificação não foi registrado.');
+    if(item.meta.capa_blob){
+      try{await persistMaterialCover({id:materialId},item.meta.capa_blob);}
+      catch(err){console.warn('[VERBO] Livro importado sem capa:',err);toast('Rascunho salvo, mas a capa não foi gerada. Você pode adicioná-la na revisão.');}
+    }
     item.status='salvo';item.materialId=materialId;toast(`“${item.meta.titulo}” adicionado como rascunho.`);
     await Promise.all([loadMaterials(),loadStats()]);
   }catch(err){item.status='erro';item.error=asText(err.message)||'Falha no upload.';
@@ -289,7 +374,13 @@ function renderMaterials(){
   const rows=state.materials.filter(m=>(!status||m.status===status)&&(!query||`${m.titulo} ${m.autor||''} ${m.temas_texto||''}`.toLocaleLowerCase('pt-BR').includes(query)));
   if(!rows.length){region.append(makeNode('div','empty-materials','Nenhum material encontrado. Envie um PDF ou EPUB para começar.'));return;}
   for(const item of rows){
-    const row=makeNode('article','material-row');row.append(makeNode('span','material-icon','▤'));
+    const row=makeNode('article','material-row');
+    const thumbnail=makeNode('span','material-icon');
+    if(isStoredCoverPath(item.capa_url)){
+      const img=makeNode('img','material-cover-img');img.alt='Capa de '+item.titulo;img.loading='lazy';
+      thumbnail.append(img);displayAdminCover(img,item.capa_url);
+    } else thumbnail.textContent='▤';
+    row.append(thumbnail);
     const body=makeNode('div');body.append(makeNode('strong','',item.titulo));body.append(makeNode('small','',`${item.autor||'Autor não informado'} · ${typeLabels[item.tipo]||'Material'}`));row.append(body);
     const label=makeNode('span',`status-badge ${item.status}`,({rascunho:'Rascunho',revisao:'Em revisão',publicado:'Publicado',oculto:'Oculto'})[item.status]||item.status);
     row.append(label);
@@ -314,6 +405,11 @@ async function openEditor(item){
   $('edit-references').value=(item.referencias_biblicas||[]).join('; ');
   $('edit-rights').value=item.direitos_tipo||'pendente';$('edit-proof').value=item.direitos_comprovante||'';$('edit-verified').checked=!!item.direitos_verificados;
   $('edit-subtitle').textContent=item.status==='publicado'?'Material já publicado. Você pode atualizar as informações ou retornar ao rascunho.':'Confira os dados bibliográficos e verifique o direito de distribuir o arquivo.';
+  $('edit-cover-img').hidden=true;
+  $('edit-cover-empty').hidden=!!isStoredCoverPath(item.capa_url);
+  if(isStoredCoverPath(item.capa_url))displayAdminCover($('edit-cover-img'),item.capa_url,item);
+  $('cover-upload').value='';
+  $('cover-generate').disabled=true;
   $('edit-files').textContent='Consultando arquivos vinculados...';$('edit-category').value='';$('edit-message').hidden=true;
   $('reanalyze-material').disabled=true;
   $('delete-draft').hidden=item.status!=='rascunho';
@@ -325,11 +421,40 @@ async function openEditor(item){
   if(state.editing!==item)return;
   state.editing.files=files.data||[];
   $('reanalyze-material').disabled=!state.editing.files.some(f=>/\.(pdf|epub)$/i.test(f.nome_arquivo));
+  $('cover-generate').disabled=!state.editing.files.some(f=>/\.pdf$/i.test(f.nome_arquivo));
   $('edit-category').value=links.data?.[0]?.categoria_id||'';
   $('edit-files').textContent=files.error?'Falha ao consultar arquivos.':!files.data?.length?'Nenhum arquivo vinculado. Este registro é apenas bibliográfico.':files.data.map(f=>`▤ ${f.nome_arquivo} · ${bytesText(f.tamanho_bytes||0)}${f.download_habilitado?' · liberado':''}`).join('\n');
   $('edit-files').style.whiteSpace='pre-line';
 }
 function closeEditor(){state.editing=null;$('edit-backdrop').hidden=true;document.body.style.overflow='';}
+async function updateEditorCover(blob){
+  const item=state.editing;if(!item||state.busy)return;
+  const controls=[$('cover-generate'),$('cover-choose')];
+  state.busy=true;controls.forEach(button=>button.disabled=true);
+  note($('edit-message'),'Salvando a capa no armazenamento privado...',false);
+  try{
+    const path=await persistMaterialCover(item,blob);
+    $('edit-cover-empty').hidden=true;imageBlobInto($('edit-cover-img'),blob);
+    note($('edit-message'),'Capa salva! Ela aparecerá no catálogo público quando o material for publicado.',false);
+    await loadMaterials();
+  }catch(error){note($('edit-message'),'Erro ao salvar capa: '+asText(error?.message||error));}
+  finally{state.busy=false;controls.forEach(button=>button.disabled=false);}
+}
+async function generateCoverFromStoredPdf(){
+  const item=state.editing;if(!item||state.busy)return;
+  const original=item.files?.find(f=>/\.pdf$/i.test(f.nome_arquivo));
+  if(!original){note($('edit-message'),'Este material não possui PDF para gerar capa automaticamente.');return;}
+  $('cover-generate').disabled=true;
+  note($('edit-message'),'Gerando capa da primeira página do PDF...',false);
+  try{
+    const {data,error}=await supabase.storage.from(config.storageBucket||'verbo-acervo').download(original.storage_path);
+    if(error||!data)throw(error||new Error('Não foi possível baixar o PDF privado.'));
+    const cover=await pdfCoverFromFile(new File([data],original.nome_arquivo,{type:'application/pdf'}));
+    if(state.editing!==item)return;
+    await updateEditorCover(cover);
+  }catch(error){note($('edit-message'),'Falha ao gerar capa: '+asText(error?.message||error));}
+  finally{if(state.editing===item)$('cover-generate').disabled=false;}
+}
 async function reanalyzeStoredMaterial(){
   const item=state.editing;
   if(!item||state.busy)return;
@@ -387,7 +512,7 @@ async function deleteDraft(){
   try{
     // Confere o estado no banco antes de remover os arquivos.
     const {data:live,error:liveError}=await supabase.from('verbo_admin_materiais')
-      .select('id,status,titulo').eq('id',selected.id).maybeSingle();
+      .select('id,status,titulo,capa_url').eq('id',selected.id).maybeSingle();
     if(liveError)throw liveError;
     if(!live)throw new Error('O material não existe mais. Atualize a lista.');
     const {data:files,error:filesError}=await supabase.from('verbo_admin_arquivos')
@@ -395,6 +520,10 @@ async function deleteDraft(){
     if(filesError)throw filesError;
     const invalid=validateDraftDeletion({id:live.id,status:live.status,files});
     if(invalid)throw new Error(invalid);
+    if(isStoredCoverPath(live.capa_url)){
+      const {error:coverError}=await supabase.storage.from(COVER_BUCKET).remove([live.capa_url]);
+      if(coverError)throw new Error('Não foi possível excluir a capa: '+coverError.message);
+    }
     // Se a remoção do Storage falhar, o registro permanece para permitir nova tentativa.
     const paths=[...new Set(files.map(f=>f.storage_path))];
     if(paths.length){
@@ -519,6 +648,14 @@ $('admin-search').addEventListener('input',renderMaterials);$('admin-status').ad
 $('close-edit').addEventListener('click',closeEditor);$('edit-backdrop').addEventListener('click',e=>{if(e.target===$('edit-backdrop'))closeEditor();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('edit-backdrop').hidden)closeEditor();});
 $('reanalyze-material').addEventListener('click',reanalyzeStoredMaterial);
+$('cover-generate').addEventListener('click',generateCoverFromStoredPdf);
+$('cover-choose').addEventListener('click',()=>$('cover-upload').click());
+$('cover-upload').addEventListener('change',async event=>{
+ const file=event.target.files?.[0];event.target.value='';
+ if(!file||!state.editing)return;
+ try{const blob=await convertImageToCover(file);await updateEditorCover(blob);}
+ catch(error){note($('edit-message'),'Não foi possível processar a imagem: '+asText(error?.message||error));}
+});
 $('delete-draft').addEventListener('click',()=>openDeleteConfirm(state.editing));
 $('delete-confirm').addEventListener('click',deleteDraft);
 $('delete-cancel').addEventListener('click',closeDeleteConfirm);
