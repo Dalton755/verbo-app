@@ -1,6 +1,7 @@
 import React,{createContext,useCallback,useContext,useEffect,useState} from "react";
 import {useAuth} from "./auth.jsx";
 import {supabase} from "./supabase.js";
+import {acessoSimuladoVencido} from "./accessRules.js";
 
 const AccessContext=createContext(null);
 
@@ -11,6 +12,8 @@ const AccessContext=createContext(null);
  */
 export function ShalomAccessProvider({children}){
   const {user}=useAuth();
+  // Somente prévia GitHub. Não modifica pagamento, banco ou validade real.
+  const simulado=acessoSimuladoVencido(window.location.search,import.meta.env.VITE_SHALOM_GITHUB_PAGES==="true");
   const [check,setCheck]=useState({userId:null,status:"loading"});
   const refresh=useCallback(async()=>{
     if(!user?.id){
@@ -21,11 +24,11 @@ export function ShalomAccessProvider({children}){
     try{
       const {data,error}=await supabase.rpc("tem_assinatura_vigente");
       if(error)throw error;
-      setCheck({userId:uid,status:data===true?"active":"inactive"});
+      setCheck({userId:uid,status:simulado?"inactive":data===true?"active":"inactive"});
     }catch{
       setCheck({userId:uid,status:"error"});
     }
-  },[user?.id]);
+  },[user?.id,simulado]);
   useEffect(()=>{
     if(!user?.id){setCheck({userId:null,status:"inactive"});return;}
     setCheck({userId:user.id,status:"loading"});
@@ -43,7 +46,7 @@ export function ShalomAccessProvider({children}){
     };
   },[user?.id,refresh]);
   const status=check.userId===user?.id?check.status:"loading";
-  return <AccessContext.Provider value={{status,active:status==="active",refresh}}>
+  return <AccessContext.Provider value={{status,active:status==="active",simulado,refresh}}>
     {children}
   </AccessContext.Provider>;
 }
