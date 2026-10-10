@@ -2,3 +2,18 @@
 /* Imagens de capa em miniatura, sem distorção */
 .card-cover-area .actual-cover{width:auto;max-width:75%;height:88%;max-height:194px;object-fit:contain}
 .detail-cover .actual-cover{max-width:88%;height:90%;object-fit:contain}
+
+/* Busca ao lado do catálogo + seletor de assunto em telas móveis. */
+.catalog-search{display:flex;align-items:center;gap:10px;min-height:54px;margin:0 0 17px;padding:7px 8px 7px 15px;border-radius:10px;border:1px solid #dce8df;background:#fff}
+.catalog-search:focus-within{border-color:#8fb69e;box-shadow:0 0 0 3px #e6f1e9}
+.catalog-search-symbol{font-size:24px;color:#709080;line-height:1}
+.catalog-search input{font:inherit;font-size:13px;min-width:0;flex:1;border:0;outline:0;background:transparent;color:#234d3a}
+.catalog-search button{background:#245a4a;color:white;border:0;border-radius:7px;padding:0 14px;min-height:40px;font-size:12px;font-weight:750}
+.catalog-search button:focus-visible{outline:3px solid #dcb975;outline-offset:2px}
+@media(max-width:760px){
+ .filters label[for="topic-select"]{display:block;font-size:10px;font-weight:740;margin:9px 0 7px}
+ .filters #topic-select{display:block;background:white;border:1px solid #dce7df;width:100%;padding:12px;border-radius:8px;font-size:13px;margin-bottom:7px}
+ .catalog-search{gap:7px;padding-left:11px}
+ .catalog-search input{font-size:12px}
+ .catalog-search button{font-size:11px;padding:0 12px}
+}

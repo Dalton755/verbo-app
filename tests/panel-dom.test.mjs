@@ -62,3 +62,15 @@ test('revisão exibe título completo em várias linhas e evita teclado automát
  assert.match(js,/\$\('edit-title'\)\.focus\(\)/);
  assert.doesNotMatch(js,/\$\('edit-name'\)\.focus\(\)/);
 });
+
+test('busca do catálogo e filtro por assunto visíveis no mobile',()=>{
+ const html=get('index.html'),js=get('main.js'),css=get('style.css');
+ for(const id of ['catalog-search','catalog-query','topic-select'])assert.ok(html.includes('id="'+id+'"'));
+ assert.match(js,/byId\('catalog-search'\)\.addEventListener\('submit'/);
+ assert.match(css,/\.filters #topic-select\{display:block/);
+ assert.match(css,/\.filters label\[for="topic-select"\]\{display:block/);
+});
+test('demonstração pública possui acesso pela administração sem liberar downloads',()=>{
+ assert.match(get('admin.html'),/href="\.\/\?preview=1#acervo"/);
+ assert.match(get('main.js'),/downloads desabilitados/);
+});

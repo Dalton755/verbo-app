@@ -36,7 +36,9 @@ const demo = [
   {id:'demo-3',titulo:'Dicionário de Termos Bíblicos',tipo:'dicionario',autor:'Exemplo de catálogo',descricao:'Demonstração visual do cadastro de dicionários para consulta de termos e conceitos.',categorias:['Dicionários e Referências'],tem_download:false},
   {id:'demo-4',titulo:'Escola Dominical — Vida Cristã',tipo:'revista_ebd',autor:'Exemplo de catálogo',descricao:'Demonstração de ficha catalográfica para revistas da Escola Bíblica Dominical.',categorias:['Escola Bíblica Dominical'],tem_download:false},
   {id:'demo-5',titulo:'Cartas de Paulo — Estudos',tipo:'comentario',autor:'Exemplo de catálogo',descricao:'Exemplo ilustrativo de um comentário bíblico sobre as epístolas paulinas.',categorias:['Comentários Bíblicos'],tem_download:false},
-  {id:'demo-6',titulo:'A História da Igreja',tipo:'livro',autor:'Exemplo de catálogo',descricao:'Exemplo fictício de uma obra sobre história do cristianismo.',categorias:['História da Igreja'],tem_download:false}
+  {id:'demo-6',titulo:'A História da Igreja',tipo:'livro',autor:'Exemplo de catálogo',descricao:'Exemplo fictício de uma obra sobre história do cristianismo.',categorias:['História da Igreja'],tem_download:false},
+  {id:'demo-7',titulo:'Psicologia Pastoral — Exemplo',tipo:'livro',autor:'Exemplo de catálogo',descricao:'Material fictício sobre o cuidado e o comportamento humano.',categorias:['Família e Aconselhamento'],tem_download:false},
+  {id:'demo-8',titulo:'Bíblia — Modelo Ilustrativo',tipo:'biblia',autor:'Exemplo de catálogo',descricao:'Modelo visual de cadastro de uma Bíblia, sem conteúdo para download.',categorias:['Estudos Bíblicos'],tem_download:false}
 ];
 const bookColors = [
   ['#557678','#e1edeb'], ['#8f6c56','#f2e8dc'], ['#64617c','#ebe8f3'],
@@ -86,6 +88,7 @@ function syncLocation() {
 }
 function updateFiltersUI() {
   byId('query').value = appState.q;
+  byId('catalog-query').value = appState.q;
   byId('topic-select').value = appState.topic;
   document.querySelectorAll('.filter-button').forEach((button) => {
     const selected = button.dataset.type === appState.type;
@@ -101,17 +104,22 @@ function applySort(items) {
   return items;
 }
 function previewResults() {
-  const t = appState.q.toLocaleLowerCase('pt-BR').trim();
+  const normal = value => String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('pt-BR');
+  const t = normal(appState.q).trim();
   let records = demo.filter((m) => (!appState.type || m.tipo === appState.type)
     && (!appState.topic || m.categorias.some((c) => {
       const topics = {
         'teologia':'Teologia','estudos-biblicos':'Estudos Bíblicos',
         'vida-crista':'Vida Cristã','historia-da-igreja':'História da Igreja',
         'ebd':'Escola Bíblica Dominical','comentarios-biblicos':'Comentários Bíblicos',
-        'dicionarios-referencias':'Dicionários e Referências'
+        'dicionarios-referencias':'Dicionários e Referências',
+        'familia-aconselhamento':'Família e Aconselhamento',
+        'pregacao-homiletica':'Pregação e Homilética',
+        'biografias':'Biografias',
+        'missoes-evangelismo':'Missões e Evangelismo'
       };
       return c === topics[appState.topic];
-    })) && (!t || (m.titulo + ' ' + m.autor + ' ' + m.descricao).toLocaleLowerCase('pt-BR').includes(t)));
+    })) && (!t || normal(m.titulo + ' ' + m.autor + ' ' + m.descricao).includes(t)));
   if (appState.sort === 'titulo') records = applySort(records);
   return records;
 }
@@ -345,6 +353,11 @@ function showToast(message) {
 function wire() {
   byId('year').textContent = new Date().getFullYear();
   byId('preview-indicator').hidden = !isPreview;
+  byId('catalog-search').addEventListener('submit',(ev)=>{
+    ev.preventDefault();
+    appState.q = byId('catalog-query').value.trim().slice(0,180);
+    refresh();
+  });
   byId('hero-search').addEventListener('submit',(ev)=>{
     ev.preventDefault();
     appState.q = byId('query').value.trim().slice(0,180);
