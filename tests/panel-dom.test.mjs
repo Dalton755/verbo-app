@@ -71,6 +71,16 @@ test('busca do catálogo e filtro por assunto visíveis no mobile',()=>{
  assert.match(css,/\.filters label\[for="topic-select"\]\{display:block/);
 });
 test('demonstração pública possui acesso pela administração sem liberar downloads',()=>{
- assert.match(get('admin.html'),/href="\.\/\?preview=1#acervo"/);
+ assert.match(get('admin.html'),/href="\.\/#acervo"/);
+ const js=get('main.js');
+ assert.match(js,/queryParams\.get\('demo'\) === '1'/);
+ assert.match(js,/\['q','tipo','assunto','preview'\]/);
  assert.match(get('main.js'),/downloads desabilitados/);
+});
+
+test('link antigo de prévia abre catálogo real, sem ocultar publicados',()=>{
+ const main=get('main.js');
+ assert.doesNotMatch(main,/queryParams\.get\('preview'\)\s*===\s*'1'/);
+ assert.match(main,/queryParams\.get\('demo'\)\s*===\s*'1'/);
+ assert.match(get('admin.html'),/Ver catálogo público/);
 });

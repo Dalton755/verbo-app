@@ -2,7 +2,9 @@ import './config.js';
 import {isStoredCoverPath,COVER_BUCKET} from './cover-utils.js';
 const cfg = window.VERBO_CONFIG || {};
 const queryParams = new URLSearchParams(location.search);
-const isPreview = queryParams.get('preview') === '1' || window.VERBO_PREVIEW === true;
+// "preview=1" era um modo ilustrativo e escondia livros realmente publicados.
+// Reservamos "demo=1" apenas para quem pede explicitamente exemplos fictícios.
+const isPreview = queryParams.get('demo') === '1' || window.VERBO_PREVIEW === true;
 const byId = (id) => document.getElementById(id);
 const appState = {
   q: queryParams.get('q') || '',
@@ -80,7 +82,7 @@ async function api(path, options = {}) {
 }
 function syncLocation() {
   const url = new URL(location.href);
-  ['q','tipo','assunto'].forEach((k) => url.searchParams.delete(k));
+  ['q','tipo','assunto','preview'].forEach((k) => url.searchParams.delete(k));
   if (appState.q) url.searchParams.set('q', appState.q);
   if (appState.type) url.searchParams.set('tipo', appState.type);
   if (appState.topic) url.searchParams.set('assunto', appState.topic);
