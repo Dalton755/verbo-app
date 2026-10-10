@@ -3,8 +3,6 @@
   "outputDirectory": "apps/biblioteca/dist",
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
-    "deploymentEnabled": {
-      "feature/verbo-biblioteca-preview": false
-    }
+    "deploymentEnabled": false
   }
 }
