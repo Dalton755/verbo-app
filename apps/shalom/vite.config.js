@@ -10,7 +10,7 @@ const ownSupabase=path.resolve(appDir,"supabase.js");
 const ownAuth=path.resolve(appDir,"auth.jsx");
 const ownDictionary=path.resolve(appDir,"dictionaryService.js");
 export default defineConfig({
- root:appDir,publicDir:path.resolve(appDir,"public"),base:"/",
+ root:appDir,publicDir:path.resolve(appDir,"public"),base:process.env.SHALOM_PAGES_BASE || "/",
  plugins:[{
   name:"shalom-isolamento-compartilhado",enforce:"pre",
   resolveId(source,importer){
