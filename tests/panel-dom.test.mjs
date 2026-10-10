@@ -52,3 +52,13 @@ test('capas reais são apresentadas na biblioteca e podem ser revistas pelo gest
  assert.match(publicJs,/storage\/v1\/object\/authenticated/);
  assert.match(js,/capa_url/);
 });
+
+
+test('revisão exibe título completo em várias linhas e evita teclado automático',()=>{
+ const html=get('admin.html'),js=get('admin.js');
+ assert.match(html,/<textarea[^>]*id="edit-name"[^>]*><\/textarea>/);
+ assert.match(html,/<h2 id="edit-title" tabindex="-1">/);
+ assert.match(js,/resizeEditTitle/);
+ assert.match(js,/\$\('edit-title'\)\.focus\(\)/);
+ assert.doesNotMatch(js,/\$\('edit-name'\)\.focus\(\)/);
+});

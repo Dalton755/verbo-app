@@ -24,3 +24,19 @@ test('Ética Pastoral pertence a Teologia, sem confundir a palavra pastoral com 
  const r=estimateCatalog('ÉTICA PASTORAL.pdf',{titulo:'Ética Pastoral',sample:'Ética pastoral. Teologia pastoral - Ética. Vocação divina. O pastor e sua vida particular.'});
  assert.equal(r.category,'teologia');
 });
+
+test('Psicologia Pastoral fica em Família e Aconselhamento, não em Bíblias',()=>{
+ const result=estimateCatalog('PSICOLOGIA PASTORAL-1.pdf',{
+  titulo:'Psicologia Pastoral: A Ciência do Comportamento Humano como Aliada Ministerial',
+  autor:'Jamiel Oliveira de Lopes',
+  sample:'Bíblia Sagrada, revelação das Escrituras e ensino bíblico aplicado à psicologia. Comportamento humano e aconselhamento pastoral.'
+ });
+ assert.equal(result.type,'livro');
+ assert.equal(result.category,'familia-aconselhamento');
+ assert.notEqual(result.ranking[0].categoria,'biblias');
+});
+test('referências a Bíblia no conteúdo não mudam um livro de Teologia para Bíblias',()=>{
+ const result=estimateCatalog('Teologia Sistemática.pdf',{titulo:'Teologia Sistemática',sample:'Estudo aprofundado da Bíblia sagrada e das Escrituras cristãs.'});
+ assert.equal(result.type,'livro');
+ assert.equal(result.category,'teologia');
+});

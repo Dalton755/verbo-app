@@ -120,15 +120,19 @@ export function estimateCatalog(fileName,meta={}) {
     [/\b(homiletica|sermao|sermoes|pregacao expositiva)\b/,'pregacao-homiletica',0.35],
     [/\b(historia da igreja|reforma protestante)\b/,'historia-da-igreja',0.40],
     [/\b(missoes|evangelismo|missionario)\b/,'missoes-evangelismo',0.32],
+    [/\b(psicologia pastoral|psicologia crista|ciencia do comportamento|comportamento humano|saude mental|terapia pastoral|aconselhamento psicologico)\b/,'familia-aconselhamento',0.55],
     [/\b(familia|casamento|aconselhamento)\b/,'familia-aconselhamento',0.32],
     [/\b(biblia sagrada|versao biblica|traducao biblica)\b/,'biblias',0.45],
     [/\b(vida crista|discipulado|devocional)\b/,'vida-crista',0.3]
   ];
   for(const [pattern,slug,weight] of hints)if(pattern.test(normTitle))scores.find(r=>r.slug===slug).score+=weight;
+  const explicitType=TYPE_RULES.find(([,rx])=>rx.test(normTitle))?.[0] || 'livro';
+  // "Bíblias" é um formato de obra, não um assunto. Menções bíblicas em livros de
+  // psicologia, teologia ou aconselhamento não justificam classificar o material como Bíblia.
+  if(explicitType!=='biblia')scores.find(r=>r.slug==='biblias').score=-1;
   scores.sort((a,b)=>b.score-a.score);
   const best=scores[0];
   const confidence = Math.min(0.91,Math.max(0.32,0.35 + best.score*0.44 + Math.max(0,(best.score-scores[1].score))*0.20));
-  const explicitType=TYPE_RULES.find(([,rx])=>rx.test(normTitle))?.[0] || 'livro';
   const category = explicitType==='biblia'?'biblias':explicitType==='revista_ebd'?'ebd':explicitType==='dicionario'?'dicionarios-referencias': explicitType==='comentario'?'comentarios-biblicos':best.slug;
   return {
     type:explicitType,

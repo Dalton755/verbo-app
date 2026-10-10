@@ -59,3 +59,8 @@
 .cover-edit-tools small{font-size:10px;line-height:1.55;color:#839485;width:100%}
 .cover-edit-tools .admin-secondary{padding:10px 12px;font-size:11px}
 @media(max-width:460px){.cover-edit-box{padding:12px;gap:12px}.cover-preview-frame{width:93px;height:133px}.cover-edit-tools .admin-secondary{width:100%}}
+
+/* Título completo visível na revisão mobile, sem abrir teclado automaticamente */
+.admin-edit-modal h2:focus{outline:none}
+.admin-fields .edit-title-textarea{min-height:90px;line-height:1.5;resize:none;overflow-y:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit}
+@media(max-width:760px){.admin-edit-modal>h2{font-size:clamp(27px,6vw,33px)}.admin-fields .edit-title-textarea{font-size:14px;min-height:105px}}

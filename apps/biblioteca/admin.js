@@ -395,9 +395,15 @@ function renderMaterials(){
     region.append(row);
   }
 }
+function resizeEditTitle(){
+  const field=$('edit-name');
+  field.style.height='auto';
+  field.style.height=Math.min(230,Math.max(90,field.scrollHeight))+'px';
+}
 async function openEditor(item){
   state.editing=item;
-  $('edit-name').value=item.titulo||'';$('edit-author').value=item.autor||'';
+  $('edit-name').value=item.titulo||'';
+  resizeEditTitle();$('edit-author').value=item.autor||'';
   $('edit-type').value=item.tipo||'livro';$('edit-topics').value=item.temas_texto||'';
   $('edit-publisher').value=item.editora||'';$('edit-description').value=item.descricao||'';
   $('edit-isbn').value=item.isbn||'';$('edit-year').value=item.ano_publicacao||'';
@@ -413,7 +419,7 @@ async function openEditor(item){
   $('edit-files').textContent='Consultando arquivos vinculados...';$('edit-category').value='';$('edit-message').hidden=true;
   $('reanalyze-material').disabled=true;
   $('delete-draft').hidden=item.status!=='rascunho';
-  $('edit-backdrop').hidden=false;document.body.style.overflow='hidden';$('edit-name').focus();
+  $('edit-backdrop').hidden=false;document.body.style.overflow='hidden';$('edit-title').focus();
   const [files,links]=await Promise.all([
     supabase.from('verbo_admin_arquivos').select('id,nome_arquivo,storage_path,tamanho_bytes,download_habilitado').eq('material_id',item.id),
     supabase.from('verbo_admin_vinculos').select('categoria_id').eq('material_id',item.id)
@@ -648,6 +654,7 @@ $('admin-search').addEventListener('input',renderMaterials);$('admin-status').ad
 $('close-edit').addEventListener('click',closeEditor);$('edit-backdrop').addEventListener('click',e=>{if(e.target===$('edit-backdrop'))closeEditor();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('edit-backdrop').hidden)closeEditor();});
 $('reanalyze-material').addEventListener('click',reanalyzeStoredMaterial);
+$('edit-name').addEventListener('input',resizeEditTitle);
 $('cover-generate').addEventListener('click',generateCoverFromStoredPdf);
 $('cover-choose').addEventListener('click',()=>$('cover-upload').click());
 $('cover-upload').addEventListener('change',async event=>{
