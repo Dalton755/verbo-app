@@ -5,7 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const ORIGEM_PREVIA =
   "https://shalom-leitor-git-feature-shalom-456a68-dalton-rocha-s-projects.vercel.app";
-const ALLOWED_ORIGINS = [ORIGEM_PREVIA];
+const ALLOWED_ORIGINS = [ORIGEM_PREVIA, "https://dalton755.github.io"];
 function headers(req: Request) {
   const origem = req.headers.get("origin") || "";
   return {
