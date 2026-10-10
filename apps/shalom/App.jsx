@@ -3,6 +3,7 @@ import {BrowserRouter,HashRouter,Routes,Route,Navigate,useNavigate,useLocation} 
 import {BookOpen,BookPlus,Search,Home,Library,UserRound,Plus,UploadCloud,ArrowRight,ChevronRight,X,LogOut,Eye,EyeOff,Bookmark,Highlighter,NotebookPen,ExternalLink,RefreshCw} from "lucide-react";
 import {ShalomAuthProvider,useAuth} from "./auth.jsx";
 import {ShalomAccessProvider,useShalomAccess} from "./access.jsx";
+import {acessoSimuladoVencido} from "./accessRules.js";
 import {supabase,SHALOM_BUCKET} from "./supabase.js";
 import {processarArquivoLivro} from "../../src/lib/bookFileProcessor.js";
 import {extrairMetadadosShalom} from "./metadata.js";
@@ -13,6 +14,10 @@ const Reader=lazy(()=>import("../../src/pages/LivroPage.jsx"));
 const githubPagesPreview=import.meta.env.VITE_SHALOM_GITHUB_PAGES==="true";
 const AppRouter=githubPagesPreview?HashRouter:BrowserRouter;
 const authReturnBase=(import.meta.env.VITE_SHALOM_AUTH_BASE_URL||window.location.origin).replace(/\/+$/,"");
+// Retira a query de simulação somente ao escolher voltar para o acesso real.
+function sairDaSimulacao(){
+  window.location.assign(window.location.pathname+"#/estante");
+}
 // Máscara brasileira visível: CPF 000.000.000-00 ou CNPJ 00.000.000/0000-00.
 // Somente os dígitos são enviados ao checkout; o documento não é persistido.
 function formatarDocumento(valor){
@@ -36,7 +41,11 @@ function Login(){const {user,loading}=useAuth(),navigate=useNavigate();const [mo
   else {const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;}
   navigate("/",{replace:true})
  }catch(e){setInfo(e.message||"Não foi possível continuar.")}finally{setBusy(false)}}
- async function google(){setBusy(true);setInfo("");const {error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo:authReturnBase+"/"}});if(error){setInfo("Login Google indisponível: confira a configuração do provedor.");setBusy(false)}}
+ async function google(){setBusy(true);setInfo("");
+ const manterSimulacao=acessoSimuladoVencido(window.location.search,githubPagesPreview);
+ const redirectTo=authReturnBase+"/"+(manterSimulacao?"?simular_vencimento=1":"");
+ const {error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo}});
+ if(error){setInfo("Login Google indisponível: confira a configuração do provedor.");setBusy(false)}}
  return <div className="shalom-login"><header className="login-header"><Brand/></header><main className="login-layout"><section className="login-copy"><span className="eyebrow">LEITURA COM PROPÓSITO</span><h1>Seus livros.<br/><em>Seu momento.</em></h1><p>Biblioteca pessoal, referências bíblicas e anotações em uma experiência feita para você simplesmente ler.</p><div className="login-features"><span><Bookmark size={17}/> Marcadores</span><span><Highlighter size={17}/> Destaques</span><span><NotebookPen size={17}/> Notas</span></div></section><section className="login-panel"><div className="login-panel-head"><span className="eyebrow">BEM-VINDO AO SHALOM</span><h2>{mode==="criar"?"Crie sua conta":mode==="recuperar"?"Recuperar senha":"Sua biblioteca começa aqui"}</h2><p>Uma conta para os apps de leitura, EBD e sermões da Nethanel.</p></div><form onSubmit={submit}>{mode==="criar"&&<label>Seu nome<input value={name} onChange={e=>setName(e.target.value)} placeholder="Como prefere ser chamado" required/></label>}<label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" required autoComplete="email"/></label>{mode!=="recuperar"&&<label>Senha<div className="pass-row"><input type={showPass?"text":"password"} value={password} minLength={6} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" required autoComplete={mode==="criar"?"new-password":"current-password"}/><button type="button" aria-label="Mostrar senha" onClick={()=>setShowPass(!showPass)}>{showPass?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></label>}<button className="button-main full" disabled={busy}>{busy?"Processando...":mode==="criar"?"Criar conta":mode==="recuperar"?"Enviar link":"Entrar na biblioteca"} <ArrowRight size={18}/></button></form>{mode!=="recuperar"&&<><div className="divider"><span>ou</span></div><button className="google-button" disabled={busy} onClick={google}>Continuar com Google</button></>}{info&&<div role="status" className="form-info">{info}</div>}<div className="auth-switch">{mode!=="entrar"&&<button onClick={()=>{setMode("entrar");setInfo("")}}>Já tenho conta</button>}{mode==="entrar"&&<><button onClick={()=>{setMode("criar");setInfo("")}}>Criar conta</button><button onClick={()=>{setMode("recuperar");setInfo("")}}>Esqueci a senha</button></>}</div></section></main><footer className="login-foot">Shalom, um produto Nethanel Tecnologia · <strong>R$ 5,99/mês</strong></footer></div>
 }
 function Reset(){const [pass,setPass]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);async function save(e){e.preventDefault();setBusy(true);const {error}=await supabase.auth.updateUser({password:pass});setMessage(error?.message||"Senha alterada. Você já pode voltar à biblioteca.");setBusy(false)}return <div className="reset-page"><Brand/><form onSubmit={save}><h1>Nova senha</h1><input type="password" minLength={6} value={pass} onChange={e=>setPass(e.target.value)} required/><button className="button-main" disabled={busy}>Salvar senha</button><p>{message}</p></form></div>}
@@ -52,7 +61,9 @@ function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshA
  return <div className="shalom-app"><header className="shalom-header"><Brand/><div className="header-actions"><span className="price-pill">R$ 5,99/mês</span><button type="button" className="icon-button" onClick={()=>navigate("/conta")} aria-label="Minha conta"><UserRound size={21}/></button></div></header><main className="shalom-main">
     {accessStatus==="inactive"&&<section className="shalom-expired-banner" role="status">
       <div><strong>{simulado?"Simulação de vencimento — apenas prévia":"Sua biblioteca continua aqui."}</strong><p>{simulado?"Este teste não altera sua assinatura real nem remove seus livros. A leitura fica bloqueada somente nesta simulação.":"Seu período terminou. Livros, marcadores e anotações continuam salvos. Renove para voltar a ler."}</p></div>
-      <button type="button" className="button-main" onClick={()=>navigate("/conta")}>Renovar por R$ 5,99 <ArrowRight size={16}/></button>
+      {simulado
+        ?<button type="button" className="button-main" onClick={sairDaSimulacao}>Sair da simulação <ArrowRight size={16}/></button>
+        :<button type="button" className="button-main" onClick={()=>navigate("/conta")}>Renovar por R$ 5,99 <ArrowRight size={16}/></button>}
     </section>}
     {accessStatus==="error"&&<section className="shalom-expired-banner shalom-access-error" role="alert">
       <div><strong>Não foi possível verificar a assinatura.</strong><p>Confira a conexão. Seus arquivos estão preservados.</p></div>
@@ -286,11 +297,21 @@ function Account(){
  </div>;
 }
 function PremiumReader(){
- const {status,refresh}=useShalomAccess();
+ const {status,refresh,simulado}=useShalomAccess();
  const navigate=useNavigate();
  if(status==="loading")return <div className="shalom-loading"><Brand/><p>Verificando sua assinatura...</p></div>;
  if(status==="error")return <div className="shalom-access-screen"><BookOpen size={40}/><h2>Não conseguimos confirmar seu acesso</h2><p>Verifique sua conexão e tente novamente. Sua leitura está preservada.</p><button className="button-main" onClick={refresh}>Verificar novamente</button><button className="button-outline" onClick={()=>navigate("/estante")}>Voltar à estante</button></div>;
- if(status!=="active")return <div className="shalom-access-screen"><BookOpen size={40}/><span className="eyebrow">SUA BIBLIOTECA ESTÁ SALVA</span><h2>Continue de onde parou.</h2><p>Seu período de acesso terminou. Renove por <strong>R$ 5,99/mês</strong> para abrir seus livros, referências e anotações.</p><button className="button-main" onClick={()=>navigate("/conta")}>Renovar assinatura <ArrowRight size={16}/></button><button className="button-outline" onClick={()=>navigate("/estante")}>Ver minha estante</button></div>;
+ if(status!=="active")return <div className="shalom-access-screen"><BookOpen size={40}/>
+  <span className="eyebrow">{simulado?"SIMULAÇÃO · GITHUB PAGES":"SUA BIBLIOTECA ESTÁ SALVA"}</span>
+  <h2>{simulado?"Leitura bloqueada no teste.":"Continue de onde parou."}</h2>
+  <p>{simulado
+    ?"Esta tela reproduz o vencimento sem alterar sua assinatura real. Seus livros e suas anotações continuam salvos."
+    :<>Seu período de acesso terminou. Renove por <strong>R$ 5,99/mês</strong> para abrir seus livros, referências e anotações.</>}</p>
+  {simulado
+    ?<button className="button-main" onClick={sairDaSimulacao}>Voltar ao acesso normal <ArrowRight size={16}/></button>
+    :<button className="button-main" onClick={()=>navigate("/conta")}>Renovar assinatura <ArrowRight size={16}/></button>}
+  <button className="button-outline" onClick={()=>navigate("/estante")}>Ver minha estante</button>
+ </div>;
  return <Suspense fallback={<div className="shalom-loading">Abrindo seu livro...</div>}><Reader/></Suspense>;
 }
 function Root(){const {user,loading}=useAuth(),loc=useLocation();if(loading)return <div className="shalom-loading"><Brand/><p>Preparando sua biblioteca...</p></div>;if(!user&&loc.pathname!=="/login"&&loc.pathname!=="/redefinir-senha")return <Navigate to="/login" replace/>;if(user&&loc.pathname==="/login")return <Navigate to="/" replace/>;return <Routes><Route path="/login" element={<Login/>}/><Route path="/redefinir-senha" element={<Reset/>}/><Route path="/" element={<HomePage/>}/><Route path="/estante" element={<HomePage mode="shelf"/>}/><Route path="/livros" element={<Navigate to="/estante" replace/>}/><Route path="/livros/:id" element={<PremiumReader/>}/><Route path="/conta" element={<Account/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}

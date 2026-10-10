@@ -28,4 +28,9 @@ test("simulação nunca se ativa fora da prévia",()=>{
  assert.equal(acessoSimuladoVencido("?simular_vencimento=1",false),false);
  assert.equal(acessoSimuladoVencido("?simular_vencimento=1",true),true);
  assert.equal(acessoSimuladoVencido("?simular_vencimento=0",true),false);
+ // Caso real: o link enviado ao usuário tinha o # do HashRouter codificado.
+ assert.equal(acessoSimuladoVencido("?simular_vencimento=1%23/estante",true),true);
+ assert.equal(acessoSimuladoVencido("?simular_vencimento=1%23/estante",false),false);
+ assert.equal(acessoSimuladoVencido("?simular_vencimento=10",true),false);
+ assert.equal(acessoSimuladoVencido("?simular_vencimento=1",true),true);
 });

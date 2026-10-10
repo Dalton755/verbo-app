@@ -7,5 +7,8 @@ export function periodoPagoVigente(status,validadeAte,instante=Date.now()){
 }
 export function acessoSimuladoVencido(search,habilitado){
   if(!habilitado)return false;
-  return new URLSearchParams(search).get("simular_vencimento")==="1";
+  const valor=new URLSearchParams(search).get("simular_vencimento")||"";
+  // Links antigos codificaram o # do HashRouter como %23 dentro da query.
+  // Ex.: ?simular_vencimento=1%23/estante => "1#/estante".
+  return valor==="1" || /^1#\//.test(valor);
 }
