@@ -1,7 +1,7 @@
 import './config.js';
 import {estimateCatalog,findISBN,findBiblicalReferences,findEditionYear,findEbdPeriod} from './intelligence.js';
 import { createClient } from '@supabase/supabase-js';
-import {validateIncomingFile, validatePublication, validateStoredFiles, MAX_BATCH_FILES} from './flow-guards.js';
+import {validateIncomingFile, validatePublication, validateStoredFiles, validateDraftDeletion, MAX_BATCH_FILES} from './flow-guards.js';
 import {extractCoverBibliography, collectPdfTextPages, pdfReadingNotice, closePdfReader, titleFromFileName} from './pdf-metadata.js';
 
 const config = window.VERBO_CONFIG || {};
@@ -14,7 +14,7 @@ const supabase = createClient(config.supabaseUrl, config.supabasePublishableKey,
 });
 const $ = (id) => document.getElementById(id);
 const views = {loading:$('access-loading'),login:$('login-screen'),denied:$('denied-screen'),workspace:$('admin-workspace')};
-const state = {user:null,isAdmin:false,categories:[],materials:[],materialsPage:0,materialsHasMore:false,queue:[],editing:null,busy:false,batchRunning:false,batchPaused:false};
+const state = {user:null,isAdmin:false,categories:[],materials:[],materialsPage:0,materialsHasMore:false,queue:[],editing:null,deleting:null,busy:false,batchRunning:false,batchPaused:false};
 const typeLabels = {livro:'Livro',biblia:'Bíblia',dicionario:'Dicionário',revista_ebd:'Revista EBD',comentario:'Comentário',concordancia:'Concordância',atlas:'Atlas',apostila:'Apostila',outro:'Material'};
 const bytesText = (size) => size>=1048576 ? `${(size/1048576).toFixed(1)} MB` : `${Math.ceil(size/1024)} KB`;
 function showScreen(screen){Object.entries(views).forEach(([key,node]) => {node.hidden=key!==screen;});}
@@ -293,7 +293,14 @@ function renderMaterials(){
     const body=makeNode('div');body.append(makeNode('strong','',item.titulo));body.append(makeNode('small','',`${item.autor||'Autor não informado'} · ${typeLabels[item.tipo]||'Material'}`));row.append(body);
     const label=makeNode('span',`status-badge ${item.status}`,({rascunho:'Rascunho',revisao:'Em revisão',publicado:'Publicado',oculto:'Oculto'})[item.status]||item.status);
     row.append(label);
-    const edit=makeNode('button','','Revisar →');edit.type='button';edit.addEventListener('click',()=>openEditor(item));row.append(edit);
+    const actions=makeNode('div','material-row-actions');
+    const edit=makeNode('button','','Revisar →');edit.type='button';edit.addEventListener('click',()=>openEditor(item));actions.append(edit);
+    if(item.status==='rascunho'){
+      const remove=makeNode('button','admin-danger-outline','Excluir');remove.type='button';
+      remove.setAttribute('aria-label',`Excluir rascunho ${item.titulo}`);
+      remove.addEventListener('click',()=>openDeleteConfirm(item));actions.append(remove);
+    }
+    row.append(actions);
     region.append(row);
   }
 }
@@ -309,6 +316,7 @@ async function openEditor(item){
   $('edit-subtitle').textContent=item.status==='publicado'?'Material já publicado. Você pode atualizar as informações ou retornar ao rascunho.':'Confira os dados bibliográficos e verifique o direito de distribuir o arquivo.';
   $('edit-files').textContent='Consultando arquivos vinculados...';$('edit-category').value='';$('edit-message').hidden=true;
   $('reanalyze-material').disabled=true;
+  $('delete-draft').hidden=item.status!=='rascunho';
   $('edit-backdrop').hidden=false;document.body.style.overflow='hidden';$('edit-name').focus();
   const [files,links]=await Promise.all([
     supabase.from('verbo_admin_arquivos').select('id,nome_arquivo,storage_path,tamanho_bytes,download_habilitado').eq('material_id',item.id),
@@ -355,6 +363,62 @@ async function reanalyzeStoredMaterial(){
     if(state.editing===item)button.disabled=false;
   }
 }
+function openDeleteConfirm(item) {
+  if(!state.isAdmin||state.busy||item?.status!=='rascunho')return;
+  state.deleting=item;
+  $('delete-material-name').textContent=item.titulo||'Sem título';
+  note($('delete-message'),'');
+  $('delete-backdrop').hidden=false;
+  $('delete-cancel').focus();
+}
+function closeDeleteConfirm(){
+  if(state.busy)return;
+  state.deleting=null;
+  $('delete-backdrop').hidden=true;
+  if(!$('edit-backdrop').hidden)$('delete-draft').focus();
+}
+async function deleteDraft(){
+  const selected=state.deleting;
+  if(!state.isAdmin||!selected||state.busy)return;
+  const button=$('delete-confirm');
+  state.busy=true;
+  button.disabled=true;$('delete-cancel').disabled=true;
+  note($('delete-message'),'Conferindo o rascunho e excluindo arquivos privados...',false);
+  try{
+    // Confere o estado no banco antes de remover os arquivos.
+    const {data:live,error:liveError}=await supabase.from('verbo_admin_materiais')
+      .select('id,status,titulo').eq('id',selected.id).maybeSingle();
+    if(liveError)throw liveError;
+    if(!live)throw new Error('O material não existe mais. Atualize a lista.');
+    const {data:files,error:filesError}=await supabase.from('verbo_admin_arquivos')
+      .select('storage_path').eq('material_id',selected.id);
+    if(filesError)throw filesError;
+    const invalid=validateDraftDeletion({id:live.id,status:live.status,files});
+    if(invalid)throw new Error(invalid);
+    // Se a remoção do Storage falhar, o registro permanece para permitir nova tentativa.
+    const paths=[...new Set(files.map(f=>f.storage_path))];
+    if(paths.length){
+      const {error:removeError}=await supabase.storage.from(config.storageBucket||'verbo-acervo').remove(paths);
+      if(removeError)throw new Error('Falha ao excluir PDF/EPUB do armazenamento: '+removeError.message);
+    }
+    // Revalida o status também na exclusão final (protege os materiais publicados).
+    const {data:removed,error:deleteError}=await supabase.from('verbo_admin_materiais')
+      .delete().eq('id',selected.id).eq('status','rascunho').select('id');
+    if(deleteError)throw deleteError;
+    if(removed?.length!==1)throw new Error('O registro não foi excluído. Atualize a lista e confira o status.');
+    state.queue=state.queue.filter(entry=>entry.materialId!==selected.id);
+    renderQueue();
+    if(state.editing?.id===selected.id)closeEditor();
+    state.deleting=null;$('delete-backdrop').hidden=true;
+    toast('Rascunho e arquivos excluídos permanentemente.');
+    await Promise.all([loadMaterials(),loadStats()]);
+  }catch(err){
+    note($('delete-message'),'Exclusão não concluída: '+asText(err?.message||err));
+  }finally{
+    state.busy=false;button.disabled=false;$('delete-cancel').disabled=false;
+  }
+}
+
 async function saveEdit(publish=false){
   const item=state.editing;if(!item||state.busy)return;
   const type=$('edit-rights').value,verified=$('edit-verified').checked,proof=asText($('edit-proof').value);
@@ -455,5 +519,10 @@ $('admin-search').addEventListener('input',renderMaterials);$('admin-status').ad
 $('close-edit').addEventListener('click',closeEditor);$('edit-backdrop').addEventListener('click',e=>{if(e.target===$('edit-backdrop'))closeEditor();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('edit-backdrop').hidden)closeEditor();});
 $('reanalyze-material').addEventListener('click',reanalyzeStoredMaterial);
+$('delete-draft').addEventListener('click',()=>openDeleteConfirm(state.editing));
+$('delete-confirm').addEventListener('click',deleteDraft);
+$('delete-cancel').addEventListener('click',closeDeleteConfirm);
+$('delete-backdrop').addEventListener('click',event=>{if(event.target===$('delete-backdrop'))closeDeleteConfirm();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('delete-backdrop').hidden){event.stopImmediatePropagation();closeDeleteConfirm();}},true);
 $('save-draft').addEventListener('click',()=>saveEdit(false));$('publish-material').addEventListener('click',()=>saveEdit(true));
 renderQueue();startSession();

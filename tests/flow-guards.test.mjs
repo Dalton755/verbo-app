@@ -19,3 +19,16 @@ test('publicação com licença confirmada aprovada',()=>assert.equal(validatePu
 test('storage mantém arquivo real',()=>assert.equal(validateStoredFiles('item1',[{storage_path:'originais/item1/teste.pdf',nome_arquivo:'teste.pdf'}],[{name:'teste.pdf'}]),null));
 test('storage não aceita caminho de outro livro',()=>assert.match(validateStoredFiles('item1',[{storage_path:'originais/item2/teste.pdf'}],[{name:'teste.pdf'}]),/Caminho/));
 test('storage impede publicação de arquivo ausente',()=>assert.match(validateStoredFiles('item1',[{storage_path:'originais/item1/sumido.pdf',nome_arquivo:'sumido.pdf'}],[]),/não encontrado/));
+import { validateDraftDeletion } from '../apps/biblioteca/flow-guards.js';
+const draftId='11111111-2222-4333-8444-555555555555';
+test('somente rascunhos podem ser excluídos',()=>{
+  assert.equal(validateDraftDeletion({id:draftId,status:'rascunho',files:[]}),null);
+  for(const status of ['publicado','revisao','oculto'])assert.match(validateDraftDeletion({id:draftId,status,files:[]}),/Somente materiais/);
+});
+test('bloqueia exclusão de arquivos de outro material e caminhos suspeitos',()=>{
+  assert.equal(validateDraftDeletion({id:draftId,status:'rascunho',files:[{storage_path:`originais/${draftId}/livro.pdf`}]}),null);
+  assert.match(validateDraftDeletion({id:draftId,status:'rascunho',files:[{storage_path:'originais/outro/arquivo.pdf'}]}),/fora da pasta/);
+  assert.match(validateDraftDeletion({id:draftId,status:'rascunho',files:[{storage_path:`originais/${draftId}/../outro.pdf`}]}),/fora da pasta/);
+  assert.match(validateDraftDeletion({id:draftId,status:'rascunho',files:null}),/verificar os arquivos/);
+  assert.match(validateDraftDeletion({id:'inválido',status:'rascunho',files:[]}),/Identificador/);
+});

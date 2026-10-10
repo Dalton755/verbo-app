@@ -19,3 +19,29 @@
 
 /* Extração corretiva sem substituir dados até a revisão */
 .edit-reanalyze{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin:14px 0 8px}.edit-reanalyze small{font-size:12px;color:#697b73;line-height:1.5;max-width:30em}.edit-reanalyze button:disabled{opacity:.55;cursor:progress}
+/* Exclusão de rascunhos, sem interferir nos cards existentes. */
+.material-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
+.admin-danger-outline{background:#fff;border:1px solid #e5b9b4;color:#a33e39;border-radius:7px;padding:10px 14px;font-size:11px;font-weight:750;min-height:42px}
+.admin-danger-outline:hover{background:#fff3f1;color:#872d29}
+.material-row button.admin-danger-outline{border-color:#e5b9b4;color:#a33e39}
+.material-row button.admin-danger-outline:hover{background:#fff3f1}
+.admin-danger-solid{background:#ad4038;border:1px solid #ad4038;color:#fff;border-radius:8px;padding:12px 16px;font-size:12px;font-weight:750;min-height:44px}
+.admin-danger-solid:hover{background:#8e302c}
+.admin-danger-solid:disabled,.admin-danger-outline:disabled{opacity:.55;cursor:wait}
+.edit-actions #delete-draft{margin-right:auto}
+.delete-backdrop{z-index:65}
+.admin-confirm-modal{width:min(440px,100%);padding:30px;background:#fff;border-radius:14px;box-shadow:0 30px 80px #0003}
+.admin-confirm-modal h2{font:500 29px Georgia,serif;letter-spacing:-.02em;margin:12px 0}
+.admin-confirm-modal p{font-size:13px;line-height:1.65;color:#687b70;overflow-wrap:anywhere}
+.admin-confirm-modal #delete-material-name{color:#294c40}
+.delete-warning{border-radius:8px;padding:13px 14px;background:#fff4f2;border:1px solid #f1d8d3;color:#87433b!important}
+.delete-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin-top:24px}
+.admin-danger-outline:focus-visible,.admin-danger-solid:focus-visible{outline:3px solid #b99367;outline-offset:2px}
+@media(max-width:760px){
+ .material-row-actions{grid-column:3;grid-row:1 / span 2;flex-direction:column;align-items:stretch}
+ .material-row-actions button{grid-column:auto;grid-row:auto;min-width:92px}
+ .edit-actions #delete-draft{margin-right:0}
+ .admin-confirm-modal{padding:24px 19px}
+ .delete-actions{flex-direction:column}
+ .delete-actions button{width:100%}
+}

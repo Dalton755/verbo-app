@@ -26,6 +26,23 @@ export function validatePublication({ publish, title, rightsType, verified, proo
   return null;
 }
 
+/** Exclusão exclusiva de rascunhos; arquivos devem pertencer à pasta deste material. */
+export function validateDraftDeletion({ id, status, files }) {
+  if (status !== 'rascunho') return 'Somente materiais com status Rascunho podem ser excluídos.';
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(id || ''))) {
+    return 'Identificador de material inválido.';
+  }
+  if (!Array.isArray(files)) return 'Não foi possível verificar os arquivos do material.';
+  const prefix = `originais/${id}/`;
+  for (const file of files) {
+    const path = String(file?.storage_path ?? '');
+    if (!path.startsWith(prefix) || path.length <= prefix.length || path.includes('..') || path.includes('\\')) {
+      return 'O arquivo está fora da pasta deste material. Exclusão bloqueada.';
+    }
+  }
+  return null;
+}
+
 export function importStatus(status) {
   return ({ pronto: 'Pronto para importar', analisando: 'Identificando', enviando: 'Enviando', salvo: 'Rascunho salvo', erro: 'Erro de importação' })[status] || 'Aguardando';
 }

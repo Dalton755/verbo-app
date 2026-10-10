@@ -64,8 +64,21 @@
       <label class="rights-check"><input type="checkbox" id="edit-verified"/><span><b>Confirmei os direitos de distribuição desta obra.</b><small>Somente marque após conferir a licença ou autorização. Isso não é feito automaticamente pela IA.</small></span></label>
       <div id="edit-files" class="edit-file-list"></div>
       <div class="edit-reanalyze"><button id="reanalyze-material" type="button" class="admin-secondary">↻ Reanalisar arquivo original</button><small>Refaz a extração e sugere alterações nos campos. Nada é salvo sem sua confirmação.</small></div>
-      <div class="edit-actions"><button class="admin-secondary" id="save-draft" type="button">Salvar rascunho</button><button class="admin-primary" id="publish-material" type="button">Publicar e liberar download →</button></div><p class="inline-notice" id="edit-message" role="status" hidden></p>
+      <div class="edit-actions"><button class="admin-danger-outline" id="delete-draft" type="button" hidden>Excluir rascunho</button><button class="admin-secondary" id="save-draft" type="button">Salvar rascunho</button><button class="admin-primary" id="publish-material" type="button">Publicar e liberar download →</button></div><p class="inline-notice" id="edit-message" role="status" hidden></p>
     </form></div></div>
+  <div class="admin-modal-backdrop delete-backdrop" id="delete-backdrop" hidden>
+    <div class="admin-confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-description">
+      <span class="kicker">EXCLUSÃO DE RASCUNHO</span>
+      <h2 id="delete-title">Excluir material?</h2>
+      <p id="delete-description">Você está prestes a excluir permanentemente <strong id="delete-material-name"></strong>.</p>
+      <p class="delete-warning">O cadastro, a classificação e os arquivos PDF/EPUB vinculados serão removidos. Esta ação não pode ser desfeita.</p>
+      <p class="inline-notice" id="delete-message" role="status" hidden></p>
+      <div class="delete-actions">
+        <button type="button" class="admin-secondary" id="delete-cancel">Cancelar</button>
+        <button type="button" class="admin-danger-solid" id="delete-confirm">Excluir permanentemente</button>
+      </div>
+    </div>
+  </div>
   <div id="admin-toast" class="toast" hidden role="status" aria-live="polite"></div>
   <script type="module" src="./admin.js"></script>
 </body>

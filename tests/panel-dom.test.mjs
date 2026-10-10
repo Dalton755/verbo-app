@@ -32,3 +32,12 @@ test('configuração pública é importada como módulo e entra no bundle Vite',
   assert.doesNotMatch(get('admin.html'),/<script src="\.\/config\.js"><\/script>/);
   assert.doesNotMatch(get('index.html'),/<script src="\.\/config\.js"><\/script>/);
 });
+test('botão de exclusão de rascunho possui confirmação, filtro de status e limpeza do Storage',()=>{
+  const html=get('admin.html'),js=get('admin.js');
+  for(const id of ['delete-backdrop','delete-draft','delete-confirm','delete-cancel','delete-message'])assert.ok(html.includes('id="'+id+'"'));
+  assert.match(html,/role="alertdialog"/);
+  assert.match(js,/item\.status==='rascunho'/);
+  assert.match(js,/\.eq\('status','rascunho'\)\.select\('id'\)/);
+  assert.match(js,/validateDraftDeletion/);
+  assert.match(js,/\.remove\(paths\)/);
+});
