@@ -5,6 +5,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const ORIGINS = [
   "https://shalom.nethanel.com.br",
   "https://shalom-leitor-git-feature-shalom-456a68-dalton-rocha-s-projects.vercel.app",
+  "https://dalton755.github.io",
 ];
 function cors(req: Request) {
   const origin = req.headers.get("origin") || "";
