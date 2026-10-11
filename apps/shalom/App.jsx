@@ -3,6 +3,7 @@ import {BrowserRouter,HashRouter,Routes,Route,Navigate,useNavigate,useLocation} 
 import {BookOpen,BookPlus,Search,Home,Library,UserRound,Plus,UploadCloud,ArrowRight,ChevronRight,X,LogOut,Eye,EyeOff,Bookmark,Highlighter,NotebookPen,ExternalLink,RefreshCw} from "lucide-react";
 import {ShalomAuthProvider,useAuth} from "./auth.jsx";
 import {ShalomAccessProvider,useShalomAccess} from "./access.jsx";
+import {limparCacheShalom} from "./bookCache.js";
 import {acessoSimuladoVencido} from "./accessRules.js";
 import {supabase,SHALOM_BUCKET} from "./supabase.js";
 import {processarArquivoLivro} from "../../src/lib/bookFileProcessor.js";
@@ -202,7 +203,7 @@ function Account(){
      setCancelError(error.message||"Ocorreu um erro no cancelamento.");
    }finally{setCancelBusy(false);}
  }
- async function signout(){await supabase.auth.signOut();navigate("/login",{replace:true})}
+ async function signout(){limparCacheShalom();await supabase.auth.signOut();navigate("/login",{replace:true})}
  const recorrenciaCancelada=subscription?.status==="canceled";
  const assinaturaValida=["active","canceled"].includes(subscription?.status) &&
    subscription?.validade_ate && new Date(subscription.validade_ate).getTime()>Date.now();

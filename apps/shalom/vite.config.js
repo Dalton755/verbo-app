@@ -1,6 +1,7 @@
 import {defineConfig} from "vite";
 import {patchReaderPagination} from "./readerPaginationPatch.js";
 import {patchShalomReaderSelection} from "./readerSelectionPatch.js";
+import {patchShalomBookCache} from "./bookCachePatch.js";
 import {patchShalomBibleApi} from "./bibleApiPatch.js";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
@@ -10,6 +11,7 @@ const sharedDir=path.resolve(appDir,"../../src");
 const ownSupabase=path.resolve(appDir,"supabase.js");
 const ownAuth=path.resolve(appDir,"auth.jsx");
 const ownDictionary=path.resolve(appDir,"dictionaryService.js");
+const ownBookCache=path.resolve(appDir,"bookCache.js");
 export default defineConfig({
  root:appDir,publicDir:path.resolve(appDir,"public"),base:process.env.SHALOM_PAGES_BASE || "/",
  plugins:[{
@@ -19,10 +21,11 @@ export default defineConfig({
    if((source==="../lib/supabase"||source==="./supabase") && !importer.includes("/supabase.js"))return ownSupabase;
    if(source==="../contexts/AuthContext" && importer.endsWith("/pages/LivroPage.jsx"))return ownAuth;
    if(source==="../lib/dictionaryService" || source==="./dictionaryService")return ownDictionary;
+   if(source==="../lib/bookCache" && importer.endsWith("/pages/LivroPage.jsx"))return ownBookCache;
    return null;
   },
   transform(code,id){
-   if(id.endsWith("/src/pages/LivroPage.jsx"))return patchShalomReaderSelection(patchReaderPagination(code.replaceAll('"biblia-slides-pdfs"','"shalom-livros"')));
+   if(id.endsWith("/src/pages/LivroPage.jsx"))return patchShalomReaderSelection(patchReaderPagination(patchShalomBookCache(code.replaceAll('"biblia-slides-pdfs"','"shalom-livros"'))));
    if(id.endsWith("/src/lib/bibleApi.js"))return patchShalomBibleApi(code);
    if(id.endsWith("/src/components/DictionaryModal.jsx"))return code
      .replace("Fonte: Dicionário Aberto", 'Fonte: {resultado?.fonte || "Dicionário Aberto"}')
