@@ -4,6 +4,7 @@ import {BookOpen,BookPlus,Search,Home,Library,UserRound,Plus,UploadCloud,ArrowRi
 import {ShalomAuthProvider,useAuth} from "./auth.jsx";
 import {ShalomAccessProvider,useShalomAccess} from "./access.jsx";
 import {limparCacheShalom} from "./bookCache.js";
+import {shalomRecoveryRedirect,shalomRecoveryRequested} from "./recoveryRedirect.js";
 import {acessoSimuladoVencido} from "./accessRules.js";
 import {supabase,SHALOM_BUCKET} from "./supabase.js";
 import {processarArquivoLivro} from "../../src/lib/bookFileProcessor.js";
@@ -37,7 +38,7 @@ function Brand({compact=false}){return <div className="shalom-brand"><div classN
 function Login(){const {user,loading}=useAuth(),navigate=useNavigate();const [mode,setMode]=useState("entrar"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[name,setName]=useState(""),[showPass,setShowPass]=useState(false),[busy,setBusy]=useState(false),[info,setInfo]=useState("");
  useEffect(()=>{if(!loading&&user)navigate("/",{replace:true})},[user,loading,navigate]);
  async function submit(e){e.preventDefault();setBusy(true);setInfo("");try{
-  if(mode==="recuperar"){const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:authReturnBase+"/redefinir-senha"});if(error)throw error;setInfo("Enviamos o link de recuperação para seu e-mail.");return;}
+  if(mode==="recuperar"){const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:shalomRecoveryRedirect(authReturnBase,githubPagesPreview)});if(error)throw error;setInfo("Enviamos o link de recuperação para seu e-mail.");return;}
   if(mode==="criar"){const {data,error}=await supabase.auth.signUp({email,password,options:{data:{full_name:name},emailRedirectTo:authReturnBase+"/"}});if(error)throw error;if(!data.session){setInfo("Confira seu e-mail para confirmar sua conta.");return;}}
   else {const {error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;}
   navigate("/",{replace:true})
@@ -49,7 +50,30 @@ function Login(){const {user,loading}=useAuth(),navigate=useNavigate();const [mo
  if(error){setInfo("Login Google indisponível: confira a configuração do provedor.");setBusy(false)}}
  return <div className="shalom-login"><header className="login-header"><Brand/></header><main className="login-layout"><section className="login-copy"><span className="eyebrow">LEITURA COM PROPÓSITO</span><h1>Seus livros.<br/><em>Seu momento.</em></h1><p>Biblioteca pessoal, referências bíblicas e anotações em uma experiência feita para você simplesmente ler.</p><div className="login-features"><span><Bookmark size={17}/> Marcadores</span><span><Highlighter size={17}/> Destaques</span><span><NotebookPen size={17}/> Notas</span></div></section><section className="login-panel"><div className="login-panel-head"><span className="eyebrow">BEM-VINDO AO SHALOM</span><h2>{mode==="criar"?"Crie sua conta":mode==="recuperar"?"Recuperar senha":"Sua biblioteca começa aqui"}</h2><p>Uma conta para os apps de leitura, EBD e sermões da Nethanel.</p></div><form onSubmit={submit}>{mode==="criar"&&<label>Seu nome<input value={name} onChange={e=>setName(e.target.value)} placeholder="Como prefere ser chamado" required/></label>}<label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" required autoComplete="email"/></label>{mode!=="recuperar"&&<label>Senha<div className="pass-row"><input type={showPass?"text":"password"} value={password} minLength={6} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" required autoComplete={mode==="criar"?"new-password":"current-password"}/><button type="button" aria-label="Mostrar senha" onClick={()=>setShowPass(!showPass)}>{showPass?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></label>}<button className="button-main full" disabled={busy}>{busy?"Processando...":mode==="criar"?"Criar conta":mode==="recuperar"?"Enviar link":"Entrar na biblioteca"} <ArrowRight size={18}/></button></form>{mode!=="recuperar"&&<><div className="divider"><span>ou</span></div><button className="google-button" disabled={busy} onClick={google}>Continuar com Google</button></>}{info&&<div role="status" className="form-info">{info}</div>}<div className="auth-switch">{mode!=="entrar"&&<button onClick={()=>{setMode("entrar");setInfo("")}}>Já tenho conta</button>}{mode==="entrar"&&<><button onClick={()=>{setMode("criar");setInfo("")}}>Criar conta</button><button onClick={()=>{setMode("recuperar");setInfo("")}}>Esqueci a senha</button></>}</div></section></main><footer className="login-foot">Shalom, um produto Nethanel Tecnologia · <strong>R$ 5,99/mês</strong></footer></div>
 }
-function Reset(){const [pass,setPass]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false);async function save(e){e.preventDefault();setBusy(true);const {error}=await supabase.auth.updateUser({password:pass});setMessage(error?.message||"Senha alterada. Você já pode voltar à biblioteca.");setBusy(false)}return <div className="reset-page"><Brand/><form onSubmit={save}><h1>Nova senha</h1><input type="password" minLength={6} value={pass} onChange={e=>setPass(e.target.value)} required/><button className="button-main" disabled={busy}>Salvar senha</button><p>{message}</p></form></div>}
+function Reset(){
+ const navigate=useNavigate(),{finishRecovery}=useAuth();
+ const [pass,setPass]=useState(""),[message,setMessage]=useState(""),[busy,setBusy]=useState(false),[saved,setSaved]=useState(false);
+ async function save(e){
+  e.preventDefault();setBusy(true);setMessage("");
+  const {error}=await supabase.auth.updateUser({password:pass});
+  if(error)setMessage(error.message||"Não foi possível alterar a senha.");
+  else{setSaved(true);setMessage("Senha alterada. Sua biblioteca está pronta.");}
+  setBusy(false);
+ }
+ function concluir(){
+  if(githubPagesPreview && shalomRecoveryRequested(window.location.search,true)){
+   window.history.replaceState(null,"",window.location.pathname+"#/");
+  }
+  finishRecovery();navigate("/",{replace:true});
+ }
+ return <div className="reset-page"><Brand/><form onSubmit={save}>
+  <h1>{saved?"Senha atualizada":"Nova senha"}</h1>
+  {!saved&&<label>Escolha uma nova senha<input type="password" autoComplete="new-password" minLength={6} value={pass} onChange={e=>setPass(e.target.value)} required/></label>}
+  {!saved&&<button className="button-main" disabled={busy}>{busy?"Salvando...":"Salvar senha"}</button>}
+  {message&&<p role="status">{message}</p>}
+  {saved&&<button type="button" className="button-main" onClick={concluir}>Voltar à minha biblioteca</button>}
+ </form></div>;
+}
 function BottomNav(){const navigate=useNavigate(),loc=useLocation();if(loc.pathname.startsWith("/livros/")||loc.pathname==="/login"||loc.pathname==="/redefinir-senha")return null;return <nav className="shalom-bottom" aria-label="Menu principal"><button className={loc.pathname==="/"?"active":""} onClick={()=>navigate("/")}><Home size={20}/><span>Início</span></button><button className={loc.pathname==="/estante"?"active":""} onClick={()=>navigate("/estante")}><Library size={20}/><span>Estante</span></button><button className={loc.pathname==="/conta"?"active":""} onClick={()=>navigate("/conta")}><UserRound size={20}/><span>Conta</span></button></nav>}
 function Promo(){const [promo,setPromo]=useState(null),[open,setOpen]=useState(false);useEffect(()=>{const last=Number(localStorage.getItem("shalom-promo-visto")||0);if(Date.now()-last<24*60*60*1000)return;let active=true;let timeout;supabase.from("promocoes").select("id,titulo,descricao,url").eq("ativo",true).order("prioridade").limit(1).then(({data})=>{if(active&&data?.length){setPromo(data[0]);timeout=setTimeout(()=>setOpen(true),16000)}});return()=>{active=false;clearTimeout(timeout)}},[]);function dismiss(){setOpen(false);localStorage.setItem("shalom-promo-visto",String(Date.now()))}if(!promo||!open)return null;return <div className="shalom-promo" role="complementary"><button className="promo-close" aria-label="Fechar indicação" onClick={dismiss}><X size={15}/></button><span>OUTRO APP NETHANEL</span><strong>{promo.titulo}</strong><p>{promo.descricao}</p><a href={promo.url} target="_blank" rel="noopener noreferrer" onClick={dismiss}>Conhecer <ExternalLink size={14}/></a></div>}
 function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshAccess,status:accessStatus,simulado}=useShalomAccess(),navigate=useNavigate(),fileRef=useRef(null),[books,setBooks]=useState([]),[coverUrls,setCoverUrls]=useState({}),[groups,setGroups]=useState([]),[group,setGroup]=useState("todos"),[search,setSearch]=useState(""),[busy,setBusy]=useState(true),[importing,setImporting]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[uploadStep,setUploadStep]=useState("");const [selectedFile,setSelectedFile]=useState(null),[title,setTitle]=useState(""),[author,setAuthor]=useState(""),[groupId,setGroupId]=useState("");
@@ -315,5 +339,5 @@ function PremiumReader(){
  </div>;
  return <Suspense fallback={<div className="shalom-loading">Abrindo seu livro...</div>}><Reader/></Suspense>;
 }
-function Root(){const {user,loading}=useAuth(),loc=useLocation();if(loading)return <div className="shalom-loading"><Brand/><p>Preparando sua biblioteca...</p></div>;if(!user&&loc.pathname!=="/login"&&loc.pathname!=="/redefinir-senha")return <Navigate to="/login" replace/>;if(user&&loc.pathname==="/login")return <Navigate to="/" replace/>;return <Routes><Route path="/login" element={<Login/>}/><Route path="/redefinir-senha" element={<Reset/>}/><Route path="/" element={<HomePage/>}/><Route path="/estante" element={<HomePage mode="shelf"/>}/><Route path="/livros" element={<Navigate to="/estante" replace/>}/><Route path="/livros/:id" element={<PremiumReader/>}/><Route path="/conta" element={<Account/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}
+function Root(){const {user,loading,recovering}=useAuth(),loc=useLocation();if(loading)return <div className="shalom-loading"><Brand/><p>Preparando sua biblioteca...</p></div>;if(user&&(recovering||shalomRecoveryRequested(window.location.search,githubPagesPreview)))return <Reset/>;if(!user&&loc.pathname!=="/login"&&loc.pathname!=="/redefinir-senha")return <Navigate to="/login" replace/>;if(user&&loc.pathname==="/login")return <Navigate to="/" replace/>;return <Routes><Route path="/login" element={<Login/>}/><Route path="/redefinir-senha" element={<Reset/>}/><Route path="/" element={<HomePage/>}/><Route path="/estante" element={<HomePage mode="shelf"/>}/><Route path="/livros" element={<Navigate to="/estante" replace/>}/><Route path="/livros/:id" element={<PremiumReader/>}/><Route path="/conta" element={<Account/>}/><Route path="*" element={<Navigate to="/" replace/>}/></Routes>}
 export default function App(){return <AppRouter><ShalomAuthProvider><ShalomAccessProvider><Root/></ShalomAccessProvider></ShalomAuthProvider></AppRouter>}
