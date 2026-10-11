@@ -112,6 +112,8 @@ function Account(){
  const [pixBusy,setPixBusy]=useState(false);
  const [pixInfo,setPixInfo]=useState("");
  const [pixCopied,setPixCopied]=useState(false);
+ const [providerCheck,setProviderCheck]=useState(null);
+ const [providerChecking,setProviderChecking]=useState(false);
  const [showCancelConfirm,setShowCancelConfirm]=useState(false);
  const [cancelBusy,setCancelBusy]=useState(false);
  const [cancelError,setCancelError]=useState("");
@@ -205,6 +207,45 @@ function Account(){
    }catch(error){setPayError(error.message||"Não foi possível preparar o Pix de teste.");}
    finally{setBusy(false);}
  }
+ async function checkProviderPayment(){
+   if(providerChecking)return;
+   setProviderChecking(true);setProviderCheck(null);
+   try{
+     const {data,error}=await supabase.functions.invoke("shalom-checkout",{
+       body:{action:"get-payment-status"}
+     });
+     if(error){
+       let detail=data;
+       if(!detail && error.context && typeof error.context.json==="function"){
+         try{detail=await error.context.json()}catch{/* resposta sem JSON */}
+       }
+       throw new Error(detail?.message||"Consulta ao Asaas indisponível.");
+     }
+     const labels={
+       RECEIVED:"Recebida",CONFIRMED:"Confirmada",
+       REFUND_IN_PROGRESS:"Estorno em andamento",REFUNDED:"Estornada",
+       PENDING:"Aguardando pagamento",OVERDUE:"Vencida"
+     };
+     const refStatus=Array.isArray(data?.refundStatuses)?data.refundStatuses:[];
+     const progress=data?.status==="REFUND_IN_PROGRESS" ||
+       refStatus.some(s=>["IN_PROGRESS","PENDING","REFUND_IN_PROGRESS"].includes(s));
+     const refunded=data?.status==="REFUNDED" || !!data?.refundDate ||
+       refStatus.some(s=>["DONE","REFUNDED"].includes(s));
+     const headline=refunded
+       ?"O Asaas informa estorno concluído. Se a assinatura continuar ativa, há uma divergência a corrigir."
+       :progress?"O Asaas informa que o estorno ainda está em processamento."
+       :"O Asaas ainda não confirmou um estorno para esta cobrança.";
+     setProviderCheck({
+       label:labels[data?.status]||data?.status||"Não informado",
+       date:data?.dueDate||null,
+       suffix:data?.paymentSuffix||"",
+       headline,
+       refunds:refStatus
+     });
+   }catch(error){
+     setProviderCheck({error:error?.message||"Falha na consulta."});
+   }finally{setProviderChecking(false);}
+ }
  async function cancelRecurring(){
    if(!checkoutEnabled || cancelBusy || !showCancelConfirm)return;
    setCancelBusy(true);setCancelError("");setCancelNotice("");
@@ -262,6 +303,23 @@ function Account(){
     <p>Acesso à biblioteca, PDF e EPUB, destaques, notas e referências bíblicas.</p>
     <div className="plan-price">R$ 5,99 <small>/mês</small></div>
     <p className={assinaturaValida?"plan-state shalom-plan-status-active":"plan-state"}>Status: {status}</p>
+    {checkoutEnabled && subscription?.asaas_ambiente==="sandbox" && subscription?.ultimo_pagamento_id && (
+      <section className="shalom-plan-awaiting" aria-label="Diagnóstico do Asaas Sandbox">
+        <strong>Conferir cobrança no Asaas (teste)</strong>
+        <p>Consulta diretamente o Asaas, sem alterar assinatura nem pagamento.</p>
+        <button type="button" className="button-outline" onClick={checkProviderPayment} disabled={providerChecking}>
+          {providerChecking?"Consultando Asaas...":"Verificar situação do pagamento"}
+        </button>
+        {providerCheck&&<div role="status" aria-live="polite">
+          {providerCheck.error?<p>{providerCheck.error}</p>:<>
+            <p><strong>Asaas: {providerCheck.label}</strong>{providerCheck.suffix?" · Cobrança final "+providerCheck.suffix:""}</p>
+            {providerCheck.date&&<p>Vencimento da cobrança: {dataBr(providerCheck.date)}</p>}
+            <p>{providerCheck.headline}</p>
+            {providerCheck.refunds?.length>0&&<p>Etapas de estorno: {providerCheck.refunds.join(", ")}</p>}
+          </>}
+        </div>}
+      </section>
+    )}
     {assinaturaValida&&<section className="shalom-plan-confirmed" role="status" aria-label="Benefício de assinatura">
       <strong>{recorrenciaCancelada?"✓ Renovação cancelada":"✓ Assinatura ativada com sucesso"}</strong>
       <p>{recorrenciaCancelada

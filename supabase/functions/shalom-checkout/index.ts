@@ -148,6 +148,56 @@ Deno.serve(async (req: Request) => {
   try { body = await req.json(); } catch { return json(req, { error: "DADOS_INVALIDOS" }, 400); }
 
   const table = admin.schema("shalom").from("assinaturas");
+  if (body.action === "get-payment-status") {
+    // Diagnóstico somente leitura e somente da cobrança do usuário autenticado.
+    // Nunca aceitar identificador de pagamento no corpo enviado pelo navegador.
+    const { data: own, error: ownError } = await table
+      .select("asaas_ambiente,asaas_customer_id,asaas_subscription_id,ultimo_pagamento_id")
+      .eq("usuario_id", user.id).maybeSingle();
+    if (ownError) return json(req, { error: "BANCO_INDISPONIVEL" }, 503);
+    if (!own || own.asaas_ambiente !== "sandbox" ||
+        !own.ultimo_pagamento_id || !own.asaas_subscription_id ||
+        !own.asaas_customer_id) {
+      return json(req, {
+        error: "COBRANCA_NAO_ENCONTRADA",
+        message: "Nenhuma cobrança de teste vinculada a esta conta.",
+      }, 404);
+    }
+    try {
+      const payment = await asaasRequest(key,
+        "/payments/" + encodeURIComponent(own.ultimo_pagamento_id));
+      if (payment.id !== own.ultimo_pagamento_id ||
+          payment.customer !== own.asaas_customer_id ||
+          payment.subscription !== own.asaas_subscription_id) {
+        return json(req, { error: "COBRANCA_INCONSISTENTE" }, 409);
+      }
+      const normalStatus = (v: unknown) =>
+        typeof v === "string" && /^[A-Z_]{2,50}$/.test(v) ? v : null;
+      const normalDate = (v: unknown) =>
+        typeof v === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(v) ? v : null;
+      const refunds = Array.isArray(payment.refunds)
+        ? payment.refunds.slice(0,10).map((x: { status?: string }) =>
+            normalStatus(x?.status)).filter(Boolean)
+        : [];
+      return json(req, {
+        ambiente: "sandbox",
+        paymentSuffix: String(payment.id).slice(-6),
+        status: normalStatus(payment.status),
+        dueDate: normalDate(payment.dueDate),
+        refundDate: normalDate(payment.refundDate),
+        refundStatuses: refunds,
+      });
+    } catch (error) {
+      console.error("Consulta do pagamento Shalom Sandbox indisponível", {
+        httpStatus: error instanceof AsaasRequestError ? error.httpStatus : null,
+        providerCode: error instanceof AsaasRequestError ? error.providerCode : "other",
+      });
+      return json(req, {
+        error: "CONSULTA_ASAAS_INDISPONIVEL",
+        message: "Não foi possível consultar o estado do pagamento no Asaas Sandbox.",
+      }, 503);
+    }
+  }
   if (body.action === "get-pix") {
     // Recupera apenas a cobrança registrada para o titular autenticado.
     // Nunca aceita ID da cobrança informado pelo navegador.
