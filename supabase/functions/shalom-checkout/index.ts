@@ -207,6 +207,24 @@ Deno.serve(async (req: Request) => {
     return json(req, { error: "DADOS_INVALIDOS", message: "Informe seu nome e um CPF ou CNPJ válido." }, 400);
   }
 
+  // A API do Asaas não impede automaticamente cobranças/assinaturas duplicadas.
+  // Reservar o checkout por usuário no Postgres antes de consultar/criar recursos.
+  // Duas abas não podem executar o mesmo ciclo financeiro simultaneamente.
+  const checkoutToken = crypto.randomUUID();
+  const { data: checkoutReserved, error: reserveError } = await admin
+    .schema("shalom").rpc("checkout_acquire", {
+      p_usuario_id: user.id, p_token: checkoutToken,
+    });
+  if (reserveError) return json(req, {
+    error: "CONTROLE_CHECKOUT_INDISPONIVEL",
+    message: "Não foi possível iniciar a assinatura com segurança. Tente novamente.",
+  }, 503);
+  if (checkoutReserved !== true) return json(req, {
+    error: "CHECKOUT_EM_ANDAMENTO",
+    message: "Já estamos preparando uma cobrança para sua conta em outra aba. Aguarde alguns segundos e atualize Minha Conta.",
+  }, 409);
+
+  try {
   const { data: current, error: dbError } = await table
     .select("usuario_id,status,validade_ate,asaas_customer_id,asaas_subscription_id,asaas_ambiente")
     .eq("usuario_id", user.id).maybeSingle();
@@ -233,10 +251,19 @@ Deno.serve(async (req: Request) => {
     let subscriptionId = current?.status==="canceled" ? undefined
       : current?.asaas_subscription_id as string | undefined;
     if (!customerId) {
-      const customer = await asaasRequest(key, "/customers", {
+      // Reconciliação antes de criar: timeout pode ocorrer após a criação remota.
+      // Não basta procurar pelo e-mail, pois ele pode ser compartilhado.
+      const reference = "shalom:" + user.id;
+      const clients = await asaasRequest(key,
+        "/customers?externalReference=" + encodeURIComponent(reference) + "&limit=10");
+      const existing = Array.isArray(clients.data)
+        ? clients.data.find((c: { id?: string; externalReference?: string; deleted?: boolean }) =>
+            Boolean(c.id) && c.externalReference === reference && c.deleted !== true)
+        : null;
+      const customer = existing || await asaasRequest(key, "/customers", {
         method: "POST",
         body: { name: nome, cpfCnpj: documento, email: user.email,
-          externalReference: "shalom:" + user.id, notificationDisabled: true },
+          externalReference: reference, notificationDisabled: true },
       });
       customerId = customer.id;
       if (!customerId) throw new Error("Não recebemos a identificação do cliente no Asaas.");
@@ -294,9 +321,11 @@ Deno.serve(async (req: Request) => {
       }, 202);
     }
     const link = validPaymentLink(pending.invoiceUrl);
-    await table.update({ ultimo_pagamento_id: pending.id, pagamento_url: link,
+    const { error: savePaymentError } = await table.update({
+      ultimo_pagamento_id: pending.id, pagamento_url: link,
       proximo_vencimento: pending.dueDate || null, atualizado_em: new Date().toISOString()
     }).eq("usuario_id", user.id);
+    if (savePaymentError) throw new Error("Falha ao persistir cobrança vinculada à assinatura");
     return json(req, {
       status: "pending", ambiente: "sandbox", invoiceUrl: link,
       message: "Cobrança de teste criada. Pague somente no ambiente Sandbox.",
@@ -320,5 +349,11 @@ Deno.serve(async (req: Request) => {
       error: "FALHA_CHECKOUT", etapa,
       message: "Falha ao preparar o pagamento de teste. Tente novamente.",
     }, 502);
+  }
+  } finally {
+    // Expiração de 3 minutos no banco garante recuperação até em caso de crash.
+    const { error: releaseError } = await admin.schema("shalom")
+      .rpc("checkout_release", { p_usuario_id: user.id, p_token: checkoutToken });
+    if (releaseError) console.error("Falha ao liberar trava do checkout Shalom");
   }
 });
