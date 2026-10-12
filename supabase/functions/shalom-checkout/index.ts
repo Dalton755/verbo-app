@@ -174,14 +174,29 @@ Deno.serve(async (req: Request) => {
       const normalStatus = (v: unknown) =>
         typeof v === "string" && /^[A-Z_]{2,50}$/.test(v) ? v : null;
       const normalDate = (v: unknown) =>
-        typeof v === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(v) ? v : null;
-      const refunds = Array.isArray(payment.refunds)
-        ? payment.refunds.slice(0,10).map((x: { status?: string }) =>
-            normalStatus(x?.status)).filter(Boolean)
-        : [];
+        typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+      let refundLookupAvailable = true;
+      let history = [];
+      try {
+        const result = await asaasRequest(key,
+          "/payments/" + encodeURIComponent(own.ultimo_pagamento_id) + "/refunds");
+        history = Array.isArray(result.data) ? result.data : [];
+      } catch (error) {
+        refundLookupAvailable = false;
+        console.error("Falha ao consultar histórico de estornos", {
+          httpStatus: error instanceof AsaasRequestError ? error.httpStatus : null,
+          code: error instanceof AsaasRequestError ? error.providerCode : "other",
+        });
+      }
+      const inline = Array.isArray(payment.refunds) ? payment.refunds : [];
+      const refunds = [...new Set([...inline,...history].slice(0,20)
+        .map((x: { status?: string }) => normalStatus(x?.status)).filter(Boolean))];
       return json(req, {
         ambiente: "sandbox",
         paymentSuffix: String(payment.id).slice(-6),
+        paymentId: String(payment.id),
+        invoiceUrl: validPaymentLink(payment.invoiceUrl),
+        refundLookupAvailable,
         status: normalStatus(payment.status),
         dueDate: normalDate(payment.dueDate),
         refundDate: normalDate(payment.refundDate),

@@ -26,3 +26,12 @@ test("UI da consulta não pode alterar assinatura",()=>{
  assert.match(ui,/sem alterar assinatura nem pagamento/);
  assert.match(ui,/Verificar situação do pagamento/);
 });
+test("diagnóstico permite identificar a cobrança da conta e consultar seu histórico sem executar estorno",()=>{
+ const part=api.slice(api.indexOf('if (body.action === "get-payment-status")'),api.indexOf('if (body.action === "get-pix")'));
+ assert.match(part,/paymentId: String\(payment.id\)/);
+ assert.match(part,/invoiceUrl: validPaymentLink\(payment.invoiceUrl\)/);
+ assert.match(part,/encodeURIComponent\(own.ultimo_pagamento_id\) \+ "\/refunds"/);
+ assert.doesNotMatch(part,/method: "POST"/);
+ assert.match(ui,/Copiar ID completo da cobrança/);
+ assert.match(ui,/Abrir exatamente esta cobrança no Asaas/);
+});

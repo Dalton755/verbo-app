@@ -234,11 +234,15 @@ function Account(){
      const headline=refunded
        ?"O Asaas informa estorno concluído. Se a assinatura continuar ativa, há uma divergência a corrigir."
        :progress?"O Asaas informa que o estorno ainda está em processamento."
-       :"O Asaas ainda não confirmou um estorno para esta cobrança.";
+       :data?.refundLookupAvailable===false
+         ?"O histórico de estornos não pôde ser consultado. Ainda não é possível descartar um estorno em andamento."
+         :"O Asaas não registra um estorno para esta cobrança.";
      setProviderCheck({
        label:labels[data?.status]||data?.status||"Não informado",
        date:data?.dueDate||null,
        suffix:data?.paymentSuffix||"",
+       paymentId:typeof data?.paymentId==="string"?data.paymentId:"",
+       invoiceUrl:typeof data?.invoiceUrl==="string"?data.invoiceUrl:"",
        headline,
        refunds:refStatus
      });
@@ -314,6 +318,9 @@ function Account(){
           {providerCheck.error?<p>{providerCheck.error}</p>:<>
             <p><strong>Asaas: {providerCheck.label}</strong>{providerCheck.suffix?" · Cobrança final "+providerCheck.suffix:""}</p>
             {providerCheck.date&&<p>Vencimento da cobrança: {dataBr(providerCheck.date)}</p>}
+            {providerCheck.paymentId&&<button type="button" className="button-outline" onClick={()=>navigator.clipboard.writeText(providerCheck.paymentId).then(()=>setPixInfo("Identificador da cobrança copiado.")).catch(()=>setPixInfo("Não foi possível copiar automaticamente."))}>Copiar ID completo da cobrança</button>}
+            {providerCheck.invoiceUrl&&<a className="button-outline" href={providerCheck.invoiceUrl} target="_blank" rel="noopener noreferrer">Abrir exatamente esta cobrança no Asaas <ExternalLink size={16}/></a>}
+            {pixInfo&&<p role="status">{pixInfo}</p>}
             <p>{providerCheck.headline}</p>
             {providerCheck.refunds?.length>0&&<p>Etapas de estorno: {providerCheck.refunds.join(", ")}</p>}
           </>}
