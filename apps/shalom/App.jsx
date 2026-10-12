@@ -5,6 +5,7 @@ import {ShalomAuthProvider,useAuth} from "./auth.jsx";
 import {ShalomAccessProvider,useShalomAccess} from "./access.jsx";
 import {limparCacheShalom} from "./bookCache.js";
 import {shalomRecoveryRedirect,shalomRecoveryRequested} from "./recoveryRedirect.js";
+import {interpretarEstornoAsaas} from "./refundStatus.js";
 import {acessoSimuladoVencido} from "./accessRules.js";
 import {supabase,SHALOM_BUCKET} from "./supabase.js";
 import {processarArquivoLivro} from "../../src/lib/bookFileProcessor.js";
@@ -226,25 +227,15 @@ function Account(){
        REFUND_IN_PROGRESS:"Estorno em andamento",REFUNDED:"Estornada",
        PENDING:"Aguardando pagamento",OVERDUE:"Vencida"
      };
-     const refStatus=Array.isArray(data?.refundStatuses)?data.refundStatuses:[];
-     const progress=data?.status==="REFUND_IN_PROGRESS" ||
-       refStatus.some(s=>["IN_PROGRESS","PENDING","REFUND_IN_PROGRESS"].includes(s));
-     const refunded=data?.status==="REFUNDED" || !!data?.refundDate ||
-       refStatus.some(s=>["DONE","REFUNDED"].includes(s));
-     const headline=refunded
-       ?"O Asaas informa estorno concluído. Se a assinatura continuar ativa, há uma divergência a corrigir."
-       :progress?"O Asaas informa que o estorno ainda está em processamento."
-       :data?.refundLookupAvailable===false
-         ?"O histórico de estornos não pôde ser consultado. Ainda não é possível descartar um estorno em andamento."
-         :"O Asaas não registra um estorno para esta cobrança.";
+     const estorno=interpretarEstornoAsaas(data);
      setProviderCheck({
        label:labels[data?.status]||data?.status||"Não informado",
        date:data?.dueDate||null,
        suffix:data?.paymentSuffix||"",
        paymentId:typeof data?.paymentId==="string"?data.paymentId:"",
        invoiceUrl:typeof data?.invoiceUrl==="string"?data.invoiceUrl:"",
-       headline,
-       refunds:refStatus
+       headline:estorno.mensagem,
+       refunds:estorno.historico
      });
    }catch(error){
      setProviderCheck({error:error?.message||"Falha na consulta."});
@@ -322,7 +313,7 @@ function Account(){
             {providerCheck.invoiceUrl&&<a className="button-outline" href={providerCheck.invoiceUrl} target="_blank" rel="noopener noreferrer">Abrir exatamente esta cobrança no Asaas <ExternalLink size={16}/></a>}
             {pixInfo&&<p role="status">{pixInfo}</p>}
             <p>{providerCheck.headline}</p>
-            {providerCheck.refunds?.length>0&&<p>Etapas de estorno: {providerCheck.refunds.join(", ")}</p>}
+            {providerCheck.refunds&&<p>Histórico de estornos: {providerCheck.refunds}</p>}
           </>}
         </div>}
       </section>
