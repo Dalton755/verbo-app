@@ -1,0 +1,27 @@
+name: Shalom — preflight Google Play
+on:
+  push:
+    branches: [feature/shalom-play-store]
+  pull_request:
+    branches: [feature/shalom-leitor-preview]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node --test tests/shalom-*.test.mjs
+      - name: Compilar Shalom isolado
+        env:
+          VITE_SUPABASE_URL: https://uhuowymzlqstnaajcuta.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_g9frRIEMnl9_la6XwLEyQQ_vGBWJDDR
+          VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED: 'false'
+        run: npx vite build --config apps/shalom/vite.config.js
