@@ -12,7 +12,7 @@ Aplicativo de leitura independente, baseado nos componentes originais de VERBO L
 - Leitor reutilizado: `src/pages/LivroPage.jsx`, com destaques, notas, marcadores, busca, Bíblia (BLIVRE, ONBV) e dicionário.
 - Formatos: PDF textual e EPUB, limite 50 MB por arquivo.
 - Ads internos: tabela `shalom.promocoes`; começam **inativos**; quando ativados, aparecem no máximo uma vez por 24h, após 16s, apenas fora do leitor.
-- Valor do plano: **R$ 4,99/mês via Pix Asaas** — no momento somente interface + estrutura de assinatura; **sem cobrança real**, segredo do Asaas não configurado.
+- Valor do plano: **R$ 5,99/mês via Pix Asaas** — no momento somente interface + estrutura de assinatura; **sem cobrança real**, segredo do Asaas não configurado.
 
 ## Pré-requisitos Supabase
 
@@ -46,3 +46,7 @@ Criar projeto **shalom-leitor** na mesma equipe, sem alterar o projeto **verbo-a
 - [ ] Implantar enforcement das assinaturas após validação de cobrança, definir política de teste e eventual migração dos clientes VERBO.
 - [ ] Aprovar ads, cadência e links definitivos dos futuros apps.
 - [ ] Obter autorização expressa de publicação em produção.
+
+## Preparação Google Play (08/11/2026)
+
+Ver `docs/SHALOM_PLAY_STORE.md`. O canal Android desta branch bloqueia botões e links Asaas. **Ainda não há Play Billing integrado ou AAB assinado. Não publicar Android sem concluir os bloqueios.**

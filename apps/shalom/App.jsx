@@ -7,12 +7,15 @@ import {limparCacheShalom} from "./bookCache.js";
 import {shalomRecoveryRedirect,shalomRecoveryRequested} from "./recoveryRedirect.js";
 import {interpretarEstornoAsaas} from "./refundStatus.js";
 import {acessoSimuladoVencido} from "./accessRules.js";
+import {detectShalomPlayChannel} from "./playChannel.js";
 import {supabase,SHALOM_BUCKET} from "./supabase.js";
 import {processarArquivoLivro} from "../../src/lib/bookFileProcessor.js";
 import {extrairMetadadosShalom} from "./metadata.js";
 import {gerarCapaLivro} from "../../src/lib/bookCover.js";
 import {formatoArquivo} from "../../src/lib/fileFormats.js";
 const Reader=lazy(()=>import("../../src/pages/LivroPage.jsx"));
+// Sinal usado apenas para adaptar a interface; não prova compra nem gera direito de acesso.
+const googlePlayChannel=detectShalomPlayChannel();
 // GitHub Pages oferece prévia estável; a Vercel é reservada para produção.
 const githubPagesPreview=import.meta.env.VITE_SHALOM_GITHUB_PAGES==="true";
 const AppRouter=githubPagesPreview?HashRouter:BrowserRouter;
@@ -49,7 +52,7 @@ function Login(){const {user,loading}=useAuth(),navigate=useNavigate();const [mo
  const redirectTo=authReturnBase+"/"+(manterSimulacao?"?simular_vencimento=1":"");
  const {error}=await supabase.auth.signInWithOAuth({provider:"google",options:{redirectTo}});
  if(error){setInfo("Login Google indisponível: confira a configuração do provedor.");setBusy(false)}}
- return <div className="shalom-login"><header className="login-header"><Brand/></header><main className="login-layout"><section className="login-copy"><span className="eyebrow">LEITURA COM PROPÓSITO</span><h1>Seus livros.<br/><em>Seu momento.</em></h1><p>Biblioteca pessoal, referências bíblicas e anotações em uma experiência feita para você simplesmente ler.</p><div className="login-features"><span><Bookmark size={17}/> Marcadores</span><span><Highlighter size={17}/> Destaques</span><span><NotebookPen size={17}/> Notas</span></div></section><section className="login-panel"><div className="login-panel-head"><span className="eyebrow">BEM-VINDO AO SHALOM</span><h2>{mode==="criar"?"Crie sua conta":mode==="recuperar"?"Recuperar senha":"Sua biblioteca começa aqui"}</h2><p>Uma conta para os apps de leitura, EBD e sermões da Nethanel.</p></div><form onSubmit={submit}>{mode==="criar"&&<label>Seu nome<input value={name} onChange={e=>setName(e.target.value)} placeholder="Como prefere ser chamado" required/></label>}<label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" required autoComplete="email"/></label>{mode!=="recuperar"&&<label>Senha<div className="pass-row"><input type={showPass?"text":"password"} value={password} minLength={6} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" required autoComplete={mode==="criar"?"new-password":"current-password"}/><button type="button" aria-label="Mostrar senha" onClick={()=>setShowPass(!showPass)}>{showPass?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></label>}<button className="button-main full" disabled={busy}>{busy?"Processando...":mode==="criar"?"Criar conta":mode==="recuperar"?"Enviar link":"Entrar na biblioteca"} <ArrowRight size={18}/></button></form>{mode!=="recuperar"&&<><div className="divider"><span>ou</span></div><button className="google-button" disabled={busy} onClick={google}>Continuar com Google</button></>}{info&&<div role="status" className="form-info">{info}</div>}<div className="auth-switch">{mode!=="entrar"&&<button onClick={()=>{setMode("entrar");setInfo("")}}>Já tenho conta</button>}{mode==="entrar"&&<><button onClick={()=>{setMode("criar");setInfo("")}}>Criar conta</button><button onClick={()=>{setMode("recuperar");setInfo("")}}>Esqueci a senha</button></>}</div></section></main><footer className="login-foot">Shalom, um produto Nethanel Tecnologia · <strong>R$ 5,99/mês</strong></footer></div>
+ return <div className="shalom-login"><header className="login-header"><Brand/></header><main className="login-layout"><section className="login-copy"><span className="eyebrow">LEITURA COM PROPÓSITO</span><h1>Seus livros.<br/><em>Seu momento.</em></h1><p>Biblioteca pessoal, referências bíblicas e anotações em uma experiência feita para você simplesmente ler.</p><div className="login-features"><span><Bookmark size={17}/> Marcadores</span><span><Highlighter size={17}/> Destaques</span><span><NotebookPen size={17}/> Notas</span></div></section><section className="login-panel"><div className="login-panel-head"><span className="eyebrow">BEM-VINDO AO SHALOM</span><h2>{mode==="criar"?"Crie sua conta":mode==="recuperar"?"Recuperar senha":"Sua biblioteca começa aqui"}</h2><p>Uma conta para os apps de leitura, EBD e sermões da Nethanel.</p></div><form onSubmit={submit}>{mode==="criar"&&<label>Seu nome<input value={name} onChange={e=>setName(e.target.value)} placeholder="Como prefere ser chamado" required/></label>}<label>E-mail<input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="voce@email.com" required autoComplete="email"/></label>{mode!=="recuperar"&&<label>Senha<div className="pass-row"><input type={showPass?"text":"password"} value={password} minLength={6} onChange={e=>setPassword(e.target.value)} placeholder="Mínimo de 6 caracteres" required autoComplete={mode==="criar"?"new-password":"current-password"}/><button type="button" aria-label="Mostrar senha" onClick={()=>setShowPass(!showPass)}>{showPass?<EyeOff size={19}/>:<Eye size={19}/>}</button></div></label>}<button className="button-main full" disabled={busy}>{busy?"Processando...":mode==="criar"?"Criar conta":mode==="recuperar"?"Enviar link":"Entrar na biblioteca"} <ArrowRight size={18}/></button></form>{mode!=="recuperar"&&<><div className="divider"><span>ou</span></div><button className="google-button" disabled={busy} onClick={google}>Continuar com Google</button></>}{info&&<div role="status" className="form-info">{info}</div>}<div className="auth-switch">{mode!=="entrar"&&<button onClick={()=>{setMode("entrar");setInfo("")}}>Já tenho conta</button>}{mode==="entrar"&&<><button onClick={()=>{setMode("criar");setInfo("")}}>Criar conta</button><button onClick={()=>{setMode("recuperar");setInfo("")}}>Esqueci a senha</button></>}</div></section></main><footer className="login-foot">Shalom, um produto Nethanel Tecnologia · {googlePlayChannel?<strong>Versão Google Play em preparação</strong>:<strong>R$ 5,99/mês</strong>}</footer></div>
 }
 function Reset(){
  const navigate=useNavigate(),{finishRecovery}=useAuth();
@@ -76,7 +79,7 @@ function Reset(){
  </form></div>;
 }
 function BottomNav(){const navigate=useNavigate(),loc=useLocation();if(loc.pathname.startsWith("/livros/")||loc.pathname==="/login"||loc.pathname==="/redefinir-senha")return null;return <nav className="shalom-bottom" aria-label="Menu principal"><button className={loc.pathname==="/"?"active":""} onClick={()=>navigate("/")}><Home size={20}/><span>Início</span></button><button className={loc.pathname==="/estante"?"active":""} onClick={()=>navigate("/estante")}><Library size={20}/><span>Estante</span></button><button className={loc.pathname==="/conta"?"active":""} onClick={()=>navigate("/conta")}><UserRound size={20}/><span>Conta</span></button></nav>}
-function Promo(){const [promo,setPromo]=useState(null),[open,setOpen]=useState(false);useEffect(()=>{const last=Number(localStorage.getItem("shalom-promo-visto")||0);if(Date.now()-last<24*60*60*1000)return;let active=true;let timeout;supabase.from("promocoes").select("id,titulo,descricao,url").eq("ativo",true).order("prioridade").limit(1).then(({data})=>{if(active&&data?.length){setPromo(data[0]);timeout=setTimeout(()=>setOpen(true),16000)}});return()=>{active=false;clearTimeout(timeout)}},[]);function dismiss(){setOpen(false);localStorage.setItem("shalom-promo-visto",String(Date.now()))}if(!promo||!open)return null;return <div className="shalom-promo" role="complementary"><button className="promo-close" aria-label="Fechar indicação" onClick={dismiss}><X size={15}/></button><span>OUTRO APP NETHANEL</span><strong>{promo.titulo}</strong><p>{promo.descricao}</p><a href={promo.url} target="_blank" rel="noopener noreferrer" onClick={dismiss}>Conhecer <ExternalLink size={14}/></a></div>}
+function Promo(){const [promo,setPromo]=useState(null),[open,setOpen]=useState(false);useEffect(()=>{const last=Number(localStorage.getItem("shalom-promo-visto")||0);if(Date.now()-last<24*60*60*1000)return;let active=true;let timeout;supabase.from("promocoes").select("id,titulo,descricao,url").eq("ativo",true).order("prioridade").limit(1).then(({data})=>{if(active&&data?.length){setPromo(data[0]);timeout=setTimeout(()=>setOpen(true),16000)}});return()=>{active=false;clearTimeout(timeout)}},[]);function dismiss(){setOpen(false);localStorage.setItem("shalom-promo-visto",String(Date.now()))}if(googlePlayChannel||!promo||!open)return null;return <div className="shalom-promo" role="complementary"><button className="promo-close" aria-label="Fechar indicação" onClick={dismiss}><X size={15}/></button><span>OUTRO APP NETHANEL</span><strong>{promo.titulo}</strong><p>{promo.descricao}</p><a href={promo.url} target="_blank" rel="noopener noreferrer" onClick={dismiss}>Conhecer <ExternalLink size={14}/></a></div>}
 function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshAccess,status:accessStatus,simulado}=useShalomAccess(),navigate=useNavigate(),fileRef=useRef(null),[books,setBooks]=useState([]),[coverUrls,setCoverUrls]=useState({}),[groups,setGroups]=useState([]),[group,setGroup]=useState("todos"),[search,setSearch]=useState(""),[busy,setBusy]=useState(true),[importing,setImporting]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[uploadStep,setUploadStep]=useState("");const [selectedFile,setSelectedFile]=useState(null),[title,setTitle]=useState(""),[author,setAuthor]=useState(""),[groupId,setGroupId]=useState("");
  const reload=useCallback(async()=>{if(!user)return;setBusy(true);setError("");const [{data,error:dbError},{data:folderData}]=await Promise.all([supabase.rpc("listar_estante"),supabase.from("temas_livros").select("id,nome").eq("usuario_id",user.id).order("nome")]);if(dbError)setError("Não foi possível acessar sua estante. Confira a exposição do schema shalom na API do Supabase.");setBooks(data||[]);setGroups(folderData||[]);setBusy(false);if(!data?.length)return;const urls=await Promise.all(data.filter(b=>b.capa_path).map(async b=>{const {data:url}=await supabase.storage.from(SHALOM_BUCKET).createSignedUrl(b.capa_path,3600);return [b.id,url?.signedUrl]}));setCoverUrls(Object.fromEntries(urls.filter(x=>x[1])));},[user]);
  useEffect(()=>{reload()},[reload]);const shown=books.filter(b=>(group==="todos"||b.tema_id===group)&&[b.titulo,b.autor].join(" ").toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));const continuing=books.find(b=>b.ultima_pagina>1)||books[0];
@@ -84,12 +87,12 @@ function HomePage({mode="home"}){const {user}=useAuth(),{active,refresh:refreshA
  async function upload(e){e.preventDefault();if(!selectedFile||!user)return;const {data:entitled,error:accessError}=await supabase.rpc("tem_assinatura_vigente");if(accessError||entitled!==true){setError("Seu acesso precisa ser renovado para importar livros.");setImporting(false);navigate("/conta");return;}setUploadStep("Preparando livro...");setError("");let storagePath=null,coverPath=null;try{const format=formatoArquivo(selectedFile);const processed=await processarArquivoLivro(selectedFile);if(!Array.isArray(processed.paginas)||!processed.paginas.length)throw new Error("O livro não contém páginas legíveis. PDFs digitalizados como imagem ainda não são compatíveis.");const id=crypto.randomUUID();storagePath=`${user.id}/livros/${id}.${format}`;setUploadStep("Enviando arquivo...");const {error:upError}=await supabase.storage.from(SHALOM_BUCKET).upload(storagePath,selectedFile,{upsert:false,contentType:format==="epub"?"application/epub+zip":"application/pdf"});if(upError)throw upError;if(format==="pdf"){try{const capa=await gerarCapaLivro(selectedFile);coverPath=`${user.id}/livros/${id}.webp`;const {error:coverError}=await supabase.storage.from(SHALOM_BUCKET).upload(coverPath,capa.blob,{contentType:"image/webp"});if(coverError)coverPath=null}catch{coverPath=null;}}setUploadStep("Organizando sua estante...");const {error:insertError}=await supabase.from("livros").insert({id,usuario_id:user.id,titulo:title.trim()||selectedFile.name,autor:author.trim()||null,arquivo_nome:selectedFile.name,arquivo_tipo:format,storage_path:storagePath,capa_path:coverPath,tema_id:groupId||null,total_paginas:processed.totalPaginas,ultima_pagina:1,conteudo_processado:{versao:processed.versao,formato:format,paginas:processed.paginas},processado_em:new Date().toISOString(),processador_versao:processed.versao||1});if(insertError)throw insertError;setImporting(false);setSelectedFile(null);setGroupId("");setNotice("Seu livro foi adicionado. Boa leitura!");await reload();navigate("/livros/"+id)}catch(e){setError(e.message||"O arquivo não foi salvo.");if(storagePath)await supabase.storage.from(SHALOM_BUCKET).remove([storagePath,...(coverPath?[coverPath]:[])]);}finally{setUploadStep("")}}
  async function createGroup(){if(!active){navigate("/conta");return;}const name=window.prompt("Nome da coleção");if(!name?.trim())return;const {data,error:e}=await supabase.from("temas_livros").insert({usuario_id:user.id,nome:name.trim()}).select("id,nome").single();if(e){setError(e.message);return;}setGroups(prev=>[...prev,data]);setGroupId(data.id)}
  async function deleteBook(b){if(!active){navigate("/conta");return;}if(!window.confirm(`Excluir "${b.titulo}" da sua biblioteca?`))return;const {data,error:e}=await supabase.from("livros").select("storage_path,capa_path").eq("id",b.id).eq("usuario_id",user.id).single();if(e||!data)return setError("Não foi possível excluir o livro.");const {error:de}=await supabase.from("livros").delete().eq("id",b.id).eq("usuario_id",user.id);if(de)return setError(de.message);await supabase.storage.from(SHALOM_BUCKET).remove([data.storage_path,...(data.capa_path?[data.capa_path]:[])]);reload();}
- return <div className="shalom-app"><header className="shalom-header"><Brand/><div className="header-actions"><span className="price-pill">R$ 5,99/mês</span><button type="button" className="icon-button" onClick={()=>navigate("/conta")} aria-label="Minha conta"><UserRound size={21}/></button></div></header><main className="shalom-main">
+ return <div className="shalom-app"><header className="shalom-header"><Brand/><div className="header-actions"><span className="price-pill">{googlePlayChannel?"Google Play":"R$ 5,99/mês"}</span><button type="button" className="icon-button" onClick={()=>navigate("/conta")} aria-label="Minha conta"><UserRound size={21}/></button></div></header><main className="shalom-main">
     {accessStatus==="inactive"&&<section className="shalom-expired-banner" role="status">
       <div><strong>{simulado?"Simulação de vencimento — apenas prévia":"Sua biblioteca continua aqui."}</strong><p>{simulado?"Este teste não altera sua assinatura real nem remove seus livros. A leitura fica bloqueada somente nesta simulação.":"Seu período terminou. Livros, marcadores e anotações continuam salvos. Renove para voltar a ler."}</p></div>
       {simulado
         ?<button type="button" className="button-main" onClick={sairDaSimulacao}>Sair da simulação <ArrowRight size={16}/></button>
-        :<button type="button" className="button-main" onClick={()=>navigate("/conta")}>Renovar por R$ 5,99 <ArrowRight size={16}/></button>}
+        :<button type="button" className="button-main" onClick={()=>navigate("/conta")}>{googlePlayChannel?"Ver meu acesso":"Renovar por R$ 5,99"} <ArrowRight size={16}/></button>}
     </section>}
     {accessStatus==="error"&&<section className="shalom-expired-banner shalom-access-error" role="alert">
       <div><strong>Não foi possível verificar a assinatura.</strong><p>Confira a conexão. Seus arquivos estão preservados.</p></div>
@@ -120,7 +123,7 @@ function Account(){
  const [cancelError,setCancelError]=useState("");
  const [cancelNotice,setCancelNotice]=useState("");
  const pixFetchedRef=useRef(null);
- const checkoutEnabled=import.meta.env.VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED==="true";
+ const checkoutEnabled=!googlePlayChannel && import.meta.env.VITE_SHALOM_CHECKOUT_SANDBOX_ENABLED==="true";
  const loadSubscription=useCallback(async()=>{
    const {data,error}=await supabase.from("assinaturas")
      .select("status,valor_mensal,validade_ate,proximo_vencimento,ultimo_pagamento_em,cancelada_em,asaas_ambiente,pagamento_url,asaas_subscription_id,ultimo_pagamento_id")
@@ -170,6 +173,7 @@ function Account(){
  }
  async function pay(e){
    e.preventDefault();
+   if(googlePlayChannel){setPayError("A contratação pelo Google Play ainda está em preparação.");return;}
    if(!checkoutEnabled){
      setPayError("O pagamento via Asaas está sendo preparado em ambiente de testes. Nenhuma cobrança real foi criada.");
      return;
@@ -274,7 +278,7 @@ function Account(){
    return ()=>window.clearInterval(timer);
  },[aguardandoPagamento,loadSubscription]);
  const podeIniciarCheckout=!assinaturaValida && !aguardandoPagamento;
- const podeCancelar=checkoutEnabled && !recorrenciaCancelada &&
+ const podeCancelar=!googlePlayChannel && checkoutEnabled && !recorrenciaCancelada &&
    ["active","pending","past_due"].includes(subscription?.status) &&
    !!subscription?.asaas_subscription_id;
  const status=recorrenciaCancelada
@@ -296,7 +300,8 @@ function Account(){
     <span className="eyebrow">ASSINATURA SHALOM</span>
     <h2>Leitura sem distrações.</h2>
     <p>Acesso à biblioteca, PDF e EPUB, destaques, notas e referências bíblicas.</p>
-    <div className="plan-price">R$ 5,99 <small>/mês</small></div>
+    <div className="plan-price">{googlePlayChannel?"Google Play":<>R$ 5,99 <small>/mês</small></>}</div>
+    {googlePlayChannel&&<div className="shalom-plan-awaiting" role="status">A integração do Google Play Billing está em preparação. Nenhum Pix ou checkout Asaas é oferecido nesta versão Android. Acesso já existente continua sujeito à verificação da assinatura no servidor.</div>}
     <p className={assinaturaValida?"plan-state shalom-plan-status-active":"plan-state"}>Status: {status}</p>
     {checkoutEnabled && subscription?.asaas_ambiente==="sandbox" && subscription?.ultimo_pagamento_id && (
       <section className="shalom-plan-awaiting" aria-label="Diagnóstico do Asaas Sandbox">
@@ -338,7 +343,7 @@ function Account(){
       <label>CPF ou CNPJ<input inputMode="numeric" type="text" autoComplete="off" value={document} maxLength={18} onChange={e=>setDocument(formatarDocumento(e.target.value))} required placeholder="000.000.000-00" aria-label="CPF ou CNPJ"/></label>
       <button type="submit" className="button-main" disabled={busy}>{busy?"Preparando Pix de teste...":"Gerar Pix de teste"} <ArrowRight size={17}/></button>
     </form>}
-    {podeIniciarCheckout&&!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
+    {!googlePlayChannel&&podeIniciarCheckout&&!showCheckout&&<button className="button-main" onClick={pay} disabled={busy}>
        {checkoutEnabled?(subscription?.status==="canceled"||subscription?.status==="past_due"||subscription?.status==="active"?"Renovar assinatura · Pix teste":"Testar assinatura Pix"):"Assinar com Pix"} <ArrowRight size={17}/>
      </button>}
     {checkoutEnabled && subscription?.status==="pending" && subscription?.ultimo_pagamento_id && <>
@@ -355,7 +360,7 @@ function Account(){
         <button type="button" className="shalom-pix-status" onClick={loadSubscription}>Atualizar status da assinatura</button>
       </section>
     </>}
-    {(paymentLink||subscription?.pagamento_url)&&subscription?.status!=="active"&&
+    {!googlePlayChannel&&(paymentLink||subscription?.pagamento_url)&&subscription?.status!=="active"&&
       <a href={paymentLink||subscription?.pagamento_url} target="_blank" rel="noopener noreferrer" className="button-outline shalom-payment-link">Abrir cobrança no Asaas Sandbox <ExternalLink size={16}/></a>}
     {payError&&<div role="status" className="form-info">{payError}</div>}
     {podeCancelar&&<section className="shalom-cancel-section" aria-label="Gerenciar assinatura">
@@ -371,7 +376,7 @@ function Account(){
       {cancelError&&<p role="alert" className="shalom-cancel-error">{cancelError}</p>}
     </section>}
     {cancelNotice&&<p role="status" className="shalom-cancel-success">{cancelNotice}</p>}
-    {!assinaturaValida&&<p className="shalom-payment-note">Pix mensal convencional: uma nova cobrança é gerada a cada mês e o usuário realiza o pagamento. Para débito automático é necessária autorização específica de Pix Automático.</p>}
+    {!googlePlayChannel&&!assinaturaValida&&<p className="shalom-payment-note">Pix mensal convencional: uma nova cobrança é gerada a cada mês e o usuário realiza o pagamento. Para débito automático é necessária autorização específica de Pix Automático.</p>}
    </div>
    <button onClick={signout} className="signout"><LogOut size={19}/> Sair da conta</button>
   </main><BottomNav/>
@@ -387,10 +392,10 @@ function PremiumReader(){
   <h2>{simulado?"Leitura bloqueada no teste.":"Continue de onde parou."}</h2>
   <p>{simulado
     ?"Esta tela reproduz o vencimento sem alterar sua assinatura real. Seus livros e suas anotações continuam salvos."
-    :<>Seu período de acesso terminou. Renove por <strong>R$ 5,99/mês</strong> para abrir seus livros, referências e anotações.</>}</p>
+    :googlePlayChannel?<>Seu período de acesso terminou. Novas assinaturas pelo Google Play ainda não estão disponíveis nesta versão de preparação.</>:<>Seu período de acesso terminou. Renove por <strong>R$ 5,99/mês</strong> para abrir seus livros, referências e anotações.</>}</p>
   {simulado
     ?<button className="button-main" onClick={sairDaSimulacao}>Voltar ao acesso normal <ArrowRight size={16}/></button>
-    :<button className="button-main" onClick={()=>navigate("/conta")}>Renovar assinatura <ArrowRight size={16}/></button>}
+    :<button className="button-main" onClick={()=>navigate("/conta")}>{googlePlayChannel?"Ver minha assinatura":"Renovar assinatura"} <ArrowRight size={16}/></button>}
   <button className="button-outline" onClick={()=>navigate("/estante")}>Ver minha estante</button>
  </div>;
  return <Suspense fallback={<div className="shalom-loading">Abrindo seu livro...</div>}><Reader/></Suspense>;
