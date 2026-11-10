@@ -179,7 +179,7 @@ function validarReferencia(
     if (
         !codigo ||
         !referencia?.capitulo ||
-        !referencia?.versiculoInicio
+        (!referencia?.capituloCompleto && !referencia?.versiculoInicio)
     ) {
         throw new Error(
             "Referência bíblica inválida.",
@@ -234,7 +234,9 @@ async function buscarNoBanco(
                 referencia.capitulo,
             );
 
-    if (
+    if (referencia.capituloCompleto) {
+        // Sem filtro por versículo: referências como "Atos 2" abrem o capítulo todo.
+    } else if (
         referencia.versiculoFim
     ) {
         query =
