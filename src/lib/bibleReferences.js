@@ -142,17 +142,13 @@ const LIVROS = [
     { nome: "Apocalipse", api: "Revelation", aliases: ["Apocalipse", "Ap"] },
 ];
 
+
 function normalizar(valor) {
-    return valor
-        .normalize("NFD")
-        .replace(/\p{Diacritic}/gu, "")
-        .toLowerCase()
-        .replace(/\./g, "")
-        .replace(/\s+/g, "");
+    return valor.normalize("NFD").replace(/\p{Diacritic}/gu, "")
+        .toLowerCase().replace(/\./g, "").replace(/\s+/g, "");
 }
 
 const livroPorAlias = new Map();
-
 for (const livro of LIVROS) {
     for (const alias of livro.aliases) {
         livroPorAlias.set(normalizar(alias), livro);
@@ -160,383 +156,151 @@ for (const livro of LIVROS) {
 }
 
 function escaparRegex(valor) {
-    return valor
-        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-        .replace(/\s+/g, "\\s*");
+    return valor.replace(/[[\]{}()*+?.\\^$|]/g, "\\$&");
 }
 
-const aliasesRegex = LIVROS
-    .flatMap((livro) => livro.aliases)
+// Aceita PDF com espaçamento entre letras, como "C O R Í N T I O S".
+const aliasesRegex = LIVROS.flatMap((livro) => livro.aliases)
     .sort((a, b) => b.length - a.length)
-    .map(escaparRegex)
+    .map((alias) => Array.from(alias.replace(/\s+/g, ""))
+        .map(escaparRegex).join("\\s*"))
     .join("|");
 
+// Aceita "1 2 : 4 – 1 1" como "12:4-11".
+const numeroFlex = "\\d(?:\\s*\\d){0,2}";
+const parteVersiculos = "\\s*[:.]\\s*(" + numeroFlex + ")" +
+    "(?:\\s*[-–—]\\s*(" + numeroFlex + "))?" +
+    "((?:\\s*,\\s*" + numeroFlex + "(?:\\s*[-–—]\\s*" + numeroFlex + ")?)*)";
+
 const referenciaRegex = new RegExp(
-    `(^|[^\\p{L}\\p{N}])` +
-    `(${aliasesRegex})` +
-    `\\.?\\s*` +
-    `(\\d{1,3})` +
-    `\\s*[:.]\\s*` +
-    `(\\d{1,3})` +
-    `(?:\\s*[-–—]\\s*(\\d{1,3}))?` +
-    `((?:\\s*,\\s*\\d{1,3})*)`,
-    "giu",
+    "(^|[^\\p{L}\\p{N}])(" + aliasesRegex + ")\\.?\\s*" +
+    "(" + numeroFlex + ")(?:" + parteVersiculos + ")?", "giu",
+);
+const continuacaoRegex = new RegExp(
+    "^\\s*[;·]\\s*(" + numeroFlex + ")" + parteVersiculos, "u",
+);
+const continuacaoInicialRegex = new RegExp(
+    "^\\s*(" + numeroFlex + ")" + parteVersiculos, "u",
 );
 
-const continuacaoReferenciaRegex =
-    /^\s*;\s*(\d{1,3})\s*[:.]\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?((?:\s*,\s*\d{1,3})*)/u;
+function numero(valor) {
+    return Number((valor ?? "").replace(/\s+/g, ""));
+}
+
+function listaExtras(valor) {
+    return (valor ?? "").split(",").slice(1).flatMap((parte) => {
+        const [inicio, fim] = parte.trim().split(/\s*[-–—]\s*/).map(numero);
+        if (inicio < 1 || (fim && (fim < inicio || fim - inicio > 200))) {
+            return [];
+        }
+        return fim
+            ? Array.from({ length: fim - inicio + 1 }, (_, i) => inicio + i)
+            : [inicio];
+    });
+}
+
+function criarReferencia({
+    livro, capitulo, versiculoInicio = null, versiculoFim = null,
+    versiculosExtras = [], textoExtras = "", textoOriginal, indiceInicio,
+}) {
+    if (!livro || !Number.isInteger(capitulo) || capitulo < 1 ||
+        (versiculoInicio !== null && (!Number.isInteger(versiculoInicio) || versiculoInicio < 1)) ||
+        (versiculoFim !== null && versiculoFim < versiculoInicio)) {
+        return null;
+    }
+
+    const capituloCompleto = versiculoInicio === null;
+    const sufixo = versiculoFim !== null
+        ? "-" + versiculoFim
+        : versiculosExtras.length
+            ? (textoExtras.replace(/\s+/g, "").replace(/[–—]/g, "-") ||
+                "," + versiculosExtras.join(","))
+            : "";
+
+    const referencia = livro.nome + " " + capitulo +
+        (capituloCompleto ? "" : ":" + versiculoInicio + sufixo);
+    const apiReference = livro.api + " " + capitulo +
+        (capituloCompleto ? "" : ":" + versiculoInicio +
+            (versiculoFim !== null ? "-" + versiculoFim : ""));
+    const apiReferences = capituloCompleto
+        ? [apiReference]
+        : versiculoFim === null && versiculosExtras.length
+            ? [versiculoInicio, ...versiculosExtras].map(
+                (v) => livro.api + " " + capitulo + ":" + v)
+            : [apiReference];
+
+    return {
+        referencia, livro: livro.nome, livroApi: livro.api,
+        capitulo, versiculoInicio, versiculoFim, versiculosExtras,
+        capituloCompleto, apiReference, apiReferences,
+        textoOriginal, indiceInicio, indiceFim: indiceInicio + textoOriginal.length,
+    };
+}
+
+function parseContinuacao(match, livro, texto, inicio) {
+    const parteNumerica = match[0].search(/\d/);
+    const indiceInicio = inicio + Math.max(0, parteNumerica);
+    return criarReferencia({
+        livro, capitulo: numero(match[1]), versiculoInicio: numero(match[2]),
+        versiculoFim: match[3] ? numero(match[3]) : null,
+        versiculosExtras: listaExtras(match[4]), textoExtras: match[4] ?? "",
+        textoOriginal: texto.slice(indiceInicio, inicio + match[0].length),
+        indiceInicio,
+    });
+}
 
 export function extrairReferenciasBiblicas(texto = "") {
     if (!texto) return [];
-
     const referencias = [];
-    const vistos = new Set();
-
-    function adicionarReferencia({
-        livro,
-        capitulo,
-        versiculoInicio,
-        versiculoFim = null,
-        versiculosExtras = [],
-        textoOriginal,
-        indiceInicio,
-    }) {
-        if (!livro) return;
-
-        if (
-            capitulo < 1 ||
-            versiculoInicio < 1
-        ) {
-            return;
-        }
-
-        let sufixo = "";
-
-        if (versiculoFim) {
-            sufixo = `-${versiculoFim}`;
-        } else if (
-            versiculosExtras.length > 0
-        ) {
-            sufixo =
-                `,${versiculosExtras.join(",")}`;
-        }
-
-        const referencia =
-            `${livro.nome} ${capitulo}:${versiculoInicio}${sufixo}`;
-
-        const chave = normalizar(referencia);
-
-        if (vistos.has(chave)) {
-            return;
-        }
-
-        vistos.add(chave);
-
-        const apiReference =
-            `${livro.api} ${capitulo}:${versiculoInicio}${versiculoFim
-                ? `-${versiculoFim}`
-                : ""
-            }`;
-
-        const apiReferences =
-            !versiculoFim &&
-                versiculosExtras.length > 0
-                ? [
-                    versiculoInicio,
-                    ...versiculosExtras,
-                ].map(
-                    (versiculo) =>
-                        `${livro.api} ${capitulo}:${versiculo}`,
-                )
-                : [apiReference];
-
-        referencias.push({
-            referencia,
-
-            livro: livro.nome,
-            livroApi: livro.api,
-
-            capitulo,
-            versiculoInicio,
-            versiculoFim,
-            versiculosExtras,
-
-            apiReference,
-            apiReferences,
-
-            textoOriginal,
-
-            indiceInicio,
-            indiceFim:
-                indiceInicio +
-                textoOriginal.length,
-        });
-    }
-
     referenciaRegex.lastIndex = 0;
 
     let match;
+    while ((match = referenciaRegex.exec(texto)) !== null) {
+        const livro = livroPorAlias.get(normalizar(match[2]));
+        if (!livro) continue;
 
-    while (
-        (match =
-            referenciaRegex.exec(texto)) !==
-        null
-    ) {
-        const prefixo = match[1] ?? "";
-        const alias = match[2];
-
-        const livro = livroPorAlias.get(
-            normalizar(alias),
-        );
-
-        if (!livro) {
-            continue;
-        }
-
-        const capitulo =
-            Number(match[3]);
-
-        const versiculoInicio =
-            Number(match[4]);
-
-        const versiculoFim =
-            match[5]
-                ? Number(match[5])
-                : null;
-
-        const versiculosExtras = (
-            match[6]?.match(/\d{1,3}/g) ?? []
-        ).map(Number);
-
-        const indiceInicio =
-            match.index +
-            prefixo.length;
-
-        const textoOriginal =
-            match[0].slice(
-                prefixo.length,
-            );
-
-        adicionarReferencia({
-            livro,
-            capitulo,
-            versiculoInicio,
-            versiculoFim,
-            versiculosExtras,
-            textoOriginal,
-            indiceInicio,
+        const indiceInicio = match.index + (match[1]?.length ?? 0);
+        const textoOriginal = match[0].slice(match[1]?.length ?? 0);
+        const ref = criarReferencia({
+            livro, capitulo: numero(match[3]),
+            versiculoInicio: match[4] ? numero(match[4]) : null,
+            versiculoFim: match[5] ? numero(match[5]) : null,
+            versiculosExtras: listaExtras(match[6]),
+            textoExtras: match[6] ?? "", textoOriginal, indiceInicio,
         });
+        if (ref) referencias.push(ref);
 
-        /*
-         * Depois de uma referência explícita,
-         * procuramos continuações que omitem
-         * o livro.
-         *
-         * Exemplo:
-         *
-         * Jo 3.3; 20.22; 15.5
-         *
-         * vira:
-         *
-         * João 3:3
-         * João 20:22
-         * João 15:5
-         */
-
-        let cursor =
-            match.index +
-            match[0].length;
-
+        // "1 Coríntios 1:11 · 14:26–33" ou "Jo 3:3; 20:22".
+        let cursor = referenciaRegex.lastIndex;
         while (cursor < texto.length) {
-            const restante =
-                texto.slice(cursor);
-
-            const continuacao =
-                restante.match(
-                    continuacaoReferenciaRegex,
-                );
-
-            if (!continuacao) {
-                break;
-            }
-
-            const capituloContinuacao =
-                Number(continuacao[1]);
-
-            const versiculoContinuacao =
-                Number(continuacao[2]);
-
-            const fimContinuacao =
-                continuacao[3]
-                    ? Number(continuacao[3])
-                    : null;
-
-            const extrasContinuacao = (
-                continuacao[4]?.match(
-                    /\d{1,3}/g,
-                ) ?? []
-            ).map(Number);
-
-            const prefixoContinuacao =
-                continuacao[0].match(
-                    /^\s*;\s*/,
-                )?.[0] ?? "";
-
-            const textoReferencia =
-                continuacao[0].slice(
-                    prefixoContinuacao.length,
-                );
-
-            const inicioContinuacao =
-                cursor +
-                prefixoContinuacao.length;
-
-            adicionarReferencia({
-                livro,
-
-                capitulo:
-                    capituloContinuacao,
-
-                versiculoInicio:
-                    versiculoContinuacao,
-
-                versiculoFim:
-                    fimContinuacao,
-
-                versiculosExtras:
-                    extrasContinuacao,
-
-                textoOriginal:
-                    textoReferencia,
-
-                indiceInicio:
-                    inicioContinuacao,
-            });
-
-            cursor +=
-                continuacao[0].length;
+            const continuacao = texto.slice(cursor).match(continuacaoRegex);
+            if (!continuacao) break;
+            const herdada = parseContinuacao(continuacao, livro, texto, cursor);
+            if (herdada) referencias.push(herdada);
+            cursor += continuacao[0].length;
         }
-
-        /*
-         * Faz o regex principal continuar depois
-         * das referências herdadas.
-         */
-        referenciaRegex.lastIndex =
-            Math.max(
-                referenciaRegex.lastIndex,
-                cursor,
-            );
+        referenciaRegex.lastIndex = cursor;
     }
-
     return referencias;
 }
 
-export function extrairContinuacoesBiblicas(
-    texto = "",
-    contexto = null,
-) {
-    if (
-        !texto ||
-        !contexto?.livro ||
-        !contexto?.livroApi
-    ) {
-        return [];
-    }
+export function extrairContinuacoesBiblicas(texto = "", contexto = null) {
+    if (!texto || !contexto?.livro || !contexto?.livroApi) return [];
 
+    const livro = { nome: contexto.livro, api: contexto.livroApi };
     const referencias = [];
-
     let cursor = 0;
     let primeira = true;
 
     while (cursor < texto.length) {
-        const restante = texto.slice(cursor);
-
-        const regex = primeira
-            ? /^\s*(\d{1,3})\s*[:.]\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?((?:\s*,\s*\d{1,3})*)/u
-            : /^\s*;\s*(\d{1,3})\s*[:.]\s*(\d{1,3})(?:\s*[-–—]\s*(\d{1,3}))?((?:\s*,\s*\d{1,3})*)/u;
-
-        const match = restante.match(regex);
-
+        const match = texto.slice(cursor).match(
+            primeira ? continuacaoInicialRegex : continuacaoRegex,
+        );
         if (!match) break;
-
-        const capitulo = Number(match[1]);
-        const versiculoInicio = Number(match[2]);
-
-        const versiculoFim = match[3]
-            ? Number(match[3])
-            : null;
-
-        const versiculosExtras = (
-            match[4]?.match(/\d{1,3}/g) ?? []
-        ).map(Number);
-
-        const primeiroDigito =
-            match[0].search(/\d/);
-
-        const indiceInicio =
-            cursor +
-            Math.max(primeiroDigito, 0);
-
-        const textoOriginal =
-            match[0].slice(
-                Math.max(primeiroDigito, 0),
-            );
-
-        let sufixo = "";
-
-        if (versiculoFim) {
-            sufixo = `-${versiculoFim}`;
-        } else if (versiculosExtras.length) {
-            sufixo =
-                `,${versiculosExtras.join(",")}`;
-        }
-
-        const referencia =
-            `${contexto.livro} ${capitulo}:${versiculoInicio}${sufixo}`;
-
-        const apiReference =
-            `${contexto.livroApi} ${capitulo}:${versiculoInicio}${versiculoFim
-                ? `-${versiculoFim}`
-                : ""
-            }`;
-
-        const apiReferences =
-            !versiculoFim &&
-                versiculosExtras.length
-                ? [
-                    versiculoInicio,
-                    ...versiculosExtras,
-                ].map(
-                    (versiculo) =>
-                        `${contexto.livroApi} ${capitulo}:${versiculo}`,
-                )
-                : [apiReference];
-
-        referencias.push({
-            referencia,
-
-            livro: contexto.livro,
-            livroApi: contexto.livroApi,
-
-            capitulo,
-            versiculoInicio,
-            versiculoFim,
-            versiculosExtras,
-
-            apiReference,
-            apiReferences,
-
-            textoOriginal,
-
-            indiceInicio,
-            indiceFim:
-                indiceInicio +
-                textoOriginal.length,
-        });
-
+        const referencia = parseContinuacao(match, livro, texto, cursor);
+        if (referencia) referencias.push(referencia);
         cursor += match[0].length;
         primeira = false;
     }
-
     return referencias;
 }
