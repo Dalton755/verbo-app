@@ -27,8 +27,9 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../contexts/AuthContext";
 import {
     extrairReferenciasBiblicas,
-    extrairContinuacoesBiblicas,
 } from "../lib/bibleReferences";
+
+import { criarHotspotsBiblicosPdf } from "../lib/pdfBibleHotspots";
 
 import BiblePassageModal
     from "../components/BiblePassageModal";
@@ -432,10 +433,6 @@ function ApresentacaoPage() {
                             item.str.trim(),
                     );
 
-                const textoPagina = itensTexto
-                    .map((item) => item.str)
-                    .join(" ");
-
                 const camadaTexto =
                     itensTexto.map(
                         (
@@ -511,185 +508,18 @@ function ApresentacaoPage() {
                     camadaTexto,
                 );
 
-                const referenciasEncontradas =
-                    extrairReferenciasBiblicas(
-                        textoPagina,
-                    );
+                // Reconhece referências com letras espaçadas e permite
+                // clicar também quando o PDF.js separa o texto em fragmentos.
+                const { referencias, hotspots } =
+                    criarHotspotsBiblicosPdf({
+                        itensTexto,
+                        viewport,
+                        numeroPagina,
+                        transformar: pdfjsLib.Util.transform,
+                    });
 
-                const hotspotsEncontrados = [];
-
-                let contextoContinuacao = null;
-                let permiteContinuacao = false;
-
-                for (const item of itensTexto) {
-                    let referenciasDoItem =
-                        extrairReferenciasBiblicas(
-                            item.str,
-                        );
-
-                    /*
-                     * Exemplo que queremos entender:
-                     *
-                     * Jo 3.3; 20.22;
-                     * 15.5; 2Co 5.17
-                     *
-                     * Se o bloco anterior terminar com ";",
-                     * o próximo bloco pode herdar o livro.
-                     */
-                    if (
-                        permiteContinuacao &&
-                        contextoContinuacao
-                    ) {
-                        const herdadas =
-                            extrairContinuacoesBiblicas(
-                                item.str,
-                                contextoContinuacao,
-                            );
-
-                        referenciasDoItem = [
-                            ...referenciasDoItem,
-                            ...herdadas,
-                        ];
-                    }
-
-                    referenciasDoItem.sort(
-                        (a, b) =>
-                            (a.indiceInicio ?? 0) -
-                            (b.indiceInicio ?? 0),
-                    );
-
-                    if (referenciasDoItem.length > 0) {
-                        const transform =
-                            pdfjsLib.Util.transform(
-                                viewport.transform,
-                                item.transform,
-                            );
-
-                        const alturaFonte = Math.max(
-                            Math.hypot(
-                                transform[2],
-                                transform[3],
-                            ),
-                            14,
-                        );
-
-                        const larguraTotal = Math.max(
-                            item.width * escala,
-                            24,
-                        );
-
-                        const textoItem = item.str;
-
-                        const totalCaracteres =
-                            Math.max(
-                                textoItem.length,
-                                1,
-                            );
-
-                        for (
-                            let indice = 0;
-                            indice < referenciasDoItem.length;
-                            indice += 1
-                        ) {
-                            const referencia =
-                                referenciasDoItem[indice];
-
-                            const inicio = Math.max(
-                                referencia.indiceInicio ?? 0,
-                                0,
-                            );
-
-                            const fim = Math.min(
-                                referencia.indiceFim ??
-                                totalCaracteres,
-                                totalCaracteres,
-                            );
-
-                            const proporcaoInicio =
-                                inicio / totalCaracteres;
-
-                            const proporcaoLargura =
-                                Math.max(
-                                    fim - inicio,
-                                    1,
-                                ) / totalCaracteres;
-
-                            const deslocamentoX =
-                                larguraTotal *
-                                proporcaoInicio;
-
-                            const larguraReferencia =
-                                larguraTotal *
-                                proporcaoLargura;
-
-                            hotspotsEncontrados.push({
-                                ...referencia,
-
-                                id:
-                                    `${numeroPagina}-` +
-                                    `${item.str}-` +
-                                    `${inicio}-` +
-                                    `${indice}`,
-
-                                left:
-                                    transform[4] +
-                                    deslocamentoX -
-                                    3,
-
-                                top:
-                                    transform[5] -
-                                    alturaFonte -
-                                    2,
-
-                                width: Math.max(
-                                    larguraReferencia + 6,
-                                    22,
-                                ),
-
-                                height:
-                                    alturaFonte + 4,
-                            });
-                        }
-                    }
-
-                    /*
-                     * Só permite herança entre blocos quando
-                     * o texto anterior terminou com ";".
-                     */
-                    const terminaComPontoEVirgula =
-                        /;\s*$/.test(item.str);
-
-                    if (
-                        terminaComPontoEVirgula &&
-                        referenciasDoItem.length > 0
-                    ) {
-                        const ultimaReferencia =
-                            referenciasDoItem[
-                            referenciasDoItem.length - 1
-                            ];
-
-                        contextoContinuacao = {
-                            livro:
-                                ultimaReferencia.livro,
-
-                            livroApi:
-                                ultimaReferencia.livroApi,
-                        };
-
-                        permiteContinuacao = true;
-                    } else {
-                        contextoContinuacao = null;
-                        permiteContinuacao = false;
-                    }
-                }
-
-                setReferenciasPagina(
-                    referenciasEncontradas,
-                );
-
-                setHotspotsBiblicos(
-                    hotspotsEncontrados,
-                );
+                setReferenciasPagina(referencias);
+                setHotspotsBiblicos(hotspots);
 
                 const canvas = canvasRef.current;
 
