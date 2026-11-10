@@ -1,4 +1,4 @@
-import { extrairReferenciasBiblicas } from "./bibleReferences";
+import { extrairReferenciasBiblicas } from "./bibleReferences.js";
 
 // Agrupa itens do PDF.js por linha e mapeia a parte clicável aos fragmentos
 // reais da página. Um livro e seus números podem estar em itens separados.
